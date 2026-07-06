@@ -96,15 +96,13 @@ const radiusTokens = [
   { label: "pill — 50px", value: "50px" },
 ];
 
-const badges = [
-  { label: "Pendiente", bg: "var(--orange-status-light)", text: "var(--orange-status)", border: "var(--orange-status)" },
-  { label: "Registrado", bg: "var(--navy-light)", text: "var(--navy)", border: "var(--navy)" },
-  { label: "Buscado", bg: "var(--red-status-light)", text: "var(--red-status)", border: "var(--red-status)" },
-  { label: "Enviado", bg: "var(--green-status-light)", text: "var(--green-status)", border: "var(--green-status)" },
-  { label: "Sin publicar", bg: "var(--gray-4)", text: "var(--gray-9)", border: "var(--gray-5)" },
-  { label: "Activo", bg: "var(--green-status-light)", text: "var(--green-status)", border: "var(--green-status)" },
-  { label: "Rechazado", bg: "var(--red-status-light)", text: "var(--red-status)", border: "var(--red-status)" },
-  { label: "Firma Contrato", bg: "var(--navy-light)", text: "var(--navy)", border: "var(--navy)" },
+const badges: { label: string; variant: "draft" | "pending" | "registered" | "active" | "rejected" | "neutral" }[] = [
+  { label: "Borrador", variant: "draft" },
+  { label: "En elaboración", variant: "pending" },
+  { label: "Asignado", variant: "registered" },
+  { label: "En ejecucion", variant: "active" },
+  { label: "Rechazado", variant: "rejected" },
+  { label: "Sin publicar", variant: "neutral" },
 ];
 
 const icons = [
@@ -247,12 +245,7 @@ export function Atoms() {
       <div>
         <SectionTitle>Badges / Estados</SectionTitle>
         <div className="flex gap-3 flex-wrap">
-          {badges.map(({ label, bg, text, border }) => (
-            <span key={label} className="tags px-3 py-1 rounded-full border" style={{ backgroundColor: bg, color: text, borderColor: border }}>
-              {label}
-            </span>
-          ))}
-          <StatusBadge label="Borrador" variant="draft" />
+          {badges.map(({ label, variant }) => <StatusBadge key={variant} label={label} variant={variant} />)}
         </div>
         <p className="body-small-regular mt-4" style={{ color: "var(--gray-9)" }}>
           Componente: <span className="tags" style={{ color: "var(--gray-8)" }}>kit/StatusBadge</span> — variantes: draft (sólido), pending, registered, active, rejected, neutral.

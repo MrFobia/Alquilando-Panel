@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Filter, ChevronDown, Eye, MessageCircle } from "lucide-react";
+import { Eye, MessageCircle, Home, Building2, LayoutGrid, List } from "lucide-react";
 import { Stepper } from "../Stepper";
 import { DocumentCard } from "../DocumentCard";
 import { FileDropzone } from "../FileDropzone";
@@ -12,33 +12,18 @@ import { Accordion } from "../Accordion";
 import { Callout } from "../Callout";
 import { Pagination } from "../Pagination";
 import { ToggleSwitch } from "../ToggleSwitch";
+import { TextInput } from "../TextInput";
+import { SelectInput } from "../SelectInput";
+import { IconButton } from "../IconButton";
+import { SegmentedControl } from "../SegmentedControl";
+import { MonthRangePicker } from "../MonthRangePicker";
+import { StatCard } from "../StatCard";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="title-tertiary-bold mb-6 pb-2 border-b" style={{ color: "var(--navy)", borderColor: "var(--gray-5)" }}>{children}</h3>;
 }
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return <div className="mb-10"><p className="body-bold mb-4" style={{ color: "var(--gray-9)" }}>{title}</p>{children}</div>;
-}
-
-function MiniStatCard({ value, label, sub }: { value: string; label: string; sub?: string }) {
-  return (
-    <div className="p-4 rounded-lg border flex flex-col gap-1" style={{ borderColor: "var(--gray-5)", backgroundColor: "#ffffff" }}>
-      <p className="tags" style={{ color: "var(--gray-9)" }}>{label}</p>
-      <p className="title-primary-bold" style={{ color: "var(--navy)" }}>{value}</p>
-      {sub && <p className="disclamer" style={{ color: "var(--gray-8)" }}>{sub}</p>}
-    </div>
-  );
-}
-
-function DataRow({ label, value, link }: { label: string; value: string; link?: boolean }) {
-  return (
-    <div className="flex justify-between items-center py-2 border-b" style={{ borderColor: "var(--gray-4)" }}>
-      <span className="body-regular" style={{ color: "var(--gray-9)" }}>{label}</span>
-      {link
-        ? <span className="body-regular" style={{ color: "var(--navy)", textDecoration: "underline", cursor: "pointer" }}>{value}</span>
-        : <span className="body-regular" style={{ color: "var(--gray-10)" }}>{value}</span>}
-    </div>
-  );
 }
 
 function PaginationDemo({ totalPages }: { totalPages: number }) {
@@ -62,9 +47,9 @@ function TabBarDemo() {
   return (
     <TabBar
       tabs={[
-        { id: "inclusiones", label: "Inclusiones", count: 800 },
-        { id: "comercializacion", label: "Comercialización", count: 1293 },
-        { id: "captacion-portal", label: "Captación portal", count: 90 },
+        { id: "inclusiones", label: "Inclusiones", count: 4 },
+        { id: "comercializacion", label: "Comercialización", count: 213 },
+        { id: "captacion-portal", label: "Captaciones portal", count: 0 },
       ]}
       active={active}
       onChange={setActive}
@@ -74,55 +59,35 @@ function TabBarDemo() {
 
 function ProgressSteps() {
   const steps = [
-    { id: "registrado", label: "Registrado" },
-    { id: "docs", label: "Validación Docs" },
-    { id: "antecedentes", label: "Antecedentes" },
-    { id: "firma", label: "Firma Contrato" },
-    { id: "capacitacion", label: "Capacitación" },
+    { id: "inmueble", label: "Inmueble" },
+    { id: "propietario", label: "Propietario" },
+    { id: "inquilino", label: "Inquilino" },
+    { id: "condiciones", label: "Condiciones" },
+    { id: "documentos", label: "Documentos" },
   ];
   return <Stepper steps={steps} current={1} />;
 }
 
-function SearchBar() {
+function SegmentedControlDemo() {
+  const [value, setValue] = useState<"vivienda" | "comercio">("vivienda");
   return (
-    <div className="flex gap-2 items-center">
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border flex-1" style={{ borderColor: "var(--gray-5)", backgroundColor: "#ffffff" }}>
-        <Search size={16} style={{ color: "var(--gray-7)" }} />
-        <input className="body-regular outline-none flex-1 bg-transparent" style={{ color: "var(--gray-10)" }} placeholder="Buscar..." />
-      </div>
-      <button className="flex items-center gap-2 px-3 py-2 rounded-lg border body-regular" style={{ borderColor: "var(--gray-5)", color: "var(--gray-9)", backgroundColor: "#ffffff" }}>
-        <Filter size={16} />Filtrar
-      </button>
-    </div>
+    <SegmentedControl
+      value={value}
+      onChange={setValue}
+      options={[
+        { value: "vivienda", label: "Vivienda", icon: Home },
+        { value: "comercio", label: "Comercio", icon: Building2 },
+      ]}
+    />
   );
 }
 
-function StarRating({ value = 4 }: { value?: number }) {
+function ViewToggleDemo() {
+  const [view, setView] = useState<"list" | "grid">("list");
   return (
-    <div className="flex gap-1">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <svg key={i} width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <path d="M9 1.5L11.1 6.3L16.5 6.93L12.5 10.59L13.7 16L9 13.13L4.3 16L5.5 10.59L1.5 6.93L6.9 6.3L9 1.5Z" fill={i < value ? "#FFC107" : "var(--gray-5)"} />
-        </svg>
-      ))}
-    </div>
-  );
-}
-
-function SelectField({ placeholder = "Selecciona" }: { placeholder?: string }) {
-  return (
-    <div className="flex items-center justify-between px-3 py-2 rounded-lg border cursor-pointer" style={{ borderColor: "var(--gray-5)", backgroundColor: "#ffffff", minWidth: 160 }}>
-      <span className="body-regular" style={{ color: "var(--gray-8)" }}>{placeholder}</span>
-      <ChevronDown size={16} style={{ color: "var(--gray-7)" }} />
-    </div>
-  );
-}
-
-function ActionIconRow() {
-  return (
-    <div className="flex items-center gap-3">
-      <button className="p-2 rounded border" style={{ borderColor: "var(--gray-5)" }} title="Ver detalle"><Eye size={16} style={{ color: "var(--navy)" }} /></button>
-      <button className="p-2 rounded border" style={{ borderColor: "var(--gray-5)" }} title="Enviar WhatsApp"><MessageCircle size={16} style={{ color: "#25D366" }} /></button>
+    <div className="flex items-center gap-1">
+      <IconButton icon={LayoutGrid} title="Vista de tarjetas" active={view === "grid"} onClick={() => setView("grid")} />
+      <IconButton icon={List} title="Vista de lista" active={view === "list"} onClick={() => setView("list")} />
     </div>
   );
 }
@@ -132,14 +97,15 @@ export function Molecules() {
     <div className="space-y-16">
       {/* Buttons */}
       <div>
-        <SectionTitle>Botones</SectionTitle>
-        <Block title="Variantes de botón">
+        <SectionTitle>Botones (AppButton)</SectionTitle>
+        <Block title="Variantes">
           <div className="flex gap-4 flex-wrap items-center">
             {[
               [<AppButton variant="primary">Publicar inmueble</AppButton>, "Primary"],
               [<AppButton variant="secondary">No aprobar</AppButton>, "Secondary"],
               [<AppButton variant="accent">Captar inmueble</AppButton>, "Accent (Cyan)"],
               [<AppButton variant="danger">Rechazar perfil</AppButton>, "Danger"],
+              [<AppButton variant="ghost">Filtrar</AppButton>, "Ghost"],
               [<AppButton disabled>Sin publicar</AppButton>, "Disabled"],
             ].map(([btn, lbl], i) => (
               <div key={i} className="flex flex-col items-center gap-2">
@@ -154,59 +120,71 @@ export function Molecules() {
       {/* Inputs */}
       <div>
         <SectionTitle>Campos de entrada</SectionTitle>
-        <Block title="Text input">
+        <Block title="Text input (TextInput)">
           <div className="grid grid-cols-2 gap-4 max-w-xl">
-            {[
-              { label: "Normal", border: "var(--gray-5)", placeholder: "Nombre del propietario", defaultValue: undefined, disabled: false, error: false },
-              { label: "Con valor", border: "var(--navy)", placeholder: undefined, defaultValue: "Andrés Camargo", disabled: false, error: false },
-              { label: "Error", border: "var(--destructive)", placeholder: undefined, defaultValue: "correo@invalido", disabled: false, error: true },
-              { label: "Deshabilitado", border: "var(--gray-4)", placeholder: undefined, defaultValue: "Sin plan seleccionado", disabled: true, error: false },
-            ].map(({ label, border, placeholder, defaultValue, disabled, error }) => (
-              <div key={label}>
-                <p className="tags mb-1" style={{ color: "var(--gray-9)" }}>{label}</p>
-                <div className="flex items-center px-3 py-2 rounded-lg border" style={{ borderColor: border, backgroundColor: disabled ? "var(--gray-1)" : undefined }}>
-                  <input className="body-regular outline-none w-full bg-transparent" style={{ color: disabled ? "var(--gray-7)" : "var(--gray-10)" }} placeholder={placeholder} defaultValue={defaultValue} disabled={disabled} />
-                </div>
-                {error && <p className="disclamer mt-1" style={{ color: "var(--destructive)" }}>Correo inválido</p>}
-              </div>
-            ))}
+            <div>
+              <p className="tags mb-1" style={{ color: "var(--gray-9)" }}>Normal</p>
+              <TextInput placeholder="Nombre del propietario" className="w-full" />
+            </div>
+            <div>
+              <p className="tags mb-1" style={{ color: "var(--gray-9)" }}>Con valor + limpiar</p>
+              <TextInput value="Andrés Camargo" onChange={() => {}} onClear={() => {}} className="w-full" />
+            </div>
+            <div>
+              <p className="tags mb-1" style={{ color: "var(--gray-9)" }}>Deshabilitado</p>
+              <TextInput value="Sin plan seleccionado" disabled className="w-full" />
+            </div>
+            <div>
+              <p className="tags mb-1" style={{ color: "var(--gray-9)" }}>Con error de validación</p>
+              <TextInput value="" placeholder="Escriba aquí" className="w-full" />
+              <p className="body-small-regular mt-1" style={{ color: "var(--destructive)" }}>Este campo es obligatorio</p>
+            </div>
           </div>
         </Block>
-        <Block title="Buscador + Filtro"><div className="max-w-md"><SearchBar /></div></Block>
-        <Block title="Select / Dropdown">
+        <Block title="Select / Dropdown (SelectInput)">
           <div className="flex gap-4 flex-wrap">
-            <SelectField placeholder="Selecciona zona" />
-            <SelectField placeholder="Tipo de inmueble" />
+            <SelectInput placeholder="Selecciona zona" options={[{ value: "norte", label: "Norte" }, { value: "sur", label: "Sur" }]} />
+            <SelectInput placeholder="Tipo de inmueble" options={[{ value: "apto", label: "Apartamento" }, { value: "casa", label: "Casa" }]} />
           </div>
+        </Block>
+        <Block title="Selector segmentado (SegmentedControl)">
+          <SegmentedControlDemo />
+        </Block>
+        <Block title="Selector de rango de meses (MonthRangePicker)">
+          <MonthRangePicker />
         </Block>
       </div>
 
-      {/* Stat cards */}
+      {/* StatCard */}
       <div>
-        <SectionTitle>Tarjeta de estadística</SectionTitle>
-        <div className="grid grid-cols-4 gap-4 max-w-2xl">
-          <MiniStatCard value="23" label="Disponibles en arriendo" />
-          <MiniStatCard value="842" label="Brokers activos" />
-          <MiniStatCard value="156" label="Contratos mes actual" />
-          <MiniStatCard value="34" label="Inactivos / Rechazados" />
+        <SectionTitle>Tarjeta de estadísticas (StatCard)</SectionTitle>
+        <div className="max-w-md">
+          <StatCard
+            title="Portafolio Actual"
+            rows={[
+              { label: "Número de contratos activos", value: "1578" },
+              { label: "Nuevos contratos", value: "0 / Contratos", onClick: () => {} },
+              { label: "Inm. portafolio comercialización", value: "164" },
+            ]}
+          />
         </div>
+        <p className="body-small-regular mt-4" style={{ color: "var(--gray-9)" }}>
+          Filas con <span className="tags" style={{ color: "var(--gray-8)" }}>onClick</span> se muestran como LinkText bold con chevron (usado en Inicio).
+        </p>
       </div>
 
-      {/* Data rows */}
+      {/* Info field */}
       <div>
-        <SectionTitle>Fila de datos (Detail View)</SectionTitle>
-        <div className="max-w-md rounded-lg border overflow-hidden" style={{ borderColor: "var(--gray-5)" }}>
-          <DataRow label="Estado del inmueble" value="Pendiente" />
-          <DataRow label="Nombre de la inmobiliaria" value="Fonnegra Gerlein" />
-          <DataRow label="Tipo de inmueble" value="Apartamento" />
-          <DataRow label="Inquilino" value="Andrea Camargo Lozano" link />
-          <DataRow label="Canon mensual" value="$1.456.900" />
-          <DataRow label="Administración" value="$230.000" />
+        <SectionTitle>Campo informativo (InfoField)</SectionTitle>
+        <div className="grid grid-cols-3 gap-6 max-w-2xl">
+          <InfoField label="Tipo de persona" value="Natural" />
+          <InfoField label="Número del documento" value="1.234.567.890" />
+          <InfoField label="Ciudad" value="Bogotá" />
         </div>
       </div>
 
       {/* Tab bar */}
-      <div><SectionTitle>Barra de pestañas</SectionTitle><TabBarDemo /></div>
+      <div><SectionTitle>Barra de pestañas (TabBar)</SectionTitle><TabBarDemo /></div>
 
       <div>
         <SectionTitle>Paginación (Pagination)</SectionTitle>
@@ -237,11 +215,14 @@ export function Molecules() {
       <div>
         <SectionTitle>Avisos (Callout)</SectionTitle>
         <div className="flex flex-col gap-4">
-          <Callout variant="info" title="Tip">
-            Este tablero es el punto de partida recomendado cada día: permite detectar contratos próximos a vencer y solicitudes acumuladas.
+          <Callout variant="info" title="Verifica tus documentos antes de enviarlos">
+            Asegúrate de que los documentos que estás subiendo sean los correctos y cumplan con los requisitos establecidos.
           </Callout>
           <Callout variant="warning" title="Importante">
             El estado del contrato controla qué información puede modificarse. Verifica los datos bancarios antes de aprobar.
+          </Callout>
+          <Callout variant="error" title="No hay inmuebles que coincidan o cumplan con los requisitos para el contrato.">
+            Código: <strong>0000</strong>, Verifica los datos e intenta nuevamente.
           </Callout>
         </div>
       </div>
@@ -259,7 +240,7 @@ export function Molecules() {
 
       {/* Progress steps */}
       <div>
-        <SectionTitle>Pasos de progreso</SectionTitle>
+        <SectionTitle>Pasos de progreso (Stepper)</SectionTitle>
         <div className="overflow-x-auto"><ProgressSteps /></div>
       </div>
 
@@ -288,38 +269,25 @@ export function Molecules() {
         </div>
       </div>
 
-      {/* Info field */}
+      {/* Icon buttons */}
       <div>
-        <SectionTitle>Campo informativo (InfoField)</SectionTitle>
-        <div className="grid grid-cols-3 gap-6 max-w-2xl">
-          <InfoField label="Tipo de persona" value="Natural" />
-          <InfoField label="Número del documento" value="1.234.567.890" />
-          <InfoField label="Ciudad" value="Bogotá" />
-        </div>
-      </div>
-
-      {/* Star rating */}
-      <div>
-        <SectionTitle>Calificación</SectionTitle>
-        <div className="flex gap-8 items-center">
-          {[5, 4, 3].map((v) => (
-            <div key={v} className="flex flex-col gap-1">
-              <StarRating value={v} />
-              <span className="tags" style={{ color: "var(--gray-8)" }}>{v} estrellas</span>
+        <SectionTitle>Botones de icono (IconButton)</SectionTitle>
+        <div className="flex gap-8 items-center flex-wrap">
+          <div className="flex flex-col gap-2 items-center">
+            <div className="flex items-center gap-3">
+              <IconButton icon={Eye} title="Ver detalle" />
+              <IconButton icon={MessageCircle} title="Contactar por WhatsApp" />
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Action icons */}
-      <div>
-        <SectionTitle>Iconos de acción</SectionTitle>
-        <div className="flex gap-8 items-center">
-          <div className="flex flex-col gap-1 items-center">
-            <ActionIconRow />
-            <span className="tags" style={{ color: "var(--gray-8)" }}>Ver / WhatsApp</span>
+            <span className="tags" style={{ color: "var(--gray-8)" }}>Acciones en tabla (con tooltip)</span>
+          </div>
+          <div className="flex flex-col gap-2 items-center">
+            <ViewToggleDemo />
+            <span className="tags" style={{ color: "var(--gray-8)" }}>Toggle vista lista / tarjetas (estado activo)</span>
           </div>
         </div>
+        <p className="body-small-regular mt-4" style={{ color: "var(--gray-9)" }}>
+          El tooltip se renderiza en un portal (<span className="tags" style={{ color: "var(--gray-8)" }}>createPortal</span>) para no recortarse dentro de contenedores con scroll, como las tablas.
+        </p>
       </div>
     </div>
   );

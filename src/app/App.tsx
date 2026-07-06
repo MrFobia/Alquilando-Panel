@@ -72,7 +72,7 @@ export default function App() {
       <AppSidebar
         active={active}
         onSelect={goToSection}
-        onTerminos={() => setPage("styleguide")}
+        onStyleGuide={() => setPage("styleguide")}
       />
       <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
         <div className="px-4 md:px-8 py-6 max-w-[1400px] mx-auto">

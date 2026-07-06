@@ -41,6 +41,7 @@ const ZONA_OPTIONS = ["Norte", "Sur", "Occidente", "Oriente", "Centro"].map((c) 
 const ESTRATO_OPTIONS = ["1", "2", "3", "4", "5", "6"].map((c) => ({ value: c, label: c }));
 const USO_COMERCIAL_OPTIONS = ["Local", "Oficina", "Bodega", "Consultorio"].map((c) => ({ value: c, label: c }));
 const GARAJE_OPTIONS = ["Sí", "No"].map((c) => ({ value: c, label: c }));
+const CANTIDAD_OPTIONS = Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }));
 const TIPO_INMUEBLE_VIVIENDA = ["Apartamento", "Casa", "Apartaestudio"].map((c) => ({ value: c, label: c }));
 const TIPO_INMUEBLE_COMERCIO = ["Local comercial", "Oficina", "Bodega", "Consultorio"].map((c) => ({ value: c, label: c }));
 const OTROS_SERVICIOS_OPTIONS = ["Internet", "Gas natural (Bombona)", "Vigilancia", "Aseo"].map((c) => ({ value: c, label: c }));
@@ -94,14 +95,74 @@ const DOCS_COMERCIO = [
   "Permiso para el uso del suelo (Comercio)",
 ];
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, required, error, children }: { label: string; required?: boolean; error?: boolean; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>
         {label}{required && <span style={{ color: "var(--destructive)" }}> *</span>}
       </span>
       {children}
+      {error && <span className="body-small-regular" style={{ color: "var(--destructive)" }}>Este campo es obligatorio</span>}
     </label>
+  );
+}
+
+interface UnidadItem {
+  numero: string;
+  matricula: string;
+}
+
+function resizeUnidades(count: string, prev: UnidadItem[]): UnidadItem[] {
+  const n = Number(count) || 0;
+  return Array.from({ length: n }, (_, i) => prev[i] ?? { numero: "", matricula: "" });
+}
+
+function UnidadesBlock({
+  label, tiene, cantidad, items, onTiene, onCantidad, onItemChange, attempted,
+}: {
+  label: string;
+  tiene: string;
+  cantidad: string;
+  items: UnidadItem[];
+  onTiene: (v: string) => void;
+  onCantidad: (v: string) => void;
+  onItemChange: (i: number, patch: Partial<UnidadItem>) => void;
+  attempted: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-4 max-lg:grid-cols-1">
+        <Field label={label} required error={attempted && !tiene}>
+          <SelectInput options={GARAJE_OPTIONS} value={tiene} onChange={onTiene} className="w-full" />
+        </Field>
+        {tiene === "Sí" && (
+          <Field label={`No de ${label.toLowerCase()}s`} required error={attempted && !cantidad}>
+            <SelectInput options={CANTIDAD_OPTIONS} value={cantidad} onChange={onCantidad} className="w-full" />
+          </Field>
+        )}
+      </div>
+
+      {tiene === "Sí" && items.map((item, i) => (
+        <div key={i} className="flex items-end gap-4 flex-wrap">
+          <div
+            className="rounded-lg body-bold flex items-center justify-center shrink-0"
+            style={{ backgroundColor: "var(--gray-2)", color: "var(--gray-8)", height: 40, minWidth: 110, padding: "0 14px" }}
+          >
+            {label} {i + 1}
+          </div>
+          <div className="flex-1 min-w-[200px]">
+            <Field label={`Número de ${label.toLowerCase()}`} required error={attempted && !item.numero.trim()}>
+              <TextInput placeholder="Escriba aquí" value={item.numero} onChange={(v) => onItemChange(i, { numero: v })} className="w-full" />
+            </Field>
+          </div>
+          <div className="flex-1 min-w-[200px]">
+            <Field label="Número de matrícula (Opcional)">
+              <TextInput placeholder="Escriba aquí" value={item.matricula} onChange={(v) => onItemChange(i, { matricula: v })} className="w-full" />
+            </Field>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -207,9 +268,30 @@ export function CrearContrato({ onBack, onFinish }: Props) {
   const [estrato, setEstrato] = useState("");
   const [usoComercial, setUsoComercial] = useState("");
   const [camaraComercio, setCamaraComercio] = useState("");
-  const [garaje, setGaraje] = useState("");
-  const [deposito, setDeposito] = useState("");
+  const [garajeTiene, setGarajeTiene] = useState("");
+  const [garajeCantidad, setGarajeCantidad] = useState("");
+  const [garajeItems, setGarajeItems] = useState<UnidadItem[]>([]);
+  const [depositoTiene, setDepositoTiene] = useState("");
+  const [depositoCantidad, setDepositoCantidad] = useState("");
+  const [depositoItems, setDepositoItems] = useState<UnidadItem[]>([]);
   const [cuotaAdmin, setCuotaAdmin] = useState("");
+  const [attemptedStep0, setAttemptedStep0] = useState(false);
+
+  const handleGarajeTiene = (v: string) => {
+    setGarajeTiene(v);
+    if (v !== "Sí") { setGarajeCantidad(""); setGarajeItems([]); }
+  };
+  const handleGarajeCantidad = (v: string) => { setGarajeCantidad(v); setGarajeItems((prev) => resizeUnidades(v, prev)); };
+  const handleGarajeItem = (i: number, patch: Partial<UnidadItem>) =>
+    setGarajeItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
+
+  const handleDepositoTiene = (v: string) => {
+    setDepositoTiene(v);
+    if (v !== "Sí") { setDepositoCantidad(""); setDepositoItems([]); }
+  };
+  const handleDepositoCantidad = (v: string) => { setDepositoCantidad(v); setDepositoItems((prev) => resizeUnidades(v, prev)); };
+  const handleDepositoItem = (i: number, patch: Partial<UnidadItem>) =>
+    setDepositoItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
 
   const [agua, setAgua] = useState({ cuenta: "", contador: "", compartido: false, porcentaje: "" });
   const [luz, setLuz] = useState({ cuenta: "", contador: "", compartido: false, porcentaje: "" });
@@ -232,7 +314,22 @@ export function CrearContrato({ onBack, onFinish }: Props) {
   const docsChecklist = [...DOCS_COMUNES, ...(tipoContrato === "vivienda" ? DOCS_VIVIENDA : DOCS_COMERCIO)];
   const tipoInmuebleOptions = tipoContrato === "vivienda" ? TIPO_INMUEBLE_VIVIENDA : TIPO_INMUEBLE_COMERCIO;
 
-  const goNext = () => setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
+  const step0Invalid = showRestOfForm && (
+    (tipoContrato === "vivienda" && !estrato) ||
+    (tipoContrato === "comercio" && !usoComercial) ||
+    !garajeTiene ||
+    (garajeTiene === "Sí" && (!garajeCantidad || garajeItems.some((it) => !it.numero.trim()))) ||
+    !depositoTiene ||
+    (depositoTiene === "Sí" && (!depositoCantidad || depositoItems.some((it) => !it.numero.trim())))
+  );
+
+  const goNext = () => {
+    if (stepIndex === 0) {
+      setAttemptedStep0(true);
+      if (step0Invalid) return;
+    }
+    setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
+  };
   const goBack = () => setStepIndex((i) => Math.max(i - 1, 0));
   const isLastStep = stepIndex === STEPS.length - 1;
 
@@ -415,16 +512,32 @@ export function CrearContrato({ onBack, onFinish }: Props) {
                     <span className="body-bold" style={{ color: "var(--gray-10)" }}>Especificaciones</span>
                     <div className="grid grid-cols-3 gap-x-6 gap-y-4 max-lg:grid-cols-1">
                       {tipoContrato === "vivienda" ? (
-                        <Field label="Estrato" required><SelectInput options={ESTRATO_OPTIONS} value={estrato} onChange={setEstrato} className="w-full" /></Field>
+                        <Field label="Estrato" required error={attemptedStep0 && !estrato}><SelectInput options={ESTRATO_OPTIONS} value={estrato} onChange={setEstrato} className="w-full" /></Field>
                       ) : (
                         <>
-                          <Field label="Uso comercial" required><SelectInput options={USO_COMERCIAL_OPTIONS} value={usoComercial} onChange={setUsoComercial} className="w-full" /></Field>
+                          <Field label="Uso comercial" required error={attemptedStep0 && !usoComercial}><SelectInput options={USO_COMERCIAL_OPTIONS} value={usoComercial} onChange={setUsoComercial} className="w-full" /></Field>
                           <Field label="Cámara de comercio (Opcional)"><TextInput placeholder="Escriba aquí" value={camaraComercio} onChange={setCamaraComercio} className="w-full" /></Field>
                         </>
                       )}
-                      <Field label="Garaje" required><SelectInput options={GARAJE_OPTIONS} value={garaje} onChange={setGaraje} className="w-full" /></Field>
-                      <Field label="Depósito" required><SelectInput options={GARAJE_OPTIONS} value={deposito} onChange={setDeposito} className="w-full" /></Field>
                     </div>
+
+                    <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
+
+                    <UnidadesBlock
+                      label="Garaje"
+                      tiene={garajeTiene} cantidad={garajeCantidad} items={garajeItems}
+                      onTiene={handleGarajeTiene} onCantidad={handleGarajeCantidad} onItemChange={handleGarajeItem}
+                      attempted={attemptedStep0}
+                    />
+
+                    <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
+
+                    <UnidadesBlock
+                      label="Depósito"
+                      tiene={depositoTiene} cantidad={depositoCantidad} items={depositoItems}
+                      onTiene={handleDepositoTiene} onCantidad={handleDepositoCantidad} onItemChange={handleDepositoItem}
+                      attempted={attemptedStep0}
+                    />
                   </div>
                 </>
               )}

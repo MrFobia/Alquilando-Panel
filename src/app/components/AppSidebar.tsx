@@ -5,7 +5,7 @@ import { AppButton } from "./kit/AppButton";
 import {
   Home, Building2, FileText, ClipboardList, User, Users,
   Inbox, Handshake, Briefcase, LifeBuoy, ChevronDown, ChevronRight,
-  ChevronLeft, Menu, X, LogOut, UserCircle,
+  ChevronLeft, Menu, X, LogOut, UserCircle, Palette,
 } from "lucide-react";
 
 const NAV = [
@@ -37,10 +37,14 @@ const NAV = [
   { id: "mesa-ayuda", label: "Mesa de ayuda", icon: LifeBuoy },
 ];
 
+const NAV_UTILIDADES = [
+  { id: "styleguide", label: "Guía de estilos y UI Kit", icon: Palette },
+];
+
 interface Props {
   active: string;
   onSelect: (id: string) => void;
-  onTerminos: () => void;
+  onStyleGuide: () => void;
 }
 
 interface NavListProps {
@@ -49,9 +53,15 @@ interface NavListProps {
   openGroups: Record<string, boolean>;
   onToggleGroup: (id: string) => void;
   onSelect: (id: string) => void;
+  onStyleGuide: () => void;
 }
 
-function NavList({ active, collapsed, openGroups, onToggleGroup, onSelect }: NavListProps) {
+function NavList({ active, collapsed, openGroups, onToggleGroup, onSelect, onStyleGuide }: NavListProps) {
+  const handleClick = (item: { id: string; children?: unknown[] }) => {
+    if (item.children?.length) return onToggleGroup(item.id);
+    if (item.id === "styleguide") return onStyleGuide();
+    return onSelect(item.id);
+  };
   return (
     <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 flex flex-col gap-0.5" style={{ paddingLeft: 12, paddingRight: 12 }}>
       {!collapsed && (
@@ -68,7 +78,7 @@ function NavList({ active, collapsed, openGroups, onToggleGroup, onSelect }: Nav
         return (
           <div key={item.id}>
             <button
-              onClick={() => (hasChildren ? onToggleGroup(item.id) : onSelect(item.id))}
+              onClick={() => handleClick(item)}
               title={collapsed ? item.label : undefined}
               className={`w-full flex items-center rounded-lg text-left transition-colors ${collapsed ? "justify-center" : "gap-3"}`}
               style={{
@@ -122,16 +132,42 @@ function NavList({ active, collapsed, openGroups, onToggleGroup, onSelect }: Nav
           </div>
         );
       })}
+
+      <div style={{ height: 1, backgroundColor: "var(--gray-4)", margin: collapsed ? "8px 0" : "8px 12px" }} />
+
+      {NAV_UTILIDADES.map((item) => {
+        const Icon = item.icon;
+        const isActive = active === item.id;
+        return (
+          <button
+            key={item.id}
+            onClick={() => handleClick(item)}
+            title={collapsed ? item.label : undefined}
+            className={`w-full flex items-center rounded-lg text-left transition-colors ${collapsed ? "justify-center" : "gap-3"}`}
+            style={{
+              cursor: "pointer",
+              padding: collapsed ? "10px 0" : "9px 12px",
+              backgroundColor: isActive ? "var(--navy-light)" : "transparent",
+            }}
+            onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = "var(--gray-1)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isActive ? "var(--navy-light)" : "transparent"; }}
+          >
+            <Icon size={18} strokeWidth={1.6} style={{ color: "var(--gray-9)", flexShrink: 0 }} />
+            {!collapsed && (
+              <span className="body-regular" style={{ color: "var(--gray-10)", flex: 1 }}>{item.label}</span>
+            )}
+          </button>
+        );
+      })}
     </nav>
   );
 }
 
 interface FooterProps {
   collapsed: boolean;
-  onTerminos: () => void;
 }
 
-function SidebarFooter({ collapsed, onTerminos }: FooterProps) {
+function SidebarFooter({ collapsed }: FooterProps) {
   if (collapsed) {
     return (
       <div className="flex flex-col items-center gap-1 py-3" style={{ borderTop: "1px solid var(--gray-4)" }}>
@@ -169,14 +205,14 @@ function SidebarFooter({ collapsed, onTerminos }: FooterProps) {
         Cerrar sesión
       </LinkText>
 
-      <LinkText size="small" onClick={onTerminos} className="w-full justify-center">
+      <LinkText size="small" onClick={() => {}} className="w-full justify-center">
         Términos y condiciones
       </LinkText>
     </div>
   );
 }
 
-export function AppSidebar({ active, onSelect, onTerminos }: Props) {
+export function AppSidebar({ active, onSelect, onStyleGuide }: Props) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -252,8 +288,9 @@ export function AppSidebar({ active, onSelect, onTerminos }: Props) {
           openGroups={openGroups}
           onToggleGroup={toggleGroup}
           onSelect={selectMobile}
+          onStyleGuide={() => { onStyleGuide(); setMobileOpen(false); }}
         />
-        <SidebarFooter collapsed={false} onTerminos={() => { onTerminos(); setMobileOpen(false); }} />
+        <SidebarFooter collapsed={false} />
       </aside>
 
       {/* ─── Desktop sidebar ─── */}
@@ -300,8 +337,9 @@ export function AppSidebar({ active, onSelect, onTerminos }: Props) {
           openGroups={openGroups}
           onToggleGroup={toggleGroupDesktop}
           onSelect={onSelect}
+          onStyleGuide={onStyleGuide}
         />
-        <SidebarFooter collapsed={collapsed} onTerminos={onTerminos} />
+        <SidebarFooter collapsed={collapsed} />
       </aside>
     </>
   );
