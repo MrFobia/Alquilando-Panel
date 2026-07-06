@@ -12,6 +12,7 @@ import { Pagination } from "./kit/Pagination";
 import { ToggleSwitch } from "./kit/ToggleSwitch";
 import { EmptyState } from "./kit/EmptyState";
 import { Footer } from "./kit/Footer";
+import { CrearContrato } from "./CrearContrato";
 
 const PAGE_SIZE = 10;
 
@@ -135,6 +136,11 @@ export function Contratos() {
   const [applied, setApplied] = useState<{ by: string; q: string } | null>(null);
   const [comercial, setComercial] = useState(true);
   const [vivienda, setVivienda] = useState(true);
+  const [creating, setCreating] = useState(false);
+
+  if (creating) {
+    return <CrearContrato onBack={() => setCreating(false)} onFinish={() => setCreating(false)} />;
+  }
 
   const changeTab = (id: string) => { setTab(id); setPage(1); setQuery(""); setApplied(null); };
   const doSearch = () => { setApplied({ by: searchBy, q: query }); setPage(1); };
@@ -185,7 +191,7 @@ export function Contratos() {
         title="Contratos en administración"
         description="Administra y revisa todos tus procesos de manera fácil y rápida"
         actions={!isEstudio && (
-          <AppButton variant="primary" bold>Crear nuevo contrato</AppButton>
+          <AppButton variant="primary" bold onClick={() => setCreating(true)}>Crear nuevo contrato</AppButton>
         )}
       />
 

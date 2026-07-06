@@ -1,11 +1,12 @@
-import { Info, AlertTriangle } from "lucide-react";
+import { Info, AlertTriangle, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-type Variant = "info" | "warning";
+type Variant = "info" | "warning" | "error";
 
 const STYLES: Record<Variant, { bg: string; border: string; color: string; icon: LucideIcon }> = {
   info: { bg: "var(--navy-light)", border: "var(--navy)", color: "var(--navy)", icon: Info },
   warning: { bg: "var(--orange-status-light)", border: "var(--orange-status)", color: "var(--orange-status)", icon: AlertTriangle },
+  error: { bg: "var(--red-status-light)", border: "var(--red-status)", color: "var(--red-status)", icon: XCircle },
 };
 
 interface Props {
