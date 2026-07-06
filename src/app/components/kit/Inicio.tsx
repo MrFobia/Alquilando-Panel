@@ -1,9 +1,17 @@
+import { useEffect, useState } from "react";
 import { StatCard } from "./StatCard";
 import { ContractsChart } from "./ContractsChart";
 import { Footer } from "./Footer";
 import { MonthRangePicker } from "./MonthRangePicker";
 
 export function Inicio() {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 900);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <div className="flex flex-col gap-5">
       {/* Welcome banner */}
@@ -24,12 +32,12 @@ export function Inicio() {
       </div>
 
       {/* Contracts chart */}
-      <ContractsChart />
+      <ContractsChart loading={loading} />
 
       {/* Stat cards grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="flex flex-col gap-5">
-          <StatCard
+          <StatCard loading={loading}
             title="Portafolio Actual"
             rows={[
               { label: "Número de contratos activos", value: "1578" },
@@ -37,7 +45,7 @@ export function Inicio() {
               { label: "Total portafolio", value: "1742" },
             ]}
           />
-          <StatCard
+          <StatCard loading={loading}
             title="Movimiento contratos junio de 2026"
             rows={[
               { label: "Nuevos contratos", value: "0 / Contratos", onClick: () => {} },
@@ -48,7 +56,7 @@ export function Inicio() {
               { label: "Crecimiento neto", value: "-2 / Contratos" },
             ]}
           />
-          <StatCard
+          <StatCard loading={loading}
             title="Clientes del sistema"
             rows={[
               { label: "Propietarios", value: "1013" },
@@ -57,7 +65,7 @@ export function Inicio() {
               { label: "Inmobiliarias aliadas", value: "6" },
             ]}
           />
-          <StatCard
+          <StatCard loading={loading}
             title="Clientes Inactivos"
             rows={[
               { label: "Propietarios", value: "90", onClick: () => {} },
@@ -68,21 +76,21 @@ export function Inicio() {
         </div>
 
         <div className="flex flex-col gap-5">
-          <StatCard
+          <StatCard loading={loading}
             title="Canon promedio"
             rows={[
               { label: "Valor por mes", value: "$ 2.842.338" },
               { label: "% de administración promedio", value: "5" },
             ]}
           />
-          <StatCard
+          <StatCard loading={loading}
             title="Administración P.H."
             rows={[
               { label: "Administraciones", value: "754" },
               { label: "Administraciones gestionadas", value: "651" },
             ]}
           />
-          <StatCard
+          <StatCard loading={loading}
             title="Solicitudes"
             rows={[
               { label: "Recibidas del mes", value: "522" },

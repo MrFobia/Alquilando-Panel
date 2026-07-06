@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Area } from "recharts";
+import { Skeleton } from "./Skeleton";
 
 const data = [
   { mes: "Ene 2026", admin: 450, finalizados: 12, nuevos: 18, porFinalizar: 22, siniestrados: 3 },
@@ -18,7 +19,11 @@ const SERIES = [
   { key: "siniestrados", name: "Siniestrados", color: "#E91E63" },
 ];
 
-export function ContractsChart() {
+interface Props {
+  loading?: boolean;
+}
+
+export function ContractsChart({ loading = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const height = 280;
@@ -40,7 +45,14 @@ export function ContractsChart() {
     >
       <h3 className="subtitle" style={{ color: "var(--navy)", marginBottom: 16 }}>Estado de contratos</h3>
       <div ref={containerRef} style={{ width: "100%", height }}>
-        {width > 0 && (
+        {loading ? (
+          <div className="flex flex-col gap-3 h-full justify-end pb-6">
+            <Skeleton height={height - 40} radius="var(--radius-md)" />
+            <div className="flex gap-6 justify-center">
+              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height={11} width={70} />)}
+            </div>
+          </div>
+        ) : width > 0 && (
           <AreaChart width={width} height={height} data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
             <CartesianGrid key="grid" strokeDasharray="3 3" stroke="var(--gray-4)" vertical={false} />
             <XAxis key="x" dataKey="mes" tick={{ fontSize: 11, fill: "var(--gray-8)", fontFamily: "Roboto" }} axisLine={{ stroke: "var(--gray-5)" }} tickLine={false} />

@@ -59,9 +59,9 @@ function ColorSwatch({ name, hex, label, textWhite }: { name: string; hex: strin
 }
 
 const typeScale = [
-  { cls: "mulish-primary", label: "Mulish Primary", sample: "Alquilando", meta: "Roboto Bold 64px" },
-  { cls: "mulish-secondary", label: "Mulish Secondary", sample: "Plataforma Inmobiliaria", meta: "Roboto SemiBold 40px" },
-  { cls: "mulish-tertiary", label: "Mulish Tertiary", sample: "Gestión de Inmuebles", meta: "Roboto SemiBold 24px" },
+  { cls: "display-primary", label: "Display Primary", sample: "Alquilando", meta: "Roboto Bold 64px" },
+  { cls: "display-secondary", label: "Display Secondary", sample: "Plataforma Inmobiliaria", meta: "Roboto SemiBold 40px" },
+  { cls: "display-tertiary", label: "Display Tertiary", sample: "Gestión de Inmuebles", meta: "Roboto SemiBold 24px" },
   { cls: "title-primary-bold", label: "Title Primary Bold", sample: "Datos del inmueble", meta: "Roboto Bold 32px" },
   { cls: "title-primary", label: "Title Primary", sample: "Datos del inmueble", meta: "Roboto Regular 32px" },
   { cls: "title-secondary", label: "Title Secondary", sample: "Información general", meta: "Roboto SemiBold 24px" },

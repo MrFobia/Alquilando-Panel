@@ -1,4 +1,5 @@
 import { Eye } from "lucide-react";
+import { Skeleton } from "./Skeleton";
 
 export interface Metric {
   label: string;
@@ -9,9 +10,10 @@ export interface Metric {
 
 interface Props {
   metrics: Metric[];
+  loading?: boolean;
 }
 
-export function MetricsRow({ metrics }: Props) {
+export function MetricsRow({ metrics, loading = false }: Props) {
   return (
     <section
       className="rounded-lg grid gap-4"
@@ -22,26 +24,33 @@ export function MetricsRow({ metrics }: Props) {
         gridTemplateColumns: `repeat(${metrics.length}, 1fr)`,
       }}
     >
-      {metrics.map((m) => (
-        <div key={m.label} className="flex flex-col gap-2">
-          <span className="body-regular" style={{ color: "var(--gray-10)" }}>{m.label}</span>
-          {m.breakdown ? (
-            <div className="flex gap-5 items-end">
-              {m.breakdown.map((b) => (
-                <div key={b.label} className="flex flex-col">
-                  <span className="title-secondary" style={{ color: "var(--navy)" }}>{b.value}</span>
-                  <span className="disclamer" style={{ color: "var(--gray-8)" }}>{b.label}</span>
+      {loading
+        ? metrics.map((m, i) => (
+            <div key={m.label} className="flex flex-col gap-2">
+              <Skeleton height={14} width="70%" />
+              <Skeleton height={28} width={i % 3 === 0 ? "40%" : "50%"} />
+            </div>
+          ))
+        : metrics.map((m) => (
+            <div key={m.label} className="flex flex-col gap-2">
+              <span className="body-regular" style={{ color: "var(--gray-10)" }}>{m.label}</span>
+              {m.breakdown ? (
+                <div className="flex gap-5 items-end">
+                  {m.breakdown.map((b) => (
+                    <div key={b.label} className="flex flex-col">
+                      <span className="title-secondary" style={{ color: "var(--navy)" }}>{b.value}</span>
+                      <span className="disclamer" style={{ color: "var(--gray-8)" }}>{b.label}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="title-primary-bold" style={{ color: "var(--navy)" }}>{m.value}</span>
+                  {m.showEye && <Eye size={18} strokeWidth={1.8} style={{ color: "var(--navy)" }} />}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className="title-primary-bold" style={{ color: "var(--navy)" }}>{m.value}</span>
-              {m.showEye && <Eye size={18} strokeWidth={1.8} style={{ color: "var(--navy)" }} />}
-            </div>
-          )}
-        </div>
-      ))}
+          ))}
     </section>
   );
 }

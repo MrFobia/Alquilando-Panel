@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Skeleton } from "./Skeleton";
 
 export interface Column {
   key: string;
@@ -11,6 +12,8 @@ interface Props {
   columns: Column[];
   rows: Array<Record<string, React.ReactNode>>;
   onRowClick?: (index: number) => void;
+  loading?: boolean;
+  skeletonRows?: number;
 }
 
 function CellText({ text }: { text: string }) {
@@ -51,7 +54,7 @@ function CellText({ text }: { text: string }) {
   );
 }
 
-export function DataTable({ columns, rows, onRowClick }: Props) {
+export function DataTable({ columns, rows, onRowClick, loading = false, skeletonRows = 6 }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
 
   return (
@@ -71,39 +74,53 @@ export function DataTable({ columns, rows, onRowClick }: Props) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => {
-            const zebraBg = i % 2 === 0 ? "var(--gray-1)" : "#ffffff";
-            const bg = hovered === i ? "var(--navy-light)" : zebraBg;
-            return (
-              <tr
-                key={i}
-                className="transition-colors"
-                onMouseEnter={() => setHovered(i)}
-                onMouseLeave={() => setHovered(null)}
-                onClick={onRowClick ? () => onRowClick(i) : undefined}
-                style={{ cursor: onRowClick ? "pointer" : undefined }}
-              >
-                {columns.map((c, j) => (
-                  <td
-                    key={c.key}
-                    className="body-regular px-4 py-4"
-                    style={{
-                      color: "var(--gray-10)",
-                      textAlign: c.align ?? "left",
-                      backgroundColor: bg,
-                      borderRadius:
-                        j === 0 ? "var(--radius-md) 0 0 var(--radius-md)"
-                        : j === columns.length - 1 ? "0 var(--radius-md) var(--radius-md) 0"
-                        : undefined,
-                    }}
-                    onClick={j === columns.length - 1 ? (e) => e.stopPropagation() : undefined}
+          {loading
+            ? Array.from({ length: skeletonRows }).map((_, i) => (
+                <tr key={`skeleton-${i}`}>
+                  {columns.map((c, j) => (
+                    <td
+                      key={c.key}
+                      className="px-4 py-4"
+                      style={{ backgroundColor: i % 2 === 0 ? "var(--gray-1)" : "#ffffff" }}
+                    >
+                      <Skeleton height={16} width={j === columns.length - 1 ? "60%" : "80%"} />
+                    </td>
+                  ))}
+                </tr>
+              ))
+            : rows.map((row, i) => {
+                const zebraBg = i % 2 === 0 ? "var(--gray-1)" : "#ffffff";
+                const bg = hovered === i ? "var(--navy-light)" : zebraBg;
+                return (
+                  <tr
+                    key={i}
+                    className="transition-colors"
+                    onMouseEnter={() => setHovered(i)}
+                    onMouseLeave={() => setHovered(null)}
+                    onClick={onRowClick ? () => onRowClick(i) : undefined}
+                    style={{ cursor: onRowClick ? "pointer" : undefined }}
                   >
-                    {typeof row[c.key] === "string" ? <CellText text={row[c.key] as string} /> : row[c.key]}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
+                    {columns.map((c, j) => (
+                      <td
+                        key={c.key}
+                        className="body-regular px-4 py-4"
+                        style={{
+                          color: "var(--gray-10)",
+                          textAlign: c.align ?? "left",
+                          backgroundColor: bg,
+                          borderRadius:
+                            j === 0 ? "var(--radius-md) 0 0 var(--radius-md)"
+                            : j === columns.length - 1 ? "0 var(--radius-md) var(--radius-md) 0"
+                            : undefined,
+                        }}
+                        onClick={j === columns.length - 1 ? (e) => e.stopPropagation() : undefined}
+                      >
+                        {typeof row[c.key] === "string" ? <CellText text={row[c.key] as string} /> : row[c.key]}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
         </tbody>
       </table>
     </div>

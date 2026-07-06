@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Filter, Pencil, Eye } from "lucide-react";
 import { PageHeader } from "./kit/PageHeader";
 import { AppButton } from "./kit/AppButton";
@@ -137,6 +137,13 @@ export function Contratos() {
   const [comercial, setComercial] = useState(true);
   const [vivienda, setVivienda] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    const t = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(t);
+  }, [tab, page]);
 
   if (creating) {
     return <CrearContrato onBack={() => setCreating(false)} onFinish={() => setCreating(false)} />;
@@ -228,7 +235,7 @@ export function Contratos() {
 
         {tableRows.length > 0 ? (
           <>
-            <DataTable columns={isEstudio ? ESTUDIO_COLUMNS : CONTRATO_COLUMNS} rows={tableRows} />
+            <DataTable columns={isEstudio ? ESTUDIO_COLUMNS : CONTRATO_COLUMNS} rows={tableRows} loading={loading} />
             <p className="body-regular text-right" style={{ color: "var(--gray-9)", margin: 0 }}>
               Mostrando <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{pageRows.length}</span> de{" "}
               <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{sourceRows.length}</span>
