@@ -21,9 +21,10 @@ const SERIES = [
 
 interface Props {
   loading?: boolean;
+  actions?: React.ReactNode;
 }
 
-export function ContractsChart({ loading = false }: Props) {
+export function ContractsChart({ loading = false, actions }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const height = 280;
@@ -43,7 +44,10 @@ export function ContractsChart({ loading = false }: Props) {
       className="rounded-lg"
       style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "20px 24px" }}
     >
-      <h3 className="subtitle" style={{ color: "var(--navy)", marginBottom: 16 }}>Estado de contratos</h3>
+      <div className="flex items-center justify-between gap-4 flex-wrap" style={{ marginBottom: 16 }}>
+        <h3 className="subtitle" style={{ color: "var(--navy)" }}>Estado de contratos</h3>
+        {actions}
+      </div>
       <div ref={containerRef} style={{ width: "100%", height }}>
         {loading ? (
           <div className="flex flex-col gap-3 h-full justify-end pb-6">

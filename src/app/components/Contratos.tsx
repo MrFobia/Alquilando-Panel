@@ -129,6 +129,13 @@ const SEARCH_OPTIONS = [
   { value: "zona", label: "Zona" },
 ];
 
+const ESTUDIO_SEARCH_OPTIONS = [
+  { value: "inmueble", label: "N° Inmueble" },
+  { value: "asegurado", label: "Asegurado" },
+  { value: "email", label: "Email" },
+  { value: "celular", label: "Celular" },
+];
+
 export function Contratos() {
   const [tab, setTab] = useState("estudio");
   const [page, setPage] = useState(1);
@@ -155,7 +162,7 @@ export function Contratos() {
     return <EstadoContratoDetalle onBack={() => setViewingEstado(false)} />;
   }
 
-  const changeTab = (id: string) => { setTab(id); setPage(1); setQuery(""); setApplied(null); };
+  const changeTab = (id: string) => { setTab(id); setPage(1); setQuery(""); setApplied(null); setSearchBy(""); };
   const doSearch = () => { setApplied({ by: searchBy, q: query }); setPage(1); };
   const clearSearch = () => { setQuery(""); setApplied(null); setPage(1); };
 
@@ -172,9 +179,19 @@ export function Contratos() {
       return fields.some((v) => v.toLowerCase().includes(q));
     });
 
+  const filterEstudio = (rows: EstudioRow[]) =>
+    rows.filter((r) => {
+      if (!applied || !applied.q.trim()) return true;
+      const q = applied.q.trim().toLowerCase();
+      const fields = applied.by
+        ? [String(r[applied.by as keyof EstudioRow] ?? "")]
+        : Object.values(r).map(String);
+      return fields.some((v) => v.toLowerCase().includes(q));
+    });
+
   const isEstudio = tab === "estudio";
   const sourceRows = isEstudio
-    ? ESTUDIO_ROWS
+    ? filterEstudio(ESTUDIO_ROWS)
     : filterContratos(tab === "admin" ? ADMIN_ROWS : PENDIENTE_ROWS);
 
   const totalPages = Math.max(1, Math.ceil(sourceRows.length / PAGE_SIZE));
@@ -225,20 +242,16 @@ export function Contratos() {
         className="rounded-lg flex flex-col gap-5"
         style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "20px 24px" }}
       >
-        {!isEstudio && (
-          <>
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <AppButton variant="ghost"><Filter size={14} /> Filtrar</AppButton>
-              <div className="flex items-center gap-3">
-                <span className="body-bold" style={{ color: "var(--gray-10)" }}>Buscar por:</span>
-                <SelectInput options={SEARCH_OPTIONS} value={searchBy} onChange={setSearchBy} className="min-w-[180px]" />
-                <TextInput placeholder="Escriba aquí" value={query} onChange={setQuery} onEnter={doSearch} onClear={clearSearch} className="min-w-[200px]" />
-                <AppButton variant="secondary" bold onClick={doSearch}>Buscar</AppButton>
-              </div>
-            </div>
-            <hr style={{ borderColor: "var(--gray-5)", margin: 0 }} />
-          </>
-        )}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <AppButton variant="ghost"><Filter size={14} /> Filtrar</AppButton>
+          <div className="flex items-center gap-3">
+            <span className="body-bold" style={{ color: "var(--gray-10)" }}>Buscar por:</span>
+            <SelectInput options={isEstudio ? ESTUDIO_SEARCH_OPTIONS : SEARCH_OPTIONS} value={searchBy} onChange={setSearchBy} className="min-w-[180px]" />
+            <TextInput placeholder="Escriba aquí" value={query} onChange={setQuery} onEnter={doSearch} onClear={clearSearch} className="min-w-[200px]" />
+            <AppButton variant="secondary" bold onClick={doSearch}>Buscar</AppButton>
+          </div>
+        </div>
+        <hr style={{ borderColor: "var(--gray-5)", margin: 0 }} />
 
         {tableRows.length > 0 ? (
           <>

@@ -25,14 +25,16 @@ export function Inicio() {
         </p>
       </section>
 
-      {/* Date filter */}
-      <div className="flex items-center justify-end gap-3">
-        <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Fecha:</span>
-        <MonthRangePicker />
-      </div>
-
       {/* Contracts chart */}
-      <ContractsChart loading={loading} />
+      <ContractsChart
+        loading={loading}
+        actions={
+          <div className="flex items-center gap-3">
+            <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Fecha:</span>
+            <MonthRangePicker />
+          </div>
+        }
+      />
 
       {/* Stat cards grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

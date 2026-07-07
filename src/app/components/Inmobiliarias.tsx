@@ -4,6 +4,9 @@ import { PageHeader } from "./kit/PageHeader";
 import { AppButton } from "./kit/AppButton";
 import { DataTable } from "./kit/DataTable";
 import { IconButton } from "./kit/IconButton";
+import { TextInput } from "./kit/TextInput";
+import { SelectInput } from "./kit/SelectInput";
+import { EmptyState } from "./kit/EmptyState";
 import { Footer } from "./kit/Footer";
 import { InmobiliariaDetalle } from "./InmobiliariaDetalle";
 
@@ -36,14 +39,35 @@ const COLUMNS = [
   { key: "opciones", header: "Opciones", width: 80, align: "center" as const },
 ];
 
+const SEARCH_OPTIONS = [
+  { value: "nombre", label: "Inmobiliaria" },
+  { value: "telefono", label: "Teléfono" },
+  { value: "correo", label: "Correo" },
+];
+
 export function Inmobiliarias() {
   const [selected, setSelected] = useState<InmobiliariaRow | null>(null);
+  const [searchBy, setSearchBy] = useState("");
+  const [query, setQuery] = useState("");
+  const [applied, setApplied] = useState<{ by: string; q: string } | null>(null);
 
   if (selected) {
     return <InmobiliariaDetalle inmobiliaria={selected} onBack={() => setSelected(null)} />;
   }
 
-  const tableRows = ROWS.map((r) => ({
+  const doSearch = () => setApplied({ by: searchBy, q: query });
+  const clearSearch = () => { setQuery(""); setApplied(null); };
+
+  const rows = ROWS.filter((r) => {
+    if (!applied || !applied.q.trim()) return true;
+    const q = applied.q.trim().toLowerCase();
+    const fields = applied.by
+      ? [String(r[applied.by as keyof InmobiliariaRow] ?? "")]
+      : Object.values(r).map(String);
+    return fields.some((v) => v.toLowerCase().includes(q));
+  });
+
+  const tableRows = rows.map((r) => ({
     ...r,
     opciones: <IconButton icon={Eye} title="Ver tablero" onClick={() => setSelected(r)} />,
   }));
@@ -60,11 +84,32 @@ export function Inmobiliarias() {
         className="rounded-lg flex flex-col gap-5"
         style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "20px 24px" }}
       >
-        <div className="flex">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <AppButton variant="ghost"><Filter size={14} /> Filtrar</AppButton>
+          <div className="flex items-center gap-3">
+            <span className="body-bold" style={{ color: "var(--gray-10)" }}>Buscar por:</span>
+            <SelectInput options={SEARCH_OPTIONS} value={searchBy} onChange={setSearchBy} className="min-w-[160px]" />
+            <TextInput placeholder="Escriba aquí" value={query} onChange={setQuery} onEnter={doSearch} onClear={clearSearch} className="min-w-[200px]" />
+            <AppButton variant="secondary" bold onClick={doSearch}>Buscar</AppButton>
+          </div>
         </div>
         <hr style={{ borderColor: "var(--gray-5)", margin: 0 }} />
-        <DataTable columns={COLUMNS} rows={tableRows} onRowClick={(i) => setSelected(ROWS[i])} />
+
+        {rows.length > 0 ? (
+          <>
+            <DataTable columns={COLUMNS} rows={tableRows} onRowClick={(i) => setSelected(rows[i])} />
+            <p className="body-regular text-right" style={{ color: "var(--gray-9)", margin: 0 }}>
+              Mostrando <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{rows.length}</span> de{" "}
+              <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{ROWS.length}</span>
+            </p>
+          </>
+        ) : (
+          <EmptyState
+            title="Sin resultados"
+            description="No encontramos inmobiliarias que coincidan con la búsqueda. Ajusta el criterio e intenta de nuevo."
+            action={<AppButton variant="secondary" onClick={clearSearch}>Limpiar búsqueda</AppButton>}
+          />
+        )}
       </section>
 
       <Footer />

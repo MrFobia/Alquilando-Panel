@@ -6,6 +6,9 @@ import { TabBar } from "./kit/TabBar";
 import { DataTable } from "./kit/DataTable";
 import { IconButton } from "./kit/IconButton";
 import { Pagination } from "./kit/Pagination";
+import { TextInput } from "./kit/TextInput";
+import { SelectInput } from "./kit/SelectInput";
+import { EmptyState } from "./kit/EmptyState";
 import { Footer } from "./kit/Footer";
 import { SolicitudDetalle } from "./SolicitudDetalle";
 
@@ -84,16 +87,18 @@ const VENCIDAS: Solicitud[] = [
   { titulo: "2688 prueba de vencidas facturación 44387", codigo: "2688", fecha: "2025-07-16 09:31:23", direccion: "Cl 103 a # 17-36 ap 506", estado: "Cierre final eu" },
 ];
 
+const DATA_TOTALS = { activas: 296, cerradas: 10044, vencidas: 3 };
+
 const DATA: Record<string, { rows: Solicitud[]; total: number }> = {
-  activas: { rows: ACTIVAS, total: 296 },
-  cerradas: { rows: CERRADAS, total: 10044 },
-  vencidas: { rows: VENCIDAS, total: 3 },
+  activas: { rows: ACTIVAS, total: DATA_TOTALS.activas },
+  cerradas: { rows: CERRADAS, total: DATA_TOTALS.cerradas },
+  vencidas: { rows: VENCIDAS, total: DATA_TOTALS.vencidas },
 };
 
 const TABS = [
-  { id: "activas", label: "Solicitudes activas" },
-  { id: "cerradas", label: "Solicitudes cerradas" },
-  { id: "vencidas", label: "Solicitudes vencidas" },
+  { id: "activas", label: "Solicitudes activas", count: DATA_TOTALS.activas },
+  { id: "cerradas", label: "Solicitudes cerradas", count: DATA_TOTALS.cerradas },
+  { id: "vencidas", label: "Solicitudes vencidas", count: DATA_TOTALS.vencidas },
 ];
 
 const COLUMNS = [
@@ -110,31 +115,53 @@ const REPORTE = [
   { label: "Desocupaciones", value: "14" },
   { label: "Facturación", value: "23" },
   { label: "Jurídico", value: "34" },
-  { label: "No resueltos", value: "272" },
   { label: "Reparaciones", value: "93" },
-  { label: "Resueltos", value: "0" },
   { label: "Servicio al cliente", value: "61" },
   { label: "Servicios públicos", value: "7" },
-  { label: "Sin categoría", value: "Sin información" },
+  { label: "Sin categoría", value: "—" },
+  { label: "No resueltos", value: "272", color: "var(--red-status)" },
+  { label: "Resueltos", value: "0", color: "var(--green-status)" },
 ];
 
 const PAGE_SIZE = 10;
+
+const SEARCH_OPTIONS = [
+  { value: "titulo", label: "Solicitud" },
+  { value: "codigo", label: "Código" },
+  { value: "direccion", label: "Dirección" },
+];
 
 export function Solicitudes() {
   const [tab, setTab] = useState("activas");
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"list" | "grid">("list");
   const [selected, setSelected] = useState<Solicitud | null>(null);
+  const [searchBy, setSearchBy] = useState("");
+  const [query, setQuery] = useState("");
+  const [applied, setApplied] = useState<{ by: string; q: string } | null>(null);
 
   if (selected) {
     return <SolicitudDetalle solicitud={selected} onBack={() => setSelected(null)} />;
   }
 
-  const { rows, total } = DATA[tab];
+  const doSearch = () => { setApplied({ by: searchBy, q: query }); setPage(1); };
+  const clearSearch = () => { setQuery(""); setApplied(null); setPage(1); };
+
+  const { rows: allRows, total: rawTotal } = DATA[tab];
+  const rows = allRows.filter((r) => {
+    if (!applied || !applied.q.trim()) return true;
+    const q = applied.q.trim().toLowerCase();
+    const fields = applied.by
+      ? [String(r[applied.by as keyof Solicitud] ?? "")]
+      : [r.titulo, r.codigo, r.direccion, r.estado];
+    return fields.some((v) => v.toLowerCase().includes(q));
+  });
+  const filtering = !!applied?.q.trim();
+  const total = filtering ? rows.length : rawTotal;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
 
-  const changeTab = (id: string) => { setTab(id); setPage(1); };
+  const changeTab = (id: string) => { setTab(id); setPage(1); setQuery(""); setApplied(null); };
 
   const tableRows = rows.map((r) => ({
     ...r,
@@ -162,11 +189,11 @@ export function Solicitudes() {
       >
         <span className="subtitle" style={{ color: "var(--navy)" }}>Reporte general de solicitudes</span>
         <hr style={{ borderColor: "var(--gray-5)", margin: 0 }} />
-        <div className="grid grid-cols-4 gap-x-6 gap-y-5 max-lg:grid-cols-2">
+        <div className="grid grid-cols-5 gap-x-6 gap-y-5 max-lg:grid-cols-3 max-sm:grid-cols-2">
           {REPORTE.map((m) => (
-            <div key={m.label} className="flex flex-col gap-0.5">
-              <span className="body-bold" style={{ color: "var(--navy)" }}>{m.label}</span>
-              <span className="body-regular" style={{ color: "var(--gray-9)" }}>{m.value}</span>
+            <div key={m.label} className="flex flex-col gap-1">
+              <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>{m.label}</span>
+              <span className="title-secondary" style={{ color: m.color ?? "var(--navy)" }}>{m.value}</span>
             </div>
           ))}
         </div>
@@ -180,14 +207,26 @@ export function Solicitudes() {
       >
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <AppButton variant="ghost"><Filter size={14} /> Filtrar</AppButton>
-          <div className="flex items-center gap-1">
-            <IconButton icon={LayoutGrid} title="Vista de tarjetas" active={view === "grid"} onClick={() => setView("grid")} />
-            <IconButton icon={List} title="Vista de lista" active={view === "list"} onClick={() => setView("list")} />
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="body-bold" style={{ color: "var(--gray-10)" }}>Buscar por:</span>
+            <SelectInput options={SEARCH_OPTIONS} value={searchBy} onChange={setSearchBy} className="min-w-[160px]" />
+            <TextInput placeholder="Escriba aquí" value={query} onChange={setQuery} onEnter={doSearch} onClear={clearSearch} className="min-w-[200px]" />
+            <AppButton variant="secondary" bold onClick={doSearch}>Buscar</AppButton>
+            <div className="flex items-center gap-1" style={{ borderLeft: "1px solid var(--gray-4)", paddingLeft: 12 }}>
+              <IconButton icon={LayoutGrid} title="Vista de tarjetas" active={view === "grid"} onClick={() => setView("grid")} />
+              <IconButton icon={List} title="Vista de lista" active={view === "list"} onClick={() => setView("list")} />
+            </div>
           </div>
         </div>
         <hr style={{ borderColor: "var(--gray-5)", margin: 0 }} />
 
-        {view === "list" ? (
+        {rows.length === 0 ? (
+          <EmptyState
+            title="Sin resultados"
+            description="No encontramos solicitudes que coincidan con la búsqueda. Ajusta el criterio e intenta de nuevo."
+            action={<AppButton variant="secondary" onClick={clearSearch}>Limpiar búsqueda</AppButton>}
+          />
+        ) : view === "list" ? (
           <DataTable columns={COLUMNS} rows={tableRows} onRowClick={(i) => setSelected(rows[i])} />
         ) : (
           <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1">
@@ -223,11 +262,15 @@ export function Solicitudes() {
           </div>
         )}
 
-        <p className="body-regular text-right" style={{ color: "var(--gray-9)", margin: 0 }}>
-          Mostrando <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{rows.length}</span> de{" "}
-          <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{total}</span>
-        </p>
-        <Pagination page={safePage} totalPages={totalPages} onChange={setPage} />
+        {rows.length > 0 && (
+          <>
+            <p className="body-regular text-right" style={{ color: "var(--gray-9)", margin: 0 }}>
+              Mostrando <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{rows.length}</span> de{" "}
+              <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{total}</span>
+            </p>
+            <Pagination page={safePage} totalPages={totalPages} onChange={setPage} />
+          </>
+        )}
       </section>
 
       <Footer />

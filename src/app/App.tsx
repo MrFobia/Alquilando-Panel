@@ -13,6 +13,7 @@ import { Propietarios } from "./components/Propietarios";
 import { Solicitudes } from "./components/Solicitudes";
 import { Inmobiliarias } from "./components/Inmobiliarias";
 import { BrokerDetalle } from "./components/BrokerDetalle";
+import { BrokersInternos } from "./components/BrokersInternos";
 import type { BrokerRow } from "./components/Brokers";
 import { Toast } from "./components/kit/Toast";
 import { InmuebleDetalle } from "./components/InmuebleDetalle";
@@ -92,6 +93,7 @@ export default function App() {
           {active === "propietarios" && <Propietarios />}
           {active === "solicitudes" && <Solicitudes />}
           {active === "inmobiliarias" && <Inmobiliarias />}
+          {active === "brokers-internos" && <BrokersInternos />}
           {active === "brokers-externos" && (
             selectedInmueble ? (
               <InmuebleDetalle inmueble={selectedInmueble} onBack={() => setSelectedInmueble(null)} />
@@ -112,7 +114,7 @@ export default function App() {
               />
             )
           )}
-          {!["inicio", "inmuebles-comercializacion", "inmuebles-administracion", "mesa-ayuda", "contratos", "brokers-externos", "inventarios", "inquilinos", "propietarios", "solicitudes", "inmobiliarias"].includes(active) && (
+          {!["inicio", "inmuebles-comercializacion", "inmuebles-administracion", "mesa-ayuda", "contratos", "brokers-internos", "brokers-externos", "inventarios", "inquilinos", "propietarios", "solicitudes", "inmobiliarias"].includes(active) && (
             <div className="flex flex-col gap-5">
               <section
                 className="rounded-lg"
