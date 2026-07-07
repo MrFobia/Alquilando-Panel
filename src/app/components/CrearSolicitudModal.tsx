@@ -129,12 +129,12 @@ export function CrearSolicitudModal({ open, onClose }: Props) {
 
           <label className="flex flex-col gap-1.5">
             <FieldLabel>Adjuntar archivos</FieldLabel>
-            <FileDropzone hint="Seleccione o arrastre aquí los archivos (Máx: 10MB)" onFiles={(f) => setArchivos((p) => [...p, ...f])} />
-            {archivos.length > 0 && (
-              <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>
-                {archivos.length} {archivos.length === 1 ? "archivo adjunto" : "archivos adjuntos"}
-              </span>
-            )}
+            <FileDropzone
+              hint="Seleccione o arrastre aquí los archivos (Máx: 10MB)"
+              files={archivos}
+              onFiles={(f) => setArchivos((p) => [...p, ...f])}
+              onRemove={(i) => setArchivos((p) => p.filter((_, idx) => idx !== i))}
+            />
           </label>
 
           <label className="flex flex-col gap-1.5">

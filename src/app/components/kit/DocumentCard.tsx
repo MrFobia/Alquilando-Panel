@@ -5,12 +5,13 @@ import { IconButton } from "./IconButton";
 interface Props {
   name: string;
   meta?: string;
+  preview?: string;
   onView?: () => void;
   onDownload?: () => void;
   onDelete?: () => void;
 }
 
-export function DocumentCard({ name, meta, onView, onDownload, onDelete }: Props) {
+export function DocumentCard({ name, meta, preview, onView, onDownload, onDelete }: Props) {
   const [hover, setHover] = useState(false);
 
   return (
@@ -26,10 +27,14 @@ export function DocumentCard({ name, meta, onView, onDownload, onDelete }: Props
       onMouseLeave={() => setHover(false)}
     >
       <div
-        className="flex items-center justify-center rounded-lg shrink-0"
+        className="flex items-center justify-center rounded-lg shrink-0 overflow-hidden"
         style={{ width: 38, height: 38, backgroundColor: "var(--navy-light)" }}
       >
-        <FileText size={18} style={{ color: "var(--navy)" }} />
+        {preview ? (
+          <img src={preview} alt={name} className="w-full h-full object-cover" />
+        ) : (
+          <FileText size={18} style={{ color: "var(--navy)" }} />
+        )}
       </div>
       <div className="flex flex-col min-w-0 flex-1">
         <span className="body-small-regular break-all" style={{ color: "var(--gray-10)", fontWeight: 500 }}>

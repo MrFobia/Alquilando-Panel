@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { ArrowLeft, ChevronDown, Plus, ImagePlus, Trash2, ListPlus, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Plus, ImagePlus, Trash2, ListPlus, Image as ImageIcon } from "lucide-react";
 import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
 import { SelectInput } from "./kit/SelectInput";
 import { InfoField } from "./kit/InfoField";
 import { FileDropzone } from "./kit/FileDropzone";
 import { StatusBadge } from "./kit/StatusBadge";
+import { CollapsiblePanel } from "./kit/CollapsiblePanel";
 import { Footer } from "./kit/Footer";
 import type { NuevoInventario } from "./CrearInventarioModal";
 import { titleCase } from "./CrearInventarioModal";
@@ -63,32 +64,6 @@ interface Props {
 
 let uid = 0;
 const nextId = () => `id-${++uid}`;
-
-/* ── Panel colapsable navy ──────────────────────────────────────────────── */
-function CollapsiblePanel({
-  title, right, defaultOpen = false, children,
-}: { title: React.ReactNode; right?: React.ReactNode; defaultOpen?: boolean; children: React.ReactNode }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--gray-4)" }}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-3"
-        style={{ backgroundColor: "var(--navy)", padding: "14px 20px", cursor: "pointer" }}
-      >
-        <span className="body-bold" style={{ color: "#ffffff" }}>{title}</span>
-        <div className="flex items-center gap-3">
-          {right}
-          <ChevronDown
-            size={18}
-            style={{ color: "#ffffff", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
-          />
-        </div>
-      </button>
-      {open && <div style={{ padding: "20px", backgroundColor: "#ffffff" }}>{children}</div>}
-    </div>
-  );
-}
 
 function CountChip({ children }: { children: React.ReactNode }) {
   return (

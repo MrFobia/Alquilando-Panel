@@ -15,6 +15,9 @@ import { Footer } from "./kit/Footer";
 import { SegmentedControl } from "./kit/SegmentedControl";
 import { StatusBadge } from "./kit/StatusBadge";
 import { InfoField } from "./kit/InfoField";
+import { QuantityStepper } from "./kit/QuantityStepper";
+import { PasoPropietario } from "./PasoPropietario";
+import { PasoInquilino } from "./PasoInquilino";
 
 type TipoContrato = "vivienda" | "comercio";
 
@@ -40,8 +43,6 @@ const BARRIO_OPTIONS = ["Chicó", "El Poblado", "Santa Bárbara", "Modelia"].map
 const ZONA_OPTIONS = ["Norte", "Sur", "Occidente", "Oriente", "Centro"].map((c) => ({ value: c, label: c }));
 const ESTRATO_OPTIONS = ["1", "2", "3", "4", "5", "6"].map((c) => ({ value: c, label: c }));
 const USO_COMERCIAL_OPTIONS = ["Local", "Oficina", "Bodega", "Consultorio"].map((c) => ({ value: c, label: c }));
-const GARAJE_OPTIONS = ["Sí", "No"].map((c) => ({ value: c, label: c }));
-const CANTIDAD_OPTIONS = Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }));
 const TIPO_INMUEBLE_VIVIENDA = ["Apartamento", "Casa", "Apartaestudio"].map((c) => ({ value: c, label: c }));
 const TIPO_INMUEBLE_COMERCIO = ["Local comercial", "Oficina", "Bodega", "Consultorio"].map((c) => ({ value: c, label: c }));
 const OTROS_SERVICIOS_OPTIONS = ["Internet", "Gas natural (Bombona)", "Vigilancia", "Aseo"].map((c) => ({ value: c, label: c }));
@@ -121,47 +122,56 @@ function UnidadesBlock({
   label, tiene, cantidad, items, onTiene, onCantidad, onItemChange, attempted,
 }: {
   label: string;
-  tiene: string;
+  tiene: boolean;
   cantidad: string;
   items: UnidadItem[];
-  onTiene: (v: string) => void;
+  onTiene: (v: boolean) => void;
   onCantidad: (v: string) => void;
   onItemChange: (i: number, patch: Partial<UnidadItem>) => void;
   attempted: boolean;
 }) {
+  const labelLower = label.toLowerCase();
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-x-6 gap-y-4 max-lg:grid-cols-1">
-        <Field label={label} required error={attempted && !tiene}>
-          <SelectInput options={GARAJE_OPTIONS} value={tiene} onChange={onTiene} className="w-full" />
-        </Field>
-        {tiene === "Sí" && (
-          <Field label={`No de ${label.toLowerCase()}s`} required error={attempted && !cantidad}>
-            <SelectInput options={CANTIDAD_OPTIONS} value={cantidad} onChange={onCantidad} className="w-full" />
-          </Field>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-6 flex-wrap">
+        <ToggleSwitch checked={tiene} onChange={onTiene} label={`¿Tiene ${labelLower}?`} />
+        {tiene && (
+          <div className="flex items-center gap-3">
+            <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Cantidad</span>
+            <QuantityStepper value={Number(cantidad) || 1} onChange={(n) => onCantidad(String(n))} />
+          </div>
         )}
       </div>
 
-      {tiene === "Sí" && items.map((item, i) => (
-        <div key={i} className="flex items-end gap-4 flex-wrap">
-          <div
-            className="rounded-lg body-bold flex items-center justify-center shrink-0"
-            style={{ backgroundColor: "var(--gray-2)", color: "var(--gray-8)", height: 40, minWidth: 110, padding: "0 14px" }}
-          >
-            {label} {i + 1}
-          </div>
-          <div className="flex-1 min-w-[200px]">
-            <Field label={`Número de ${label.toLowerCase()}`} required error={attempted && !item.numero.trim()}>
-              <TextInput placeholder="Escriba aquí" value={item.numero} onChange={(v) => onItemChange(i, { numero: v })} className="w-full" />
-            </Field>
-          </div>
-          <div className="flex-1 min-w-[200px]">
-            <Field label="Número de matrícula (Opcional)">
-              <TextInput placeholder="Escriba aquí" value={item.matricula} onChange={(v) => onItemChange(i, { matricula: v })} className="w-full" />
-            </Field>
-          </div>
+      {tiene && items.length > 0 && (
+        <div className="rounded-lg" style={{ border: "1px solid var(--gray-4)" }}>
+          {items.map((item, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-4 flex-wrap"
+              style={{ padding: "14px 16px", borderTop: i > 0 ? "1px solid var(--gray-4)" : "none" }}
+            >
+              <div
+                className="rounded-full body-bold flex items-center justify-center shrink-0"
+                style={{ width: 32, height: 32, backgroundColor: "var(--navy-light)", color: "var(--navy)" }}
+              >
+                {i + 1}
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <Field label={`Número de ${labelLower}`} required error={attempted && !item.numero.trim()}>
+                  <TextInput placeholder="Escriba aquí" value={item.numero} onChange={(v) => onItemChange(i, { numero: v })} className="w-full" />
+                </Field>
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <Field label="Número de matrícula (Opcional)">
+                  <TextInput placeholder="Escriba aquí" value={item.matricula} onChange={(v) => onItemChange(i, { matricula: v })} className="w-full" />
+                </Field>
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -268,26 +278,28 @@ export function CrearContrato({ onBack, onFinish }: Props) {
   const [estrato, setEstrato] = useState("");
   const [usoComercial, setUsoComercial] = useState("");
   const [camaraComercio, setCamaraComercio] = useState("");
-  const [garajeTiene, setGarajeTiene] = useState("");
+  const [garajeTiene, setGarajeTiene] = useState(false);
   const [garajeCantidad, setGarajeCantidad] = useState("");
   const [garajeItems, setGarajeItems] = useState<UnidadItem[]>([]);
-  const [depositoTiene, setDepositoTiene] = useState("");
+  const [depositoTiene, setDepositoTiene] = useState(false);
   const [depositoCantidad, setDepositoCantidad] = useState("");
   const [depositoItems, setDepositoItems] = useState<UnidadItem[]>([]);
   const [cuotaAdmin, setCuotaAdmin] = useState("");
   const [attemptedStep0, setAttemptedStep0] = useState(false);
 
-  const handleGarajeTiene = (v: string) => {
+  const handleGarajeTiene = (v: boolean) => {
     setGarajeTiene(v);
-    if (v !== "Sí") { setGarajeCantidad(""); setGarajeItems([]); }
+    if (v) { setGarajeCantidad("1"); setGarajeItems(resizeUnidades("1", garajeItems)); }
+    else { setGarajeCantidad(""); setGarajeItems([]); }
   };
   const handleGarajeCantidad = (v: string) => { setGarajeCantidad(v); setGarajeItems((prev) => resizeUnidades(v, prev)); };
   const handleGarajeItem = (i: number, patch: Partial<UnidadItem>) =>
     setGarajeItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
 
-  const handleDepositoTiene = (v: string) => {
+  const handleDepositoTiene = (v: boolean) => {
     setDepositoTiene(v);
-    if (v !== "Sí") { setDepositoCantidad(""); setDepositoItems([]); }
+    if (v) { setDepositoCantidad("1"); setDepositoItems(resizeUnidades("1", depositoItems)); }
+    else { setDepositoCantidad(""); setDepositoItems([]); }
   };
   const handleDepositoCantidad = (v: string) => { setDepositoCantidad(v); setDepositoItems((prev) => resizeUnidades(v, prev)); };
   const handleDepositoItem = (i: number, patch: Partial<UnidadItem>) =>
@@ -317,10 +329,8 @@ export function CrearContrato({ onBack, onFinish }: Props) {
   const step0Invalid = showRestOfForm && (
     (tipoContrato === "vivienda" && !estrato) ||
     (tipoContrato === "comercio" && !usoComercial) ||
-    !garajeTiene ||
-    (garajeTiene === "Sí" && (!garajeCantidad || garajeItems.some((it) => !it.numero.trim()))) ||
-    !depositoTiene ||
-    (depositoTiene === "Sí" && (!depositoCantidad || depositoItems.some((it) => !it.numero.trim())))
+    (garajeTiene && (!garajeCantidad || garajeItems.some((it) => !it.numero.trim()))) ||
+    (depositoTiene && (!depositoCantidad || depositoItems.some((it) => !it.numero.trim())))
   );
 
   const goNext = () => {
@@ -398,16 +408,17 @@ export function CrearContrato({ onBack, onFinish }: Props) {
               <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
 
               {origen === "portafolio" ? (
-                <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4 max-lg:grid-cols-1" style={{ maxWidth: 640 }}>
-                    <Field label="Buscar por"><SelectInput options={BUSCAR_POR_OPTIONS} value={buscarPor} onChange={setBuscarPor} className="w-full" /></Field>
-                    <Field label="N°"><TextInput placeholder="0000" value={numeroBusqueda} onChange={setNumeroBusqueda} onEnter={buscarInmueble} onClear={limpiarBusqueda} className="w-full" /></Field>
-                  </div>
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-end gap-3 flex-wrap">
+                    <div style={{ width: 200 }}>
+                      <Field label="Buscar por"><SelectInput options={BUSCAR_POR_OPTIONS} value={buscarPor} onChange={setBuscarPor} className="w-full" /></Field>
+                    </div>
+                    <div className="flex-1" style={{ minWidth: 160 }}>
+                      <Field label="N°"><TextInput placeholder="0000" value={numeroBusqueda} onChange={setNumeroBusqueda} onEnter={buscarInmueble} onClear={limpiarBusqueda} className="w-full" /></Field>
+                    </div>
                     <AppButton variant="primary" bold onClick={buscarInmueble}>
                       <Search size={15} /> Buscar inmueble
                     </AppButton>
-                    {busquedaEstado !== "idle" && <LinkText onClick={limpiarBusqueda}>Limpiar búsqueda</LinkText>}
                   </div>
 
                   {busquedaEstado === "notfound" && (
@@ -638,6 +649,10 @@ export function CrearContrato({ onBack, onFinish }: Props) {
             </>
           )}
         </>
+      ) : stepIndex === 1 ? (
+        <PasoPropietario />
+      ) : stepIndex === 2 ? (
+        <PasoInquilino />
       ) : (
         <section
           className="rounded-lg flex flex-col items-center justify-center gap-3 text-center"

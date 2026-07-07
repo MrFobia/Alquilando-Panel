@@ -13,6 +13,7 @@ import { ToggleSwitch } from "./kit/ToggleSwitch";
 import { EmptyState } from "./kit/EmptyState";
 import { Footer } from "./kit/Footer";
 import { CrearContrato } from "./CrearContrato";
+import { EstadoContratoDetalle } from "./EstadoContratoDetalle";
 
 const PAGE_SIZE = 10;
 
@@ -137,6 +138,7 @@ export function Contratos() {
   const [bogota, setBogota] = useState(true);
   const [caribe, setCaribe] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [viewingEstado, setViewingEstado] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -147,6 +149,10 @@ export function Contratos() {
 
   if (creating) {
     return <CrearContrato onBack={() => setCreating(false)} onFinish={() => setCreating(false)} />;
+  }
+
+  if (viewingEstado) {
+    return <EstadoContratoDetalle onBack={() => setViewingEstado(false)} />;
   }
 
   const changeTab = (id: string) => { setTab(id); setPage(1); setQuery(""); setApplied(null); };
@@ -188,8 +194,8 @@ export function Contratos() {
           ...r,
           estado: <StatusBadge label={badge.label} variant={badge.variant} />,
           opciones: r.estado === "elaboracion"
-            ? <IconButton icon={Pencil} title="Continuar edición" />
-            : <IconButton icon={Eye} title="Ver resumen" />,
+            ? <IconButton icon={Pencil} title="Continuar edición" onClick={tab === "admin" ? () => setCreating(true) : undefined} />
+            : <IconButton icon={Eye} title="Ver resumen" onClick={tab === "admin" ? () => setViewingEstado(true) : undefined} />,
         };
       });
 
@@ -236,7 +242,16 @@ export function Contratos() {
 
         {tableRows.length > 0 ? (
           <>
-            <DataTable columns={isEstudio ? ESTUDIO_COLUMNS : CONTRATO_COLUMNS} rows={tableRows} loading={loading} />
+            <DataTable
+              columns={isEstudio ? ESTUDIO_COLUMNS : CONTRATO_COLUMNS}
+              rows={tableRows}
+              loading={loading}
+              onRowClick={tab === "admin" ? (i) => {
+                const row = pageRows[i] as ContratoRow;
+                if (row.estado === "elaboracion") setCreating(true);
+                else setViewingEstado(true);
+              } : undefined}
+            />
             <p className="body-regular text-right" style={{ color: "var(--gray-9)", margin: 0 }}>
               Mostrando <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{pageRows.length}</span> de{" "}
               <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{sourceRows.length}</span>
