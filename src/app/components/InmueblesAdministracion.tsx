@@ -10,6 +10,7 @@ import { SelectInput } from "./kit/SelectInput";
 import { Pagination } from "./kit/Pagination";
 import { EmptyState } from "./kit/EmptyState";
 import { Footer } from "./kit/Footer";
+import { EstadoContratoDetalle } from "./EstadoContratoDetalle";
 
 const PAGE_SIZE = 10;
 
@@ -61,6 +62,11 @@ export function InmueblesAdministracion() {
   const [searchBy, setSearchBy] = useState("");
   const [query, setQuery] = useState("");
   const [applied, setApplied] = useState<{ by: string; q: string } | null>(null);
+  const [selected, setSelected] = useState<InmuebleRow | null>(null);
+
+  if (selected) {
+    return <EstadoContratoDetalle onBack={() => setSelected(null)} />;
+  }
 
   const doSearch = () => { setApplied({ by: searchBy, q: query }); setPage(1); };
   const clearSearch = () => { setQuery(""); setApplied(null); setPage(1); };
@@ -80,8 +86,8 @@ export function InmueblesAdministracion() {
 
   const rows = pageRows.map((r) => ({
     ...r,
-    estado: <StatusBadge label="Arrendado" variant="pending" />,
-    opciones: <IconButton icon={Eye} title="Ver ficha del inmueble" />,
+    estado: <StatusBadge label="Arrendado" variant="active" />,
+    opciones: <IconButton icon={Eye} title="Ver ficha del inmueble" onClick={() => setSelected(r)} />,
   }));
 
   return (
@@ -109,7 +115,7 @@ export function InmueblesAdministracion() {
 
         {rows.length > 0 ? (
           <>
-            <DataTable columns={COLUMNS} rows={rows} />
+            <DataTable columns={COLUMNS} rows={rows} onRowClick={(i) => setSelected(pageRows[i])} />
             <p className="body-regular text-right" style={{ color: "var(--gray-9)", margin: 0 }}>
               Mostrando <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{pageRows.length}</span> de{" "}
               <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{filtered.length}</span>

@@ -134,8 +134,8 @@ export function Contratos() {
   const [searchBy, setSearchBy] = useState("");
   const [query, setQuery] = useState("");
   const [applied, setApplied] = useState<{ by: string; q: string } | null>(null);
-  const [comercial, setComercial] = useState(true);
-  const [vivienda, setVivienda] = useState(true);
+  const [bogota, setBogota] = useState(true);
+  const [caribe, setCaribe] = useState(true);
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -155,8 +155,9 @@ export function Contratos() {
 
   const filterContratos = (rows: ContratoRow[]) =>
     rows.filter((r) => {
-      if (r.tipo === "comercial" && !comercial) return false;
-      if (r.tipo === "vivienda" && !vivienda) return false;
+      const esCaribe = r.inmobiliaria.toLowerCase().includes("caribe");
+      if (esCaribe && !caribe) return false;
+      if (!esCaribe && !bogota) return false;
       if (!applied || !applied.q.trim()) return true;
       const q = applied.q.trim().toLowerCase();
       const fields = applied.by
@@ -208,8 +209,8 @@ export function Contratos() {
         </div>
         {!isEstudio && (
           <div className="flex items-center gap-5 shrink-0">
-            <ToggleSwitch checked={comercial} onChange={(v) => { setComercial(v); setPage(1); }} label="Comercial" />
-            <ToggleSwitch checked={vivienda} onChange={(v) => { setVivienda(v); setPage(1); }} label="Vivienda" />
+            <ToggleSwitch checked={bogota} onChange={(v) => { setBogota(v); setPage(1); }} label="Bogotá" />
+            <ToggleSwitch checked={caribe} onChange={(v) => { setCaribe(v); setPage(1); }} label="Caribe" />
           </div>
         )}
       </div>
