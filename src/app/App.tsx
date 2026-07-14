@@ -19,8 +19,10 @@ import { Toast } from "./components/kit/Toast";
 import { InmuebleDetalle } from "./components/InmuebleDetalle";
 import type { InmuebleData } from "./components/InmuebleDetalle";
 import { FloatingChat } from "./components/FloatingChat";
+import { Login } from "./components/Login";
+import { PortalInquilino } from "./components/PortalInquilino";
 
-type Page = "dashboard" | "styleguide";
+type Page = "dashboard" | "styleguide" | "login" | "portal-inquilino";
 
 const SECTION_TITLES: Record<string, string> = {
   "inmuebles-administracion": "Inmuebles — En administración",
@@ -65,6 +67,25 @@ export default function App() {
     return <StyleGuidePage onBack={() => setPage("dashboard")} />;
   }
 
+  if (page === "login") {
+    return (
+      <Login
+        onLogin={(role) => {
+          if (role === "inquilino") {
+            setPage("portal-inquilino");
+          } else {
+            setPage("dashboard");
+            goToSection("inicio");
+          }
+        }}
+      />
+    );
+  }
+
+  if (page === "portal-inquilino") {
+    return <PortalInquilino onLogout={() => setPage("login")} />;
+  }
+
   return (
     <div
       className="flex min-h-screen"
@@ -74,6 +95,7 @@ export default function App() {
         active={active}
         onSelect={goToSection}
         onStyleGuide={() => setPage("styleguide")}
+        onLogout={() => setPage("login")}
       />
       <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
         <div className="px-4 md:px-8 py-6 max-w-[1400px] mx-auto">

@@ -8,7 +8,7 @@ interface VariantStyle {
 const VARIANTS: Record<Variant, VariantStyle> = {
   primary: {
     base: { backgroundColor: "var(--navy)", color: "#ffffff" },
-    hoverBg: "#141a64",
+    hoverBg: "var(--navy-dark, #141a64)",
   },
   secondary: {
     base: { backgroundColor: "transparent", color: "var(--navy)", border: "1.5px solid var(--navy)" },

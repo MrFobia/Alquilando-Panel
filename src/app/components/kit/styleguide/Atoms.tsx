@@ -96,13 +96,20 @@ const radiusTokens = [
   { label: "pill — 50px", value: "50px" },
 ];
 
-const badges: { label: string; variant: "draft" | "pending" | "registered" | "active" | "rejected" | "neutral" }[] = [
-  { label: "Borrador", variant: "draft" },
-  { label: "En elaboración", variant: "pending" },
-  { label: "Asignado", variant: "registered" },
-  { label: "En ejecucion", variant: "active" },
-  { label: "Rechazado", variant: "rejected" },
-  { label: "Sin publicar", variant: "neutral" },
+const badges: {
+  label: string;
+  variant: "draft" | "pending" | "registered" | "active" | "rejected" | "neutral" | "violet";
+  bg: string;
+  text: string;
+  border: string;
+}[] = [
+  { label: "Borrador", variant: "draft", bg: "#d32f2f", text: "#ffffff", border: "—" },
+  { label: "En elaboración", variant: "pending", bg: "#fff3e0", text: "#fb8c00", border: "#fb8c00" },
+  { label: "Asignado", variant: "registered", bg: "#e8eaf6", text: "#1a237e", border: "#1a237e" },
+  { label: "En ejecucion", variant: "active", bg: "#e8f5e9", text: "#48785a", border: "#48785a" },
+  { label: "Rechazado", variant: "rejected", bg: "#ffebee", text: "#d32f2f", border: "#d32f2f" },
+  { label: "Sin publicar", variant: "neutral", bg: "#e8e8e8", text: "#616161", border: "#e0e0e0" },
+  { label: "Pre contrato", variant: "violet", bg: "#edeffa", text: "#5c6bc0", border: "#5c6bc0" },
 ];
 
 const icons = [
@@ -244,11 +251,20 @@ export function Atoms() {
       {/* Badges */}
       <div>
         <SectionTitle>Badges / Estados</SectionTitle>
-        <div className="flex gap-3 flex-wrap">
-          {badges.map(({ label, variant }) => <StatusBadge key={variant} label={label} variant={variant} />)}
+        <div className="flex gap-6 flex-wrap">
+          {badges.map(({ label, variant, bg, text, border }) => (
+            <div key={variant} className="flex flex-col items-start gap-2">
+              <StatusBadge label={label} variant={variant} />
+              <div className="flex flex-col gap-0.5">
+                <span className="disclamer" style={{ color: "var(--gray-8)" }}>Fondo: <span style={{ color: "var(--gray-10)" }}>{bg}</span></span>
+                <span className="disclamer" style={{ color: "var(--gray-8)" }}>Texto: <span style={{ color: "var(--gray-10)" }}>{text}</span></span>
+                <span className="disclamer" style={{ color: "var(--gray-8)" }}>Línea: <span style={{ color: "var(--gray-10)" }}>{border}</span></span>
+              </div>
+            </div>
+          ))}
         </div>
         <p className="body-small-regular mt-4" style={{ color: "var(--gray-9)" }}>
-          Componente: <span className="tags" style={{ color: "var(--gray-8)" }}>kit/StatusBadge</span> — variantes: draft (sólido), pending, registered, active, rejected, neutral.
+          Componente: <span className="tags" style={{ color: "var(--gray-8)" }}>kit/StatusBadge</span> — variantes: draft (sólido), pending, registered, active, rejected, neutral, violet.
         </p>
       </div>
 

@@ -93,10 +93,10 @@ const TABS = [
   { id: "pendiente", label: "Pendiente de aprobación", count: PENDIENTE_ROWS.length },
 ];
 
-const ESTADO_BADGE: Record<EstadoContrato, { label: string; variant: "pending" | "active" | "registered" }> = {
+const ESTADO_BADGE: Record<EstadoContrato, { label: string; variant: "pending" | "active" | "violet" }> = {
   elaboracion: { label: "En elaboración", variant: "pending" },
   ejecucion: { label: "En ejecucion", variant: "active" },
-  precontrato: { label: "Pre contrato", variant: "registered" },
+  precontrato: { label: "Pre contrato", variant: "violet" },
 };
 
 const ESTUDIO_COLUMNS = [

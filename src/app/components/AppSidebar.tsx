@@ -45,6 +45,7 @@ interface Props {
   active: string;
   onSelect: (id: string) => void;
   onStyleGuide: () => void;
+  onLogout: () => void;
 }
 
 interface NavListProps {
@@ -165,9 +166,10 @@ function NavList({ active, collapsed, openGroups, onToggleGroup, onSelect, onSty
 
 interface FooterProps {
   collapsed: boolean;
+  onLogout: () => void;
 }
 
-function SidebarFooter({ collapsed }: FooterProps) {
+function SidebarFooter({ collapsed, onLogout }: FooterProps) {
   if (collapsed) {
     return (
       <div className="flex flex-col items-center gap-1 py-3" style={{ borderTop: "1px solid var(--gray-4)" }}>
@@ -182,6 +184,7 @@ function SidebarFooter({ collapsed }: FooterProps) {
         </button>
         <button
           title="Cerrar sesión"
+          onClick={onLogout}
           className="flex items-center justify-center rounded-lg transition-colors"
           style={{ cursor: "pointer", width: 40, height: 40, backgroundColor: "transparent", color: "var(--gray-9)" }}
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--gray-1)"; }}
@@ -201,7 +204,7 @@ function SidebarFooter({ collapsed }: FooterProps) {
         Administrar mi perfil
       </AppButton>
 
-      <LinkText size="small" onClick={() => {}} className="w-full justify-center">
+      <LinkText size="small" onClick={onLogout} className="w-full justify-center">
         Cerrar sesión
       </LinkText>
 
@@ -212,7 +215,7 @@ function SidebarFooter({ collapsed }: FooterProps) {
   );
 }
 
-export function AppSidebar({ active, onSelect, onStyleGuide }: Props) {
+export function AppSidebar({ active, onSelect, onStyleGuide, onLogout }: Props) {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -290,7 +293,7 @@ export function AppSidebar({ active, onSelect, onStyleGuide }: Props) {
           onSelect={selectMobile}
           onStyleGuide={() => { onStyleGuide(); setMobileOpen(false); }}
         />
-        <SidebarFooter collapsed={false} />
+        <SidebarFooter collapsed={false} onLogout={onLogout} />
       </aside>
 
       {/* ─── Desktop sidebar ─── */}
@@ -339,7 +342,7 @@ export function AppSidebar({ active, onSelect, onStyleGuide }: Props) {
           onSelect={onSelect}
           onStyleGuide={onStyleGuide}
         />
-        <SidebarFooter collapsed={collapsed} />
+        <SidebarFooter collapsed={collapsed} onLogout={onLogout} />
       </aside>
     </>
   );
