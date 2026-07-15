@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, MapPin, CircleCheck, Tv, Sofa, ShieldCheck, Home,
+  ArrowLeft, MapPin, CircleCheck, Tv, Sofa, ShieldCheck, Home, Plus,
   Flame, HeartPulse, Lock, PawPrint, Wrench, Hammer, PackageCheck, Award,
   Receipt, Mail, CalendarClock, CreditCard, Download, FileText,
 } from "lucide-react";
@@ -40,12 +40,14 @@ const PASOS = [
   { id: "pagar", label: "Pagar" },
 ];
 
-const INMUEBLES_COTIZACION: Record<string, {
+interface InmuebleCotizacion {
   estrato: string; canon: string; ciudad: string; direccion: string; coordenadas: string;
   /** Si es false, ya tenemos todos los datos del inmueble: no hace falta pedirle nada más al usuario. */
   datosCompletos: boolean;
   lat: number; lng: number;
-}> = {
+}
+
+const INMUEBLES_COTIZACION: Record<string, InmuebleCotizacion> = {
   "carrera-23": { estrato: "3", canon: "$1.400.000", ciudad: "Bogotá", direccion: "Carrera 23 # 45 - 34 sur", coordenadas: "4,593874 - -74,129384", datosCompletos: false, lat: 4.593874, lng: -74.129384 },
   "calle-80": { estrato: "4", canon: "$2.150.000", ciudad: "Bogotá", direccion: "Calle 80 # 12 - 08, apto 502", coordenadas: "4,668350 - -74,056420", datosCompletos: true, lat: 4.668350, lng: -74.056420 },
 };
@@ -912,6 +914,11 @@ interface Props {
 
 export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   const [paso, setPaso] = useState(0);
+  // Al cambiar de paso, sube al inicio del módulo (el scroll vive en el <main> del portal, no en window).
+  const topRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [paso]);
   const [numeroPoliza] = useState(() => "AL-" + Math.floor(100000 + Math.random() * 900000));
   const [fechaCompra] = useState(() => new Date());
   const fechaPagoStr = useMemo(() => formatFechaCorta(fechaCompra), [fechaCompra]);
@@ -921,12 +928,98 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     return formatFechaCorta(d);
   }, [fechaCompra]);
   const [inmueble, setInmueble] = useState("carrera-23");
+  const [inmueblesData, setInmueblesData] = useState<Record<string, InmuebleCotizacion>>(INMUEBLES_COTIZACION);
+  const [inmuebleOptions, setInmuebleOptions] = useState(INMUEBLE_OPTIONS);
   const [pinPos, setPinPos] = useState(PIN_INICIAL);
   const [pinAjustado, setPinAjustado] = useState(false);
   const cambiarInmueble = (id: string) => {
     setInmueble(id);
     setPinPos(PIN_INICIAL);
     setPinAjustado(false);
+    // Elegir un inmueble existente cierra el formulario de "nuevo inmueble" si estaba abierto.
+    setAgregandoInmueble(false);
+  };
+
+  // Formulario inline para agregar un inmueble nuevo a la lista.
+  // Mientras está abierto se deselecciona el inmueble para no mostrar sus datos abajo.
+  const [agregandoInmueble, setAgregandoInmueble] = useState(false);
+  const [inmuebleAntesDeAgregar, setInmuebleAntesDeAgregar] = useState<string | null>(null);
+  const [nuevoDireccion, setNuevoDireccion] = useState("");
+  const [nuevoCiudad, setNuevoCiudad] = useState("");
+  const [nuevoEstrato, setNuevoEstrato] = useState("");
+  const [nuevoCanon, setNuevoCanon] = useState("");
+  const [nuevoAntiguedad, setNuevoAntiguedad] = useState("");
+  const [nuevoValorVivienda, setNuevoValorVivienda] = useState("");
+  const [nuevoInfoAdicional, setNuevoInfoAdicional] = useState("");
+  const [nuevoZona, setNuevoZona] = useState("urbano");
+  const [nuevoObservaciones, setNuevoObservaciones] = useState("");
+  const [nuevoPinPos, setNuevoPinPos] = useState(PIN_INICIAL);
+  const [nuevoPinAjustado, setNuevoPinAjustado] = useState(false);
+  const nuevoValido =
+    nuevoDireccion.trim() !== "" &&
+    nuevoCiudad.trim() !== "" &&
+    nuevoAntiguedad.trim() !== "" &&
+    Number(nuevoValorVivienda) > 0;
+
+  const abrirNuevoInmueble = () => {
+    setInmuebleAntesDeAgregar(inmueble);
+    setInmueble("");
+    setAgregandoInmueble(true);
+  };
+
+  const resetNuevoInmueble = () => {
+    setAgregandoInmueble(false);
+    setNuevoDireccion("");
+    setNuevoCiudad("");
+    setNuevoEstrato("");
+    setNuevoCanon("");
+    setNuevoAntiguedad("");
+    setNuevoValorVivienda("");
+    setNuevoInfoAdicional("");
+    setNuevoZona("urbano");
+    setNuevoObservaciones("");
+    setNuevoPinPos(PIN_INICIAL);
+    setNuevoPinAjustado(false);
+  };
+
+  // Coordenadas del inmueble nuevo: base Bogotá desplazada según dónde suelte el PIN.
+  const NUEVO_LAT_BASE = 4.60971;
+  const NUEVO_LNG_BASE = -74.08175;
+  const nuevoLat = NUEVO_LAT_BASE + ((PIN_INICIAL.y - nuevoPinPos.y) / 50) * 0.01;
+  const nuevoLng = NUEVO_LNG_BASE + ((nuevoPinPos.x - PIN_INICIAL.x) / 50) * 0.01;
+  const nuevoCoordenadas =
+    `${nuevoLat.toFixed(6)}`.replace(".", ",") + " - " + `${nuevoLng.toFixed(6)}`.replace(".", ",");
+
+  const cancelarNuevoInmueble = () => {
+    if (inmuebleAntesDeAgregar) cambiarInmueble(inmuebleAntesDeAgregar);
+    setInmuebleAntesDeAgregar(null);
+    resetNuevoInmueble();
+  };
+
+  const guardarNuevoInmueble = () => {
+    if (!nuevoValido) return;
+    const id = `nuevo-${Date.now()}`;
+    const nuevo: InmuebleCotizacion = {
+      estrato: nuevoEstrato.trim() || "—",
+      canon: nuevoCanon.trim() ? `$${nuevoCanon.trim()}` : "—",
+      ciudad: nuevoCiudad.trim(),
+      direccion: nuevoDireccion.trim(),
+      coordenadas: nuevoCoordenadas,
+      // El formulario de creación ya pidió todos los datos: no se repite la sección de detalles.
+      datosCompletos: true,
+      lat: nuevoLat,
+      lng: nuevoLng,
+    };
+    setInmueblesData((prev) => ({ ...prev, [id]: nuevo }));
+    setInmuebleOptions((prev) => [...prev, { value: id, label: nuevo.direccion }]);
+    setAntiguedad(nuevoAntiguedad);
+    setValorVivienda(nuevoValorVivienda);
+    setInfoAdicional(nuevoInfoAdicional);
+    setZona(nuevoZona);
+    setObservaciones(nuevoObservaciones);
+    cambiarInmueble(id);
+    setInmuebleAntesDeAgregar(null);
+    resetNuevoInmueble();
   };
 
   const [infoAdicional, setInfoAdicional] = useState("");
@@ -945,9 +1038,10 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   const [asistenciaId, setAsistenciaId] = useState("basica");
   const toggleAdicional = (id: string, v: boolean) => setAdicionales((prev) => ({ ...prev, [id]: v }));
 
-  const datos = INMUEBLES_COTIZACION[inmueble];
+  const datos = inmueble ? inmueblesData[inmueble] : undefined;
   // El pin desplaza la coordenada base según qué tan lejos del centro del mapa lo sueltes.
   const coordenadasPin = useMemo(() => {
+    if (!datos) return "—";
     const lat = datos.lat + ((PIN_INICIAL.y - pinPos.y) / 50) * 0.01;
     const lng = datos.lng + ((pinPos.x - PIN_INICIAL.x) / 50) * 0.01;
     return `${lat.toFixed(6)}`.replace(".", ",") + " - " + `${lng.toFixed(6)}`.replace(".", ",");
@@ -967,13 +1061,14 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   );
 
   // Los campos marcados con * son obligatorios, salvo que el inmueble ya tenga todos sus datos precargados.
-  const detallesCompletos = !datos.datosCompletos ? (antiguedad.trim() !== "" && Number(valorVivienda) > 0) : true;
+  const detallesCompletos = datos ? (!datos.datosCompletos ? (antiguedad.trim() !== "" && Number(valorVivienda) > 0) : true) : false;
   const objetosCompletos = Number(electronicosValor) > 0 && Number(enseresValor) > 0;
   const puedeContinuar = detallesCompletos && objetosCompletos;
 
   // Dice exactamente qué falta, en vez de un "completa todo" genérico.
   const faltantes = [
-    !detallesCompletos && "datos del inmueble",
+    !datos && "selecciona un inmueble",
+    datos && !detallesCompletos && "datos del inmueble",
     Number(electronicosValor) <= 0 && "valor de equipos electrónicos",
     Number(enseresValor) <= 0 && "valor de muebles y enseres",
   ].filter(Boolean) as string[];
@@ -990,7 +1085,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    <div ref={topRef} className="flex flex-col gap-5" style={{ scrollMarginTop: 16 }}>
       {/* Volver — mismo patrón que los detalles del panel */}
       <button
         onClick={onBack}
@@ -1040,8 +1135,8 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1" role="radiogroup" aria-label="Inmueble a asegurar">
-                    {INMUEBLE_OPTIONS.map((opt) => {
-                      const d = INMUEBLES_COTIZACION[opt.value];
+                    {inmuebleOptions.map((opt) => {
+                      const d = inmueblesData[opt.value];
                       const selected = inmueble === opt.value;
                       return (
                         <button
@@ -1092,9 +1187,107 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                         </button>
                       );
                     })}
+                    {/* Card para agregar un inmueble que no está en la lista */}
+                    <button
+                      onClick={abrirNuevoInmueble}
+                      className="rounded-lg flex flex-col items-center justify-center gap-2 transition-colors"
+                      style={{
+                        cursor: "pointer",
+                        padding: "16px 18px",
+                        minHeight: 120,
+                        border: "1.5px dashed var(--gray-5)",
+                        backgroundColor: agregandoInmueble ? "var(--navy-light)" : "#ffffff",
+                        color: "var(--navy)",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--navy)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--gray-5)"; }}
+                    >
+                      <div
+                        className="flex items-center justify-center rounded-full"
+                        style={{ width: 38, height: 38, backgroundColor: "var(--navy-light)" }}
+                      >
+                        <Plus size={17} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
+                      </div>
+                      <span className="body-bold">Agregar nuevo inmueble</span>
+                      <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>
+                        ¿No ves tu inmueble? Regístralo aquí.
+                      </span>
+                    </button>
                   </div>
+
+                  {agregandoInmueble && (
+                    <div
+                      className="rounded-lg flex flex-col gap-4"
+                      style={{ border: "1px solid var(--gray-4)", backgroundColor: "var(--gray-1)", padding: "18px 20px" }}
+                    >
+                      <h3 className="body-bold" style={{ color: "var(--navy)" }}>Nuevo inmueble</h3>
+                      <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+                        <Field label="Dirección" required>
+                          <TextInput placeholder="Ej. Calle 100 # 15 - 20, apto 301" value={nuevoDireccion} onChange={setNuevoDireccion} />
+                        </Field>
+                        <Field label="Ciudad" required>
+                          <TextInput placeholder="Ej. Bogotá" value={nuevoCiudad} onChange={setNuevoCiudad} />
+                        </Field>
+                        <Field label="Estrato">
+                          <SelectInput
+                            options={["1", "2", "3", "4", "5", "6"].map((v) => ({ value: v, label: v }))}
+                            value={nuevoEstrato}
+                            onChange={setNuevoEstrato}
+                          />
+                        </Field>
+                        <Field label="Canon mensual">
+                          <TextInput placeholder="Ej. 1.800.000" value={nuevoCanon} onChange={setNuevoCanon} />
+                        </Field>
+                        <Field label="Años de antigüedad" required>
+                          <TextInput placeholder="Digite aquí" value={nuevoAntiguedad} onChange={setNuevoAntiguedad} />
+                        </Field>
+                        <Field label="Valor de la vivienda" required>
+                          <TextInput placeholder="$ 0" value={nuevoValorVivienda} onChange={setNuevoValorVivienda} />
+                        </Field>
+                        <Field label="Información adicional del inmueble">
+                          <TextInput placeholder="Torre, piso, apto" value={nuevoInfoAdicional} onChange={setNuevoInfoAdicional} />
+                        </Field>
+                        <Field label="Zona">
+                          <SelectInput options={ZONA_OPTIONS} value={nuevoZona} onChange={setNuevoZona} />
+                        </Field>
+                      </div>
+                      <Field label="Observaciones">
+                        <textarea
+                          placeholder="Escriba aquí..."
+                          value={nuevoObservaciones}
+                          onChange={(e) => setNuevoObservaciones(e.target.value)}
+                          style={textareaStyle}
+                        />
+                      </Field>
+
+                      {/* Geolocalización del inmueble nuevo */}
+                      <div className="flex flex-col gap-3">
+                        <Callout variant="info" title="Geolocalización">
+                          Ubica tu inmueble en el mapa: arrastra el PIN hasta el punto exacto de la dirección ingresada.
+                        </Callout>
+                        <MapaPin pos={nuevoPinPos} onChange={setNuevoPinPos} onDragEnd={() => setNuevoPinAjustado(true)} />
+                        <div className="flex items-center gap-2">
+                          <CircleCheck size={15} strokeWidth={1.8} style={{ color: nuevoPinAjustado ? "var(--green-status)" : "var(--gray-7)" }} />
+                          <span className="body-small-regular" style={{ color: nuevoPinAjustado ? "var(--green-status)" : "var(--gray-8)" }}>
+                            {nuevoPinAjustado ? "PIN ajustado manualmente" : "Arrastra el PIN para ajustar la ubicación"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Coordenadas</span>
+                          <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{nuevoCoordenadas}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-end gap-3">
+                        <AppButton variant="secondary" onClick={cancelarNuevoInmueble}>Cancelar</AppButton>
+                        <AppButton variant="primary" bold disabled={!nuevoValido} onClick={guardarNuevoInmueble}>
+                          Guardar inmueble
+                        </AppButton>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
+                {datos && (
                 <div className="flex flex-col gap-3">
                   <Callout variant="info" title="Geolocalización">
                     El mapa muestra el punto estimado según la dirección ingresada. Ajusta o arrastra el PIN
@@ -1112,8 +1305,9 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                     <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{coordenadasPin}</span>
                   </div>
                 </div>
+                )}
 
-                {datos.datosCompletos ? (
+                {datos && (datos.datosCompletos ? (
                   <div
                     className="flex items-center gap-3 rounded-lg"
                     style={{ backgroundColor: "var(--green-status-light)", padding: "14px 18px" }}
@@ -1171,7 +1365,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                       </div>
                     </div>
                   </>
-                )}
+                ))}
               </>
             )}
 
@@ -1293,7 +1487,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
 
           <div className="flex items-start justify-between gap-4">
             <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Inmueble</span>
-            <span className="body-small-regular text-right" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos.direccion}</span>
+            <span className="body-small-regular text-right" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos?.direccion ?? "Sin seleccionar"}</span>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -1376,7 +1570,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                       onComprar({
                         id: numeroPoliza,
                         numeroPoliza,
-                        inmuebleDireccion: datos.direccion,
+                        inmuebleDireccion: datos?.direccion ?? "",
                         planNombre: plan.nombre,
                         planPrecio: plan.precio,
                         planCoberturas: plan.coberturas,
