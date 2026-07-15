@@ -39,7 +39,7 @@ const SECTION_TITLES: Record<string, string> = {
 };
 
 export default function App() {
-  const [page, setPage] = useState<Page>("dashboard");
+  const [page, setPage] = useState<Page>("login");
   const [active, setActive] = useState("inicio");
   const [selectedBroker, setSelectedBroker] = useState<BrokerRow | null>(null);
   const [selectedInmueble, setSelectedInmueble] = useState<InmuebleData | null>(null);
