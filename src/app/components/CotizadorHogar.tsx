@@ -1097,7 +1097,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
 
       {/* Header */}
       <section
-        className="rounded-lg flex items-center justify-between gap-6 flex-wrap p-5 md:px-7 md:py-6"
+        className="rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 p-5 md:px-7 md:py-6"
         style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)" }}
       >
         <div>
@@ -1106,15 +1106,18 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
             Asegura tus artículos electrónicos, muebles y enseres contra daños o robo.
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <span className="disclamer" style={{ color: "var(--gray-8)" }}>Respaldado por:</span>
-          <img src={logoSegurosBolivar} alt="Seguros Bolívar" style={{ height: 44, width: "auto" }} />
+        <div
+          className="flex items-center gap-2.5 shrink-0 pt-3 border-t md:pt-0 md:border-t-0 md:pl-6 md:border-l"
+          style={{ borderColor: "var(--gray-3)" }}
+        >
+          <span className="disclamer shrink-0" style={{ color: "var(--gray-8)" }}>Respaldado por</span>
+          <img src={logoSegurosBolivar} alt="Seguros Bolívar" style={{ height: 32, width: "auto" }} />
         </div>
       </section>
 
       {/* Progreso: barra delgada, fuera de las tarjetas de contenido para no robarles espacio */}
       <section
-        className="rounded-lg overflow-x-auto px-4 md:px-7"
+        className="rounded-lg px-4 md:px-7"
         style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", paddingTop: 14, paddingBottom: 14 }}
       >
         <Stepper steps={PASOS} current={paso} />
