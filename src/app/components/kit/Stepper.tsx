@@ -13,7 +13,7 @@ interface Props {
 
 export function Stepper({ steps, current }: Props) {
   return (
-    <div className="flex items-start justify-center gap-0 w-full">
+    <div className="flex items-start gap-0 w-max mx-auto">
       {steps.map((step, i) => {
         const done = i < current;
         const active = i === current;

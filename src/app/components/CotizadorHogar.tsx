@@ -1097,8 +1097,8 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
 
       {/* Header */}
       <section
-        className="rounded-lg flex items-center justify-between gap-6 flex-wrap"
-        style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "24px 28px" }}
+        className="rounded-lg flex items-center justify-between gap-6 flex-wrap p-5 md:px-7 md:py-6"
+        style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)" }}
       >
         <div>
           <h1 className="title-primary-bold" style={{ color: "var(--navy)" }}>Seguro de Hogar</h1>
@@ -1114,16 +1114,16 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
 
       {/* Progreso: barra delgada, fuera de las tarjetas de contenido para no robarles espacio */}
       <section
-        className="rounded-lg flex items-center justify-center"
-        style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "14px 28px" }}
+        className="rounded-lg overflow-x-auto px-4 md:px-7"
+        style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", paddingTop: 14, paddingBottom: 14 }}
       >
         <Stepper steps={PASOS} current={paso} />
       </section>
 
-      <div className="grid gap-5 items-start" style={{ gridTemplateColumns: "minmax(0, 2fr) minmax(280px, 1fr)" }}>
+      <div className="grid gap-5 items-start grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         {/* Columna principal */}
         <div className="flex flex-col gap-5 min-w-0">
-          <section className="rounded-lg flex flex-col gap-6" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "24px 28px" }}>
+          <section className="rounded-lg flex flex-col gap-6 p-5 md:px-7 md:py-6" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)" }}>
             {paso === 0 && (
               <>
                 {/* Selección de inmueble: cards con toda la información integrada */}
@@ -1405,7 +1405,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
           </section>
 
           {paso === 0 && (
-            <section className="rounded-lg flex flex-col gap-6" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "24px 28px" }}>
+            <section className="rounded-lg flex flex-col gap-6 p-5 md:px-7 md:py-6" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)" }}>
               <div className="flex flex-col gap-3">
                 <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Ahora, asegura tus objetos personales</h2>
                 <p className="body-small-regular" style={{ color: "var(--gray-10)", margin: 0 }}>

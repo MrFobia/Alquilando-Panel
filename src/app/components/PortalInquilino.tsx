@@ -292,9 +292,10 @@ function Notificaciones({ onCotizarHogar }: { onCotizarHogar: () => void }) {
                   <AppButton
                     variant="secondary"
                     bold
+                    className="max-sm:w-full"
                     onClick={n.accion === "cotizar-hogar" ? onCotizarHogar : undefined}
                   >
-                    {n.cta}
+                    <span className="min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">{n.cta}</span>
                   </AppButton>
                 </div>
               )}
@@ -323,7 +324,7 @@ function BannerSeguros({ onVerSeguros, polizas }: { onVerSeguros: () => void; po
 
   if (vigentes.length === 0) {
     return (
-      <section className="rounded-lg flex items-center gap-6 overflow-hidden" style={{ backgroundColor: PURPLE, padding: "26px 28px" }}>
+      <section className="rounded-lg flex items-center gap-6 overflow-hidden p-5 md:px-7 md:py-6" style={{ backgroundColor: PURPLE }}>
         <div className="flex-1 flex flex-col gap-3">
           <h2 className="title-secondary" style={{ color: "#ffffff" }}>Vive tranquilo, vive asegurado.</h2>
           <p className="body-regular" style={{ color: "#ffffff", margin: 0, opacity: 0.92 }}>
@@ -358,8 +359,8 @@ function BannerSeguros({ onVerSeguros, polizas }: { onVerSeguros: () => void; po
 
   return (
     <section
-      className="rounded-lg overflow-hidden"
-      style={{ background: `linear-gradient(120deg, ${PURPLE} 0%, ${PURPLE_DARK} 100%)`, padding: "24px 28px" }}
+      className="rounded-lg overflow-hidden p-5 md:px-7 md:py-6"
+      style={{ background: `linear-gradient(120deg, ${PURPLE} 0%, ${PURPLE_DARK} 100%)` }}
     >
       <div className="flex flex-col gap-4">
         {/* Encabezado */}
@@ -410,7 +411,7 @@ function BannerSeguros({ onVerSeguros, polizas }: { onVerSeguros: () => void; po
         )}
 
         {/* Acciones */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap max-sm:flex-col">
           <button
             onClick={onVerSeguros}
             className="body-bold flex items-center justify-center gap-1.5 rounded-lg transition-colors"
@@ -835,7 +836,7 @@ function MisPolizas({ polizas, onCancelar }: { polizas: PolizaComprada[]; onCanc
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-5 shrink-0">
+              <div className="flex items-center gap-5 shrink-0 max-sm:w-full max-sm:justify-between">
                 <img
                   src={logoSegurosBolivar}
                   alt="Seguros Bolívar"
@@ -869,7 +870,7 @@ function SeccionSeguros({
 }) {
   return (
     <div className="flex flex-col gap-5">
-      <section className="rounded-lg flex items-center gap-8" style={{ backgroundColor: PURPLE, padding: "30px 32px" }}>
+      <section className="rounded-lg flex items-center gap-8 p-5 md:px-8 md:py-7" style={{ backgroundColor: PURPLE }}>
         <div className="flex-1">
           <h2 className="title-secondary" style={{ color: "#ffffff" }}>Vive tranquilo, vive asegurado.</h2>
           <p className="body-regular" style={{ color: "#ffffff", marginTop: 6, opacity: 0.92, maxWidth: 640 }}>
@@ -1029,13 +1030,46 @@ export function PortalInquilino({ onLogout }: Props) {
         </button>
       </header>
 
+      {/* Mobile bottom nav — estilo app */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-stretch"
+        style={{
+          backgroundColor: "#ffffff",
+          borderTop: "1px solid var(--gray-4)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+          boxShadow: "0 -2px 12px rgba(0,0,0,0.06)",
+        }}
+      >
+        {NAV.map(({ id, label, icon: Icon }) => {
+          const isActive = active === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setActive(id)}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 min-w-0"
+              style={{ cursor: "pointer", height: 62, backgroundColor: "transparent", color: isActive ? PURPLE : "var(--gray-8)" }}
+            >
+              <span
+                className="flex items-center justify-center rounded-full transition-colors"
+                style={{ width: 44, height: 26, backgroundColor: isActive ? PURPLE_LIGHT : "transparent" }}
+              >
+                <Icon size={20} strokeWidth={isActive ? 2 : 1.6} />
+              </span>
+              <span className="truncate w-full text-center" style={{ fontSize: 10, fontWeight: isActive ? 700 : 400, padding: "0 2px" }}>
+                {label.replace(/^Mis? /, "")}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
       {/* Contenido */}
       <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
-        <div className="px-4 md:px-8 py-6 max-w-[1400px] mx-auto flex flex-col gap-5">
+        <div className="px-4 md:px-8 pt-6 pb-24 md:pb-6 max-w-[1400px] mx-auto flex flex-col gap-5">
           {!(active === "seguros" && cotizandoHogar) && (
           <section
-            className="rounded-lg flex items-center justify-between gap-6 flex-wrap"
-            style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "24px 28px" }}
+            className="rounded-lg flex items-center justify-between gap-4 md:gap-6 flex-wrap p-5 md:px-7 md:py-6"
+            style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)" }}
           >
             <div>
               <h1 className="title-primary-bold" style={{ color: PURPLE }}>{seccion.title}</h1>
@@ -1044,7 +1078,7 @@ export function PortalInquilino({ onLogout }: Props) {
               </p>
             </div>
             {active === "inicio" && (
-              <label className="flex flex-col gap-1.5" style={{ minWidth: 260 }}>
+              <label className="flex flex-col gap-1.5 w-full sm:w-auto" style={{ minWidth: "min(260px, 100%)" }}>
                 <span className="body-small-bold" style={{ color: PURPLE }}>Inmueble seleccionado</span>
                 <SelectInput options={INMUEBLES} value={inmueble} onChange={setInmueble} />
               </label>
