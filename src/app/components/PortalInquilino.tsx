@@ -3,7 +3,7 @@ import {
   Home, CreditCard, FileText, Inbox, LifeBuoy, LogOut, Construction, Shield,
   Bell, AlertCircle, ChevronRight, X, CircleDollarSign, Barcode, MessageCircle,
   Phone, MessageSquareText, CarFront, PawPrint, Sofa, CircleCheck, ShieldCheck,
-  ArrowLeft, ShieldOff, PhoneCall,
+  ArrowLeft, ShieldOff, PhoneCall, ChevronDown, ChevronUp,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AlquilandoLogo } from "./kit/AlquilandoLogo";
@@ -160,6 +160,161 @@ function EstadoCuenta() {
         </div>
       </div>
     </section>
+  );
+}
+
+// ─── Inicio mobile: experiencia tipo app ─────────────────────────────────────
+
+/** Accesos rápidos del home mobile: lo que un inquilino hace más seguido. */
+const QUICK_ACTIONS: { id: string; label: string; icon: LucideIcon }[] = [
+  { id: "pagos", label: "Pagar", icon: CreditCard },
+  { id: "contrato", label: "Contrato", icon: FileText },
+  { id: "solicitudes", label: "Solicitudes", icon: Inbox },
+  { id: "ayuda", label: "Ayuda", icon: LifeBuoy },
+];
+
+/**
+ * Card de pago estilo app fintech: total, vencimiento y acciones al frente;
+ * el desglose contable completo queda plegado bajo demanda.
+ */
+function PagoCardMobile() {
+  const [verDesglose, setVerDesglose] = useState(false);
+  const vigente = FECHAS_PAGO.find((f) => f.vigente)!;
+
+  return (
+    <section
+      className="rounded-2xl flex flex-col gap-4"
+      style={{
+        background: `linear-gradient(135deg, ${PURPLE} 0%, ${PURPLE_DARK} 100%)`,
+        padding: "20px",
+        boxShadow: "0 12px 28px rgba(109, 40, 217, 0.28)",
+      }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="body-bold" style={{ color: "#ffffff" }}>Canon de julio</span>
+        <span
+          className="tags inline-flex items-center gap-1.5 rounded-full px-3 py-1"
+          style={{ backgroundColor: "rgba(255,255,255,0.18)", color: "#ffffff" }}
+        >
+          Pendiente pago
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-0.5">
+        <span className="disclamer" style={{ color: "rgba(255,255,255,0.75)" }}>Total a pagar</span>
+        <span className="title-primary-bold" style={{ color: "#ffffff", fontSize: 34, lineHeight: 1.15 }}>
+          {vigente.value}
+        </span>
+        <span className="body-small-regular" style={{ color: "rgba(255,255,255,0.85)", marginTop: 4 }}>
+          Pagando {vigente.label.toLowerCase()} · contrato 1731
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        <button
+          className="body-bold w-full flex items-center justify-center gap-2 rounded-xl"
+          style={{ height: 48, backgroundColor: "#ffffff", color: PURPLE, border: "none", cursor: "pointer" }}
+        >
+          <CircleDollarSign size={18} strokeWidth={1.8} /> Pagar ahora con PSE
+        </button>
+        <button
+          className="body-bold w-full flex items-center justify-center gap-2 rounded-xl"
+          style={{ height: 48, backgroundColor: "transparent", color: "#ffffff", border: "1.5px solid rgba(255,255,255,0.55)", cursor: "pointer" }}
+        >
+          <Barcode size={18} strokeWidth={1.8} /> Código de barras
+        </button>
+      </div>
+
+      <button
+        onClick={() => setVerDesglose((v) => !v)}
+        className="body-small-bold w-full flex items-center justify-center gap-1.5"
+        style={{ backgroundColor: "transparent", color: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", padding: "2px 0" }}
+      >
+        {verDesglose ? "Ocultar desglose" : "Ver desglose completo"}
+        {verDesglose ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+      </button>
+
+      {verDesglose && (
+        <div
+          className="rounded-xl flex flex-col gap-3"
+          style={{ backgroundColor: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", padding: "14px 16px" }}
+        >
+          <div className="flex flex-col">
+            {ESTADO_CUENTA.map((r) => (
+              <div key={r.label} className="flex items-center justify-between gap-4 py-1.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
+                <span className="body-small-regular" style={{ color: "rgba(255,255,255,0.8)" }}>{r.label}</span>
+                <span className="body-small-regular" style={{ color: "#ffffff", fontWeight: 500 }}>{r.value}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className="disclamer" style={{ color: "rgba(255,255,255,0.75)" }}>SEGÚN LA FECHA DE PAGO</span>
+            {FECHAS_PAGO.map((f) => (
+              <div
+                key={f.label}
+                className="flex items-center justify-between gap-3 rounded-lg px-3 py-1.5"
+                style={{ backgroundColor: f.vigente ? "rgba(255,255,255,0.18)" : "transparent" }}
+              >
+                <span className="body-small-regular" style={{ color: f.vigente ? "#ffffff" : "rgba(255,255,255,0.75)", fontWeight: f.vigente ? 700 : 400 }}>
+                  {f.label}
+                </span>
+                <span className="body-small-regular" style={{ color: f.vigente ? "#ffffff" : "rgba(255,255,255,0.75)", fontWeight: f.vigente ? 700 : 400 }}>
+                  {f.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+interface InicioMobileProps {
+  inmueble: string;
+  onInmueble: (v: string) => void;
+  polizas: PolizaComprada[];
+  onCotizarHogar: () => void;
+  onVerSeguros: () => void;
+  goTo: (id: string) => void;
+}
+
+function InicioMobile({ inmueble, onInmueble, polizas, onCotizarHogar, onVerSeguros, goTo }: InicioMobileProps) {
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Saludo compacto + selector de inmueble */}
+      <div className="flex flex-col gap-2.5">
+        <div>
+          <h1 className="title-secondary" style={{ color: PURPLE }}>¡Hola, Nelson! 👋</h1>
+          <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
+            Esto es lo que pasa hoy con tu arriendo.
+          </p>
+        </div>
+        <SelectInput options={INMUEBLES} value={inmueble} onChange={onInmueble} />
+      </div>
+
+      <PagoCardMobile />
+
+      {/* Accesos rápidos tipo app */}
+      <div className="grid grid-cols-4 gap-2">
+        {QUICK_ACTIONS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => goTo(id)}
+            className="flex flex-col items-center gap-1.5 rounded-xl py-3"
+            style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", cursor: "pointer" }}
+          >
+            <span className="flex items-center justify-center rounded-full" style={{ width: 40, height: 40, backgroundColor: PURPLE_LIGHT }}>
+              <Icon size={18} strokeWidth={1.7} style={{ color: PURPLE }} />
+            </span>
+            <span className="disclamer" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      <Notificaciones onCotizarHogar={onCotizarHogar} />
+      <BannerSeguros onVerSeguros={onVerSeguros} polizas={polizas} />
+    </div>
   );
 }
 
@@ -1068,7 +1223,7 @@ export function PortalInquilino({ onLogout }: Props) {
         <div className="px-4 md:px-8 pt-6 pb-24 md:pb-6 max-w-[1400px] mx-auto flex flex-col gap-5">
           {!(active === "seguros" && cotizandoHogar) && (
           <section
-            className="rounded-lg flex items-center justify-between gap-4 md:gap-6 flex-wrap p-5 md:px-7 md:py-6"
+            className={`rounded-lg flex items-center justify-between gap-4 md:gap-6 flex-wrap p-5 md:px-7 md:py-6 ${active === "inicio" ? "max-md:hidden" : ""}`}
             style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)" }}
           >
             <div>
@@ -1087,14 +1242,28 @@ export function PortalInquilino({ onLogout }: Props) {
           )}
 
           {active === "inicio" && (
-            <div className="grid grid-cols-2 gap-5 max-lg:grid-cols-1 items-start">
-              <EstadoCuenta />
-              <div className="flex flex-col gap-5">
-                <Notificaciones onCotizarHogar={() => { setActiveRaw("seguros"); setCotizandoHogar(true); }} />
-                <BannerSeguros onVerSeguros={() => setActive("seguros")} polizas={polizas} />
-                <AyudaInicio />
+            <>
+              {/* Desktop/tablet: layout original en dos columnas */}
+              <div className="max-md:hidden grid grid-cols-2 gap-5 max-lg:grid-cols-1 items-start">
+                <EstadoCuenta />
+                <div className="flex flex-col gap-5">
+                  <Notificaciones onCotizarHogar={() => { setActiveRaw("seguros"); setCotizandoHogar(true); }} />
+                  <BannerSeguros onVerSeguros={() => setActive("seguros")} polizas={polizas} />
+                  <AyudaInicio />
+                </div>
               </div>
-            </div>
+              {/* Mobile: experiencia tipo app */}
+              <div className="md:hidden">
+                <InicioMobile
+                  inmueble={inmueble}
+                  onInmueble={setInmueble}
+                  polizas={polizas}
+                  onCotizarHogar={() => { setActiveRaw("seguros"); setCotizandoHogar(true); }}
+                  onVerSeguros={() => setActive("seguros")}
+                  goTo={setActive}
+                />
+              </div>
+            </>
           )}
 
           {active === "seguros" && (
