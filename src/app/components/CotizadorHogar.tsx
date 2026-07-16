@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, MapPin, CircleCheck, Tv, Sofa, ShieldCheck, Home, Plus,
+  ArrowLeft, CircleCheck, Tv, Sofa, ShieldCheck, Home, Plus,
   Flame, HeartPulse, Lock, PawPrint, Wrench, Hammer, PackageCheck, Award,
   Receipt, Mail, CalendarClock, CreditCard, Download, FileText,
 } from "lucide-react";
@@ -11,7 +11,6 @@ import { TextInput } from "./kit/TextInput";
 import { StatusBadge } from "./kit/StatusBadge";
 import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
-import { Callout } from "./kit/Callout";
 import { ToggleSwitch } from "./kit/ToggleSwitch";
 import logoSegurosBolivar from "../../assets/logo-seguros-bolivar.png";
 
@@ -230,97 +229,23 @@ function parseDigits(value: string) {
   return value.replace(/\D/g, "").slice(0, 12);
 }
 
-// ─── Mapa estilizado con pin ─────────────────────────────────────────────────
+/** Base Bogotá para inmuebles nuevos sin geolocalización real todavía. */
+const COORD_BASE = { lat: 4.60971, lng: -74.08175 };
 
-/** Posición donde cae el pin al cargar el inmueble: coincide con las coordenadas base, sin offset. */
-const PIN_INICIAL = { x: 50, y: 42 };
-
-interface MapaPinProps {
-  pos: { x: number; y: number };
-  onChange: (pos: { x: number; y: number }) => void;
-  onDragEnd: () => void;
-}
-
-function MapaPin({ pos, onChange, onDragEnd }: MapaPinProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [arrastrando, setArrastrando] = useState(false);
-
-  const posicionDesdeEvento = (clientX: number, clientY: number) => {
-    const el = containerRef.current;
-    if (!el) return pos;
-    const rect = el.getBoundingClientRect();
-    const x = Math.min(96, Math.max(4, ((clientX - rect.left) / rect.width) * 100));
-    const y = Math.min(96, Math.max(4, ((clientY - rect.top) / rect.height) * 100));
-    return { x, y };
-  };
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setArrastrando(true);
-    onChange(posicionDesdeEvento(e.clientX, e.clientY));
-  };
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!arrastrando) return;
-    onChange(posicionDesdeEvento(e.clientX, e.clientY));
-  };
-  const onPointerUp = () => {
-    if (!arrastrando) return;
-    setArrastrando(false);
-    onDragEnd();
-  };
-
-  return (
-    <div
-      ref={containerRef}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      className="relative overflow-hidden rounded-lg"
-      style={{ border: "1px solid var(--gray-4)", height: 220, cursor: arrastrando ? "grabbing" : "grab", touchAction: "none" }}
-    >
-      <svg width="100%" height="100%" viewBox="0 0 600 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style={{ pointerEvents: "none" }}>
-        <rect width="600" height="220" fill="#eef2e6" />
-        {/* manzanas */}
-        {[0, 1, 2, 3, 4, 5].map((c) =>
-          [0, 1, 2].map((r) => (
-            <rect key={`${c}-${r}`} x={20 + c * 100} y={16 + r * 72} width={72} height={50} rx={4} fill="#e2e8d5" stroke="#d3dbc4" />
-          ))
-        )}
-        {/* vías */}
-        {[0, 1, 2].map((r) => (
-          <rect key={`h${r}`} x="0" y={r * 72} width="600" height={10} fill="#ffffff" stroke="#e0e0e0" strokeWidth={0.5} />
-        ))}
-        {[0, 1, 2, 3, 4, 5, 6].map((c) => (
-          <rect key={`v${c}`} x={c * 100} y="0" width={10} height={220} fill="#ffffff" stroke="#e0e0e0" strokeWidth={0.5} />
-        ))}
-        {/* parque */}
-        <rect x={420} y={88} width={72} height={50} rx={8} fill="#cfe3c2" stroke="#b8d4a6" />
-        {/* avenida principal */}
-        <rect x="0" y={140} width="600" height={16} fill="#fbe8c8" stroke="#f0d9a8" strokeWidth={0.5} />
-      </svg>
-      <div
-        className="absolute"
-        style={{
-          left: `${pos.x}%`,
-          top: `${pos.y}%`,
-          transform: "translate(-50%, -100%)",
-          transition: arrastrando ? "none" : "left 0.2s, top 0.2s",
-          pointerEvents: "none",
-        }}
-      >
-        <MapPin size={36} strokeWidth={1.8} fill="var(--navy)" style={{ color: "#ffffff" }} />
-      </div>
-      <span
-        className="disclamer absolute rounded-full px-3 py-1"
-        style={{
-          left: "50%", bottom: 12, transform: "translateX(-50%)", backgroundColor: "#ffffff",
-          color: "var(--gray-9)", border: "1px solid var(--gray-4)", whiteSpace: "nowrap", pointerEvents: "none",
-        }}
-      >
-        Arrastra el mapa para ajustar el PIN
-      </span>
-    </div>
-  );
+/**
+ * Deriva unas coordenadas estables a partir del texto de dirección + ciudad (sin mapa ni API real):
+ * dos direcciones distintas caen en puntos distintos pero reproducibles alrededor del centro de Bogotá.
+ */
+function coordenadasDesdeDireccion(direccion: string, ciudad: string) {
+  const texto = `${direccion.trim()} ${ciudad.trim()}`;
+  if (!texto.trim()) return COORD_BASE;
+  let hash = 0;
+  for (let i = 0; i < texto.length; i++) {
+    hash = (hash * 31 + texto.charCodeAt(i)) | 0;
+  }
+  const jitterLat = ((hash % 1000) / 1000) * 0.06 - 0.03;
+  const jitterLng = (((hash >> 10) % 1000) / 1000) * 0.06 - 0.03;
+  return { lat: COORD_BASE.lat + jitterLat, lng: COORD_BASE.lng + jitterLng };
 }
 
 // ─── Categoría asegurable ────────────────────────────────────────────────────
@@ -930,12 +855,8 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   const [inmueble, setInmueble] = useState("carrera-23");
   const [inmueblesData, setInmueblesData] = useState<Record<string, InmuebleCotizacion>>(INMUEBLES_COTIZACION);
   const [inmuebleOptions, setInmuebleOptions] = useState(INMUEBLE_OPTIONS);
-  const [pinPos, setPinPos] = useState(PIN_INICIAL);
-  const [pinAjustado, setPinAjustado] = useState(false);
   const cambiarInmueble = (id: string) => {
     setInmueble(id);
-    setPinPos(PIN_INICIAL);
-    setPinAjustado(false);
     // Elegir un inmueble existente cierra el formulario de "nuevo inmueble" si estaba abierto.
     setAgregandoInmueble(false);
   };
@@ -953,8 +874,6 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   const [nuevoInfoAdicional, setNuevoInfoAdicional] = useState("");
   const [nuevoZona, setNuevoZona] = useState("urbano");
   const [nuevoObservaciones, setNuevoObservaciones] = useState("");
-  const [nuevoPinPos, setNuevoPinPos] = useState(PIN_INICIAL);
-  const [nuevoPinAjustado, setNuevoPinAjustado] = useState(false);
   const nuevoValido =
     nuevoDireccion.trim() !== "" &&
     nuevoCiudad.trim() !== "" &&
@@ -978,15 +897,14 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     setNuevoInfoAdicional("");
     setNuevoZona("urbano");
     setNuevoObservaciones("");
-    setNuevoPinPos(PIN_INICIAL);
-    setNuevoPinAjustado(false);
   };
 
-  // Coordenadas del inmueble nuevo: base Bogotá desplazada según dónde suelte el PIN.
-  const NUEVO_LAT_BASE = 4.60971;
-  const NUEVO_LNG_BASE = -74.08175;
-  const nuevoLat = NUEVO_LAT_BASE + ((PIN_INICIAL.y - nuevoPinPos.y) / 50) * 0.01;
-  const nuevoLng = NUEVO_LNG_BASE + ((nuevoPinPos.x - PIN_INICIAL.x) / 50) * 0.01;
+  // Coordenadas del inmueble nuevo: se derivan automáticamente de la dirección + ciudad
+  // (simula geolocalización) apenas hay suficiente texto para ubicarlo, sin pedirle nada al usuario.
+  const { lat: nuevoLat, lng: nuevoLng } = useMemo(
+    () => coordenadasDesdeDireccion(nuevoDireccion, nuevoCiudad),
+    [nuevoDireccion, nuevoCiudad],
+  );
   const nuevoCoordenadas =
     `${nuevoLat.toFixed(6)}`.replace(".", ",") + " - " + `${nuevoLng.toFixed(6)}`.replace(".", ",");
 
@@ -1039,13 +957,6 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   const toggleAdicional = (id: string, v: boolean) => setAdicionales((prev) => ({ ...prev, [id]: v }));
 
   const datos = inmueble ? inmueblesData[inmueble] : undefined;
-  // El pin desplaza la coordenada base según qué tan lejos del centro del mapa lo sueltes.
-  const coordenadasPin = useMemo(() => {
-    if (!datos) return "—";
-    const lat = datos.lat + ((PIN_INICIAL.y - pinPos.y) / 50) * 0.01;
-    const lng = datos.lng + ((pinPos.x - PIN_INICIAL.x) / 50) * 0.01;
-    return `${lat.toFixed(6)}`.replace(".", ",") + " - " + `${lng.toFixed(6)}`.replace(".", ",");
-  }, [datos, pinPos]);
   const plan = PLANES.find((p) => p.id === planId)!;
   const asistencia = ASISTENCIAS.find((a) => a.id === asistenciaId)!;
   const adicionalesActivas = COBERTURAS_ADICIONALES.filter((c) => adicionales[c.id]);
@@ -1173,7 +1084,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                             </div>
                           </div>
                           <hr className="w-full" style={{ borderColor: selected ? "rgba(0,0,0,0.08)" : "var(--gray-3)", margin: 0 }} />
-                          <div className="flex items-center gap-6">
+                          <div className="flex items-center gap-6 flex-wrap">
                             <div className="flex flex-col">
                               <span className="disclamer" style={{ color: "var(--gray-8)" }}>Estrato</span>
                               <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{d.estrato}</span>
@@ -1187,6 +1098,12 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                               <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>Apartamento</span>
                             </div>
                           </div>
+                          {selected && (
+                            <div className="flex items-center justify-between gap-4 rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.6)", padding: "8px 12px" }}>
+                              <span className="disclamer" style={{ color: "var(--gray-8)" }}>Coordenadas</span>
+                              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{d.coordenadas}</span>
+                            </div>
+                          )}
                         </button>
                       );
                     })}
@@ -1263,23 +1180,13 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                         />
                       </Field>
 
-                      {/* Geolocalización del inmueble nuevo */}
-                      <div className="flex flex-col gap-3">
-                        <Callout variant="info" title="Geolocalización">
-                          Ubica tu inmueble en el mapa: arrastra el PIN hasta el punto exacto de la dirección ingresada.
-                        </Callout>
-                        <MapaPin pos={nuevoPinPos} onChange={setNuevoPinPos} onDragEnd={() => setNuevoPinAjustado(true)} />
-                        <div className="flex items-center gap-2">
-                          <CircleCheck size={15} strokeWidth={1.8} style={{ color: nuevoPinAjustado ? "var(--green-status)" : "var(--gray-7)" }} />
-                          <span className="body-small-regular" style={{ color: nuevoPinAjustado ? "var(--green-status)" : "var(--gray-8)" }}>
-                            {nuevoPinAjustado ? "PIN ajustado manualmente" : "Arrastra el PIN para ajustar la ubicación"}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Coordenadas</span>
+                      {/* Coordenadas: se calculan solas a partir de la dirección + ciudad, sin mapa. */}
+                      {nuevoValido && (
+                        <div className="flex items-center justify-between gap-4 rounded-lg" style={{ backgroundColor: "var(--gray-1)", padding: "10px 14px" }}>
+                          <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Coordenadas (automáticas)</span>
                           <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{nuevoCoordenadas}</span>
                         </div>
-                      </div>
+                      )}
                       <div className="flex items-center justify-end gap-3">
                         <AppButton variant="secondary" onClick={cancelarNuevoInmueble}>Cancelar</AppButton>
                         <AppButton variant="primary" bold disabled={!nuevoValido} onClick={guardarNuevoInmueble}>
@@ -1289,26 +1196,6 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                     </div>
                   )}
                 </div>
-
-                {datos && (
-                <div className="flex flex-col gap-3">
-                  <Callout variant="info" title="Geolocalización">
-                    El mapa muestra el punto estimado según la dirección ingresada. Ajusta o arrastra el PIN
-                    si es necesario para ubicar con mayor precisión tu inmueble.
-                  </Callout>
-                  <MapaPin pos={pinPos} onChange={setPinPos} onDragEnd={() => setPinAjustado(true)} />
-                  <div className="flex items-center gap-2">
-                    <CircleCheck size={15} strokeWidth={1.8} style={{ color: "var(--green-status)" }} />
-                    <span className="body-small-regular" style={{ color: "var(--green-status)" }}>
-                      {pinAjustado ? "PIN ajustado manualmente" : "PIN ajustado correctamente"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Coordenadas</span>
-                    <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{coordenadasPin}</span>
-                  </div>
-                </div>
-                )}
 
                 {datos && (datos.datosCompletos ? (
                   <div
