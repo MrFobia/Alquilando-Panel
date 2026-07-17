@@ -39,6 +39,15 @@ const PASOS = [
   { id: "pagar", label: "Pagar" },
 ];
 
+/** Sub-pasos cortos del flujo mobile: uno por decisión, para que se sienta rápido. */
+const MPASOS = [
+  { id: "inmueble", label: "Tu inmueble" },
+  { id: "objetos", label: "Asegura tus objetos" },
+  { id: "plan", label: "Elige tu plan" },
+  { id: "extras", label: "Personalízalo" },
+  { id: "confirma", label: "Confirma y paga" },
+];
+
 interface InmuebleCotizacion {
   estrato: string; canon: string; ciudad: string; direccion: string; coordenadas: string;
   /** Si es false, ya tenemos todos los datos del inmueble: no hace falta pedirle nada más al usuario. */
@@ -267,6 +276,8 @@ function CategoriaAsegurable({
   icon: Icon, titulo, descripcion, valor, onValor, listaTitulo, objetosBase, objetosExtra,
 }: CategoriaProps) {
   const [verMas, setVerMas] = useState(false);
+  // En mobile la lista de objetos cubiertos queda plegada para que el paso sea corto y directo.
+  const [verInfoMobile, setVerInfoMobile] = useState(false);
   const objetos = verMas ? [...objetosBase, ...objetosExtra] : objetosBase;
   const conValor = !!valor && Number(valor) > 0;
 
@@ -347,8 +358,13 @@ function CategoriaAsegurable({
             )}
           </div>
 
-          {/* Objetos cubiertos como chips */}
-          <div className="flex flex-col gap-2">
+          {/* Objetos cubiertos como chips (en mobile, plegados tras un toggle) */}
+          <div className="md:hidden">
+            <LinkText size="small" onClick={() => setVerInfoMobile((v) => !v)}>
+              {verInfoMobile ? "Ocultar objetos cubiertos" : "¿Qué objetos cubre?"}
+            </LinkText>
+          </div>
+          <div className={`flex flex-col gap-2 ${verInfoMobile ? "" : "max-md:hidden"}`}>
             <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{listaTitulo}</span>
             <div className="flex items-center gap-2 flex-wrap">
               {objetos.map((o) => (
@@ -413,7 +429,7 @@ function CoberturaAdicionalRow({ cobertura, activa, onToggle }: { cobertura: Cob
   const Icon = cobertura.icon;
   return (
     <div
-      className="rounded-lg flex items-start gap-3"
+      className="rounded-lg flex items-start gap-3 max-sm:flex-wrap"
       style={{
         padding: "14px 16px",
         border: activa ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
@@ -427,11 +443,11 @@ function CoberturaAdicionalRow({ cobertura, activa, onToggle }: { cobertura: Cob
       >
         <Icon size={17} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
       </div>
-      <div className="flex-1 flex flex-col gap-1 min-w-0">
+      <div className="flex-1 flex flex-col gap-1" style={{ minWidth: 140 }}>
         <span className="body-bold" style={{ color: "var(--navy)" }}>{cobertura.titulo}</span>
         <p className="body-small-regular" style={{ color: "var(--gray-9)", margin: 0 }}>{cobertura.descripcion}</p>
       </div>
-      <div className="flex flex-col items-end gap-2 shrink-0">
+      <div className="flex flex-col items-end gap-2 shrink-0 max-sm:w-full max-sm:flex-row max-sm:items-center max-sm:justify-between">
         <ToggleSwitch checked={activa} onChange={onToggle} />
         <span className="tags rounded-full px-3 py-1" style={{ backgroundColor: activa ? "#ffffff" : "var(--navy-light)", color: "var(--navy)", whiteSpace: "nowrap" }}>
           + {formatCOPNumber(cobertura.precio)} / Mes
@@ -449,16 +465,20 @@ interface ArmaTuPlanProps {
   asistenciaId: string;
   onAsistencia: (id: string) => void;
   onContinuar: () => void;
+  /** Sub-paso visible en mobile: "plan" muestra solo la elección de plan, "extras" solo adicionales y asistencias. Desktop ve todo. */
+  vistaMobile?: "plan" | "extras";
 }
 
-function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistenciaId, onAsistencia, onContinuar }: ArmaTuPlanProps) {
+function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistenciaId, onAsistencia, onContinuar, vistaMobile }: ArmaTuPlanProps) {
   const plan = PLANES.find((p) => p.id === planId)!;
   const asistencia = ASISTENCIAS.find((a) => a.id === asistenciaId)!;
+  const soloEnPlan = vistaMobile === "extras" ? "max-md:hidden" : "";
+  const soloEnExtras = vistaMobile === "plan" ? "max-md:hidden" : "";
 
   return (
     <div className="flex flex-col gap-6">
       {/* Elegir plan */}
-      <div className="flex flex-col gap-4">
+      <div className={`flex flex-col gap-4 ${soloEnPlan}`}>
         <div>
           <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige tu suscripción mensual</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
@@ -481,7 +501,7 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
       </div>
 
       {/* Detalle del plan elegido */}
-      <div className="rounded-lg flex flex-col gap-3" style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
+      <div className={`rounded-lg flex flex-col gap-3 ${soloEnPlan}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
         <div>
           <h3 className="body-bold" style={{ color: "var(--navy)" }}>Plan {plan.nombre}</h3>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
@@ -504,7 +524,7 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
       </div>
 
       {/* Coberturas adicionales */}
-      <div className="rounded-lg flex flex-col" style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
+      <div className={`rounded-lg flex flex-col ${soloEnExtras}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
         <h3 className="body-bold" style={{ color: "var(--navy)" }}>Agrega coberturas adicionales</h3>
         <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 4 }}>
           Ya aseguraste lo básico. ¿Te gustaría blindar tu hogar contra todo pronóstico? Activa las coberturas
@@ -523,7 +543,7 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
       </div>
 
       {/* Paquetes de asistencias */}
-      <div className="flex flex-col gap-4">
+      <div className={`flex flex-col gap-4 ${soloEnExtras}`}>
         <div>
           <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Paquetes de asistencias</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
@@ -547,7 +567,7 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
       </div>
 
       {/* Detalle de la asistencia elegida */}
-      <div className="rounded-lg flex flex-col gap-3" style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
+      <div className={`rounded-lg flex flex-col gap-3 ${soloEnExtras}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
         <div>
           <h3 className="body-bold" style={{ color: "var(--navy)" }}>Has seleccionado: {asistencia.nombre}</h3>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>{asistencia.descripcion}</p>
@@ -838,12 +858,19 @@ interface Props {
 }
 
 export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
-  const [paso, setPaso] = useState(0);
+  // En mobile el flujo se divide en sub-pasos cortos; desktop conserva sus 4 pasos.
+  // mPaso: 0 inmueble · 1 objetos · 2 plan · 3 extras · 4 confirma · 5 éxito.
+  const [mPaso, setMPaso] = useState(0);
+  const paso = [0, 0, 1, 1, 2, 3][mPaso];
+  /** Navegación desde desktop: salta al primer sub-paso mobile equivalente a ese paso. */
+  const setPaso = (p: number) => setMPaso([0, 2, 4, 5][p]);
+  /** En mobile, el plan Premium queda preseleccionado al llegar al paso de planes, salvo elección manual previa. */
+  const planElegidoManualmente = useRef(false);
   // Al cambiar de paso, sube al inicio del módulo (el scroll vive en el <main> del portal, no en window).
   const topRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [paso]);
+  }, [mPaso]);
   const [numeroPoliza] = useState(() => "AL-" + Math.floor(100000 + Math.random() * 900000));
   const [fechaCompra] = useState(() => new Date());
   const fechaPagoStr = useMemo(() => formatFechaCorta(fechaCompra), [fechaCompra]);
@@ -1127,7 +1154,12 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
         className="rounded-lg px-4 md:px-7"
         style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", paddingTop: 14, paddingBottom: 14 }}
       >
-        <Stepper steps={PASOS} current={paso} />
+        <div className="max-md:hidden">
+          <Stepper steps={PASOS} current={paso} />
+        </div>
+        <div className="md:hidden">
+          <Stepper steps={MPASOS} current={Math.min(mPaso, MPASOS.length - 1)} />
+        </div>
       </section>
 
       <div className="grid gap-5 items-start grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
@@ -1136,8 +1168,8 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
           <section className="rounded-lg flex flex-col gap-6 p-5 md:px-7 md:py-6" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)" }}>
             {paso === 0 && (
               <>
-                {/* Selección de inmueble: cards con toda la información integrada */}
-                <div className="flex flex-col gap-4">
+                {/* Selección de inmueble: cards con toda la información integrada (mobile: sub-paso 1) */}
+                <div className={`flex flex-col gap-4 ${mPaso !== 0 ? "max-md:hidden" : ""}`}>
                   <div>
                     <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Selecciona el inmueble a asegurar</h2>
                     <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
@@ -1295,7 +1327,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
 
                 {datos && (datos.datosCompletos ? (
                   <div
-                    className="flex items-center gap-3 rounded-lg"
+                    className={`flex items-center gap-3 rounded-lg ${mPaso !== 1 ? "max-md:hidden" : ""}`}
                     style={{ backgroundColor: "var(--green-status-light)", padding: "14px 18px" }}
                   >
                     <CircleCheck size={18} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0 }} />
@@ -1304,7 +1336,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                     </span>
                   </div>
                 ) : (
-                  <>
+                  <div className={`flex flex-col gap-6 ${mPaso !== 1 ? "max-md:hidden" : ""}`}>
                     <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
 
                     <div className="flex flex-col gap-4">
@@ -1350,7 +1382,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                         </label>
                       </div>
                     </div>
-                  </>
+                  </div>
                 ))}
               </>
             )}
@@ -1358,12 +1390,13 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
             {paso === 1 && (
               <ArmaTuPlan
                 planId={planId}
-                onPlan={setPlanId}
+                onPlan={(id) => { planElegidoManualmente.current = true; setPlanId(id); }}
                 adicionales={adicionales}
                 onToggleAdicional={toggleAdicional}
                 asistenciaId={asistenciaId}
                 onAsistencia={setAsistenciaId}
                 onContinuar={() => setPaso(2)}
+                vistaMobile={mPaso === 2 ? "plan" : "extras"}
               />
             )}
 
@@ -1391,7 +1424,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
           </section>
 
           {paso === 0 && (
-            <section className="rounded-lg flex flex-col gap-6 p-5 md:px-7 md:py-6" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)" }}>
+            <section className={`rounded-lg flex flex-col gap-6 p-5 md:px-7 md:py-6 ${mPaso !== 1 ? "max-md:hidden" : ""}`} style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)" }}>
               <div className="flex flex-col gap-3">
                 <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Ahora, asegura tus objetos personales</h2>
                 <p className="body-small-regular" style={{ color: "var(--gray-10)", margin: 0 }}>
@@ -1535,31 +1568,61 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
               style={{ backgroundColor: "transparent", border: "none", cursor: "pointer", padding: 0 }}
             >
               <span className="disclamer flex items-center gap-1" style={{ color: "var(--gray-8)" }}>
-                {paso === 0 ? "Total asegurado" : "Total mensual"}
+                {mPaso === 0 ? "Inmueble a asegurar" : mPaso === 1 ? "Total asegurado" : "Total mensual"}
                 {resumenAbierto ? <ChevronDown size={13} strokeWidth={2} /> : <ChevronUp size={13} strokeWidth={2} />}
               </span>
-              <span className="title-tertiary-bold flex items-center gap-1.5" style={{ color: "var(--navy)" }}>
-                {paso === 0 ? (total > 0 ? "$ " + total.toLocaleString("es-CO") : "$ 0") : formatCOPNumber(totalMensual)}
-              </span>
-              {paso === 0 && !puedeContinuar && faltantes.length > 0 && (
+              {mPaso === 0 ? (
+                <span className="body-bold truncate w-full" style={{ color: "var(--navy)" }}>
+                  {datos?.direccion ?? "Sin seleccionar"}
+                </span>
+              ) : (
+                <span className="title-tertiary-bold flex items-center gap-1.5" style={{ color: "var(--navy)" }}>
+                  {mPaso === 1 ? (total > 0 ? "$ " + total.toLocaleString("es-CO") : "$ 0") : formatCOPNumber(totalMensual)}
+                </span>
+              )}
+              {mPaso === 1 && !puedeContinuar && faltantes.length > 0 && (
                 <span className="disclamer truncate w-full" style={{ color: "var(--orange-status)" }}>
                   Te falta: {faltantes.join(", ")}
                 </span>
               )}
-              {paso > 0 && (
+              {mPaso >= 2 && (
                 <span className="disclamer" style={{ color: "var(--gray-8)" }}>IVA incluido · Plan {plan.nombre}</span>
               )}
             </button>
-            <div className="shrink-0">
-              {paso === 0 && (
-                <AppButton variant="primary" bold disabled={!puedeContinuar} onClick={() => setPaso(1)}>
+            <div className="shrink-0 flex items-center gap-2">
+              {mPaso > 0 && (
+                <button
+                  title="Paso anterior"
+                  onClick={() => setMPaso(mPaso - 1)}
+                  className="flex items-center justify-center rounded-lg"
+                  style={{ width: 40, height: 40, border: "1px solid var(--gray-5)", backgroundColor: "#ffffff", color: "var(--navy)", cursor: "pointer" }}
+                >
+                  <ArrowLeft size={17} strokeWidth={1.8} />
+                </button>
+              )}
+              {mPaso === 0 && (
+                <AppButton variant="primary" bold disabled={!datos} onClick={() => setMPaso(1)}>
                   Continuar
                 </AppButton>
               )}
-              {paso === 1 && (
-                <AppButton variant="primary" bold onClick={() => setPaso(2)}>Continuar</AppButton>
+              {mPaso === 1 && (
+                <AppButton
+                  variant="primary"
+                  bold
+                  disabled={!puedeContinuar}
+                  onClick={() => {
+                    // Sugerencia por defecto: Premium preseleccionado, cambiable en el paso de planes.
+                    if (!planElegidoManualmente.current) setPlanId("premium");
+                    setMPaso(2);
+                  }}
+                >
+                  Continuar
+                </AppButton>
               )}
-              {paso === 2 && (
+              {(mPaso === 2 || mPaso === 3) && (
+                <AppButton variant="primary" bold onClick={() => setMPaso(mPaso + 1)}>Continuar</AppButton>
+              )}
+              {mPaso === 4 && (
                 <AppButton variant="primary" bold onClick={comprar}>
                   <CreditCard size={15} /> Ir a pagar
                 </AppButton>
