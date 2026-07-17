@@ -568,8 +568,8 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
         ))}
       </div>
 
-      {/* Continuar */}
-      <div className="flex items-center justify-end">
+      {/* Continuar (en mobile lo cubre la barra fija inferior) */}
+      <div className="flex items-center justify-end max-md:hidden">
         <AppButton variant="primary" bold onClick={onContinuar}>Continuar</AppButton>
       </div>
     </div>
@@ -958,6 +958,26 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
 
   const datos = inmueble ? inmueblesData[inmueble] : undefined;
   const plan = PLANES.find((p) => p.id === planId)!;
+
+  const comprar = () => {
+    onComprar({
+      id: numeroPoliza,
+      numeroPoliza,
+      inmuebleDireccion: datos?.direccion ?? "",
+      planNombre: plan.nombre,
+      planPrecio: plan.precio,
+      planCoberturas: plan.coberturas,
+      asistenciaNombre: asistencia.nombre,
+      asistenciaPrecio: asistencia.precio,
+      asistenciaCategorias: asistencia.categorias,
+      adicionales: adicionalesActivas.map((c) => ({ label: c.sidebarLabel, precio: c.precio })),
+      totalMensual,
+      fechaPago: fechaPagoStr,
+      proximoCobro: proximoCobroStr,
+      estado: "activa",
+    });
+    setPaso(3);
+  };
   const asistencia = ASISTENCIAS.find((a) => a.id === asistenciaId)!;
   const adicionalesActivas = COBERTURAS_ADICIONALES.filter((c) => adicionales[c.id]);
 
@@ -996,7 +1016,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   };
 
   return (
-    <div ref={topRef} className="flex flex-col gap-5" style={{ scrollMarginTop: 16 }}>
+    <div ref={topRef} className={`flex flex-col gap-5 ${paso < 3 ? "max-md:pb-24" : ""}`} style={{ scrollMarginTop: 16 }}>
       {/* Volver — mismo patrón que los detalles del panel */}
       <button
         onClick={onBack}
@@ -1353,7 +1373,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                     {total > 0 ? "$ " + total.toLocaleString("es-CO") : "$ 0"}
                   </span>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 max-md:hidden">
                   {!puedeContinuar && (
                     <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>
                       {faltantes.length > 0 ? `Te falta: ${faltantes.join(", ")}.` : "Completa la información para continuar."}
@@ -1368,8 +1388,8 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
           )}
         </div>
 
-        {/* Resumen sticky */}
-        <aside className="rounded-lg flex flex-col gap-4 sticky top-6" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "22px 24px" }}>
+        {/* Resumen sticky (en mobile lo reemplaza la barra fija inferior) */}
+        <aside className="rounded-lg flex-col gap-4 sticky top-6 hidden md:flex" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "22px 24px" }}>
           <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Así va tu protección</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", margin: 0 }}>
             Tendrás cobertura continua, hasta que decidas cancelar el seguro.
@@ -1453,29 +1473,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
               {paso === 2 && (
                 <div className="flex items-center justify-between gap-4">
                   <LinkText size="small" icon="chevron" onClick={() => setPaso(1)}>Cambiar plan</LinkText>
-                  <AppButton
-                    variant="primary"
-                    bold
-                    onClick={() => {
-                      onComprar({
-                        id: numeroPoliza,
-                        numeroPoliza,
-                        inmuebleDireccion: datos?.direccion ?? "",
-                        planNombre: plan.nombre,
-                        planPrecio: plan.precio,
-                        planCoberturas: plan.coberturas,
-                        asistenciaNombre: asistencia.nombre,
-                        asistenciaPrecio: asistencia.precio,
-                        asistenciaCategorias: asistencia.categorias,
-                        adicionales: adicionalesActivas.map((c) => ({ label: c.sidebarLabel, precio: c.precio })),
-                        totalMensual,
-                        fechaPago: fechaPagoStr,
-                        proximoCobro: proximoCobroStr,
-                        estado: "activa",
-                      });
-                      setPaso(3);
-                    }}
-                  >
+                  <AppButton variant="primary" bold onClick={comprar}>
                     <CreditCard size={15} /> Ir a pagar
                   </AppButton>
                 </div>
@@ -1484,6 +1482,54 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
           )}
         </aside>
       </div>
+
+      {/* Barra de acción fija en mobile: total del paso + CTA, sobre el bottom nav del portal */}
+      {paso < 3 && (
+        <div
+          className="md:hidden fixed left-0 right-0 z-30"
+          style={{
+            bottom: "calc(62px + env(safe-area-inset-bottom))",
+            backgroundColor: "#ffffff",
+            borderTop: "1px solid var(--gray-4)",
+            padding: "10px 16px",
+            boxShadow: "0 -4px 16px rgba(0,0,0,0.08)",
+          }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col min-w-0">
+              <span className="disclamer" style={{ color: "var(--gray-8)" }}>
+                {paso === 0 ? "Total asegurado" : "Total mensual"}
+              </span>
+              <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>
+                {paso === 0 ? (total > 0 ? "$ " + total.toLocaleString("es-CO") : "$ 0") : formatCOPNumber(totalMensual)}
+              </span>
+              {paso === 0 && !puedeContinuar && faltantes.length > 0 && (
+                <span className="disclamer truncate" style={{ color: "var(--orange-status)" }}>
+                  Te falta: {faltantes.join(", ")}
+                </span>
+              )}
+              {paso > 0 && (
+                <span className="disclamer" style={{ color: "var(--gray-8)" }}>IVA incluido · Plan {plan.nombre}</span>
+              )}
+            </div>
+            <div className="shrink-0">
+              {paso === 0 && (
+                <AppButton variant="primary" bold disabled={!puedeContinuar} onClick={() => setPaso(1)}>
+                  Continuar
+                </AppButton>
+              )}
+              {paso === 1 && (
+                <AppButton variant="primary" bold onClick={() => setPaso(2)}>Continuar</AppButton>
+              )}
+              {paso === 2 && (
+                <AppButton variant="primary" bold onClick={comprar}>
+                  <CreditCard size={15} /> Ir a pagar
+                </AppButton>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
