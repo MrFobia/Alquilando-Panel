@@ -165,14 +165,6 @@ function EstadoCuenta() {
 
 // ─── Inicio mobile: experiencia tipo app ─────────────────────────────────────
 
-/** Accesos rápidos del home mobile: lo que un inquilino hace más seguido. */
-const QUICK_ACTIONS: { id: string; label: string; icon: LucideIcon }[] = [
-  { id: "pagos", label: "Pagar", icon: CreditCard },
-  { id: "contrato", label: "Contrato", icon: FileText },
-  { id: "solicitudes", label: "Solicitudes", icon: Inbox },
-  { id: "ayuda", label: "Ayuda", icon: LifeBuoy },
-];
-
 /**
  * Card de pago estilo app fintech: total, vencimiento y acciones al frente;
  * el desglose contable completo queda plegado bajo demanda.
@@ -275,10 +267,9 @@ interface InicioMobileProps {
   onInmueble: (v: string) => void;
   polizas: PolizaComprada[];
   onVerSeguros: () => void;
-  goTo: (id: string) => void;
 }
 
-function InicioMobile({ inmueble, onInmueble, polizas, onVerSeguros, goTo }: InicioMobileProps) {
+function InicioMobile({ inmueble, onInmueble, polizas, onVerSeguros }: InicioMobileProps) {
   return (
     <div className="flex flex-col gap-5">
       {/* Saludo compacto + selector de inmueble */}
@@ -293,23 +284,6 @@ function InicioMobile({ inmueble, onInmueble, polizas, onVerSeguros, goTo }: Ini
       </div>
 
       <PagoCardMobile />
-
-      {/* Accesos rápidos tipo app */}
-      <div className="grid grid-cols-4 gap-2">
-        {QUICK_ACTIONS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => goTo(id)}
-            className="flex flex-col items-center gap-1.5 rounded-xl py-3"
-            style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", cursor: "pointer" }}
-          >
-            <span className="flex items-center justify-center rounded-full" style={{ width: 40, height: 40, backgroundColor: PURPLE_LIGHT }}>
-              <Icon size={18} strokeWidth={1.7} style={{ color: PURPLE }} />
-            </span>
-            <span className="disclamer" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{label}</span>
-          </button>
-        ))}
-      </div>
 
       <BannerSeguros onVerSeguros={onVerSeguros} polizas={polizas} />
     </div>
@@ -1328,7 +1302,6 @@ export function PortalInquilino({ onLogout }: Props) {
                   onInmueble={setInmueble}
                   polizas={polizas}
                   onVerSeguros={() => setActive("seguros")}
-                  goTo={setActive}
                 />
               </div>
             </>
