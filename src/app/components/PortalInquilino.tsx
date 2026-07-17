@@ -177,27 +177,23 @@ function PagoCardMobile() {
     <section
       className="rounded-2xl flex flex-col gap-4"
       style={{
-        background: `linear-gradient(135deg, ${PURPLE} 0%, ${PURPLE_DARK} 100%)`,
+        backgroundColor: "#ffffff",
+        border: "1px solid var(--gray-4)",
         padding: "20px",
-        boxShadow: "0 12px 28px rgba(109, 40, 217, 0.28)",
+        boxShadow: "0 8px 22px rgba(0, 0, 0, 0.06)",
       }}
     >
       <div className="flex items-center justify-between gap-3">
-        <span className="body-bold" style={{ color: "#ffffff" }}>Canon de julio</span>
-        <span
-          className="tags inline-flex items-center gap-1.5 rounded-full px-3 py-1"
-          style={{ backgroundColor: "rgba(255,255,255,0.18)", color: "#ffffff" }}
-        >
-          Pendiente pago
-        </span>
+        <span className="body-bold" style={{ color: PURPLE }}>Canon de julio</span>
+        <StatusBadge label="Pendiente pago" variant="pending" />
       </div>
 
       <div className="flex flex-col gap-0.5">
-        <span className="disclamer" style={{ color: "rgba(255,255,255,0.75)" }}>Total a pagar</span>
-        <span className="title-primary-bold" style={{ color: "#ffffff", fontSize: 34, lineHeight: 1.15 }}>
+        <span className="disclamer" style={{ color: "var(--gray-8)" }}>Total a pagar</span>
+        <span className="title-primary-bold" style={{ color: PURPLE, fontSize: 34, lineHeight: 1.15 }}>
           {vigente.value}
         </span>
-        <span className="body-small-regular" style={{ color: "rgba(255,255,255,0.85)", marginTop: 4 }}>
+        <span className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 4 }}>
           Pagando {vigente.label.toLowerCase()} · contrato 1731
         </span>
       </div>
@@ -205,13 +201,13 @@ function PagoCardMobile() {
       <div className="flex flex-col gap-2.5">
         <button
           className="body-bold w-full flex items-center justify-center gap-2 rounded-xl"
-          style={{ height: 48, backgroundColor: "#ffffff", color: PURPLE, border: "none", cursor: "pointer" }}
+          style={{ height: 48, backgroundColor: PURPLE, color: "#ffffff", border: "none", cursor: "pointer" }}
         >
           <CircleDollarSign size={18} strokeWidth={1.8} /> Pagar ahora con PSE
         </button>
         <button
           className="body-bold w-full flex items-center justify-center gap-2 rounded-xl"
-          style={{ height: 48, backgroundColor: "transparent", color: "#ffffff", border: "1.5px solid rgba(255,255,255,0.55)", cursor: "pointer" }}
+          style={{ height: 48, backgroundColor: "transparent", color: PURPLE, border: `1.5px solid ${PURPLE}`, cursor: "pointer" }}
         >
           <Barcode size={18} strokeWidth={1.8} /> Código de barras
         </button>
@@ -220,7 +216,7 @@ function PagoCardMobile() {
       <button
         onClick={() => setVerDesglose((v) => !v)}
         className="body-small-bold w-full flex items-center justify-center gap-1.5"
-        style={{ backgroundColor: "transparent", color: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", padding: "2px 0" }}
+        style={{ backgroundColor: "transparent", color: PURPLE, border: "none", cursor: "pointer", padding: "2px 0" }}
       >
         {verDesglose ? "Ocultar desglose" : "Ver desglose completo"}
         {verDesglose ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
@@ -229,28 +225,31 @@ function PagoCardMobile() {
       {verDesglose && (
         <div
           className="rounded-xl flex flex-col gap-3"
-          style={{ backgroundColor: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", padding: "14px 16px" }}
+          style={{ backgroundColor: "var(--gray-1)", border: "1px solid var(--gray-4)", padding: "14px 16px" }}
         >
           <div className="flex flex-col">
             {ESTADO_CUENTA.map((r) => (
-              <div key={r.label} className="flex items-center justify-between gap-4 py-1.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
-                <span className="body-small-regular" style={{ color: "rgba(255,255,255,0.8)" }}>{r.label}</span>
-                <span className="body-small-regular" style={{ color: "#ffffff", fontWeight: 500 }}>{r.value}</span>
+              <div key={r.label} className="flex items-center justify-between gap-4 py-1.5" style={{ borderBottom: "1px solid var(--gray-3)" }}>
+                <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{r.label}</span>
+                <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{r.value}</span>
               </div>
             ))}
           </div>
           <div className="flex flex-col gap-1.5">
-            <span className="disclamer" style={{ color: "rgba(255,255,255,0.75)" }}>SEGÚN LA FECHA DE PAGO</span>
+            <span className="disclamer" style={{ color: "var(--gray-8)" }}>SEGÚN LA FECHA DE PAGO</span>
             {FECHAS_PAGO.map((f) => (
               <div
                 key={f.label}
                 className="flex items-center justify-between gap-3 rounded-lg px-3 py-1.5"
-                style={{ backgroundColor: f.vigente ? "rgba(255,255,255,0.18)" : "transparent" }}
+                style={{
+                  backgroundColor: f.vigente ? PURPLE_LIGHT : "transparent",
+                  border: f.vigente ? `1.5px solid ${PURPLE}` : "1px solid transparent",
+                }}
               >
-                <span className="body-small-regular" style={{ color: f.vigente ? "#ffffff" : "rgba(255,255,255,0.75)", fontWeight: f.vigente ? 700 : 400 }}>
+                <span className="body-small-regular" style={{ color: f.vigente ? PURPLE : "var(--gray-9)", fontWeight: f.vigente ? 700 : 400 }}>
                   {f.label}
                 </span>
-                <span className="body-small-regular" style={{ color: f.vigente ? "#ffffff" : "rgba(255,255,255,0.75)", fontWeight: f.vigente ? 700 : 400 }}>
+                <span className="body-small-regular" style={{ color: f.vigente ? PURPLE : "var(--gray-10)", fontWeight: f.vigente ? 700 : 400 }}>
                   {f.value}
                 </span>
               </div>
