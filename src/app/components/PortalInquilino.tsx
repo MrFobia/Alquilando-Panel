@@ -285,6 +285,8 @@ function InicioMobile({ inmueble, onInmueble, polizas, onVerSeguros }: InicioMob
       <PagoCardMobile />
 
       <BannerSeguros onVerSeguros={onVerSeguros} polizas={polizas} />
+
+      <AyudaInicio />
     </div>
   );
 }
