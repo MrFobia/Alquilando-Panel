@@ -274,12 +274,11 @@ interface InicioMobileProps {
   inmueble: string;
   onInmueble: (v: string) => void;
   polizas: PolizaComprada[];
-  onCotizarHogar: () => void;
   onVerSeguros: () => void;
   goTo: (id: string) => void;
 }
 
-function InicioMobile({ inmueble, onInmueble, polizas, onCotizarHogar, onVerSeguros, goTo }: InicioMobileProps) {
+function InicioMobile({ inmueble, onInmueble, polizas, onVerSeguros, goTo }: InicioMobileProps) {
   return (
     <div className="flex flex-col gap-5">
       {/* Saludo compacto + selector de inmueble */}
@@ -312,7 +311,6 @@ function InicioMobile({ inmueble, onInmueble, polizas, onCotizarHogar, onVerSegu
         ))}
       </div>
 
-      <Notificaciones onCotizarHogar={onCotizarHogar} />
       <BannerSeguros onVerSeguros={onVerSeguros} polizas={polizas} />
     </div>
   );
@@ -371,8 +369,13 @@ const NOTIF_TABS: { id: "todos" | NotifCategoria; label: string }[] = [
   { id: "noticias", label: "Noticias" },
 ];
 
-function Notificaciones({ onCotizarHogar }: { onCotizarHogar: () => void }) {
-  const [items, setItems] = useState(NOTIFICACIONES_INICIALES);
+function Notificaciones({ onCotizarHogar, items, setItems, hideTitle }: {
+  onCotizarHogar: () => void;
+  items: Notificacion[];
+  setItems: React.Dispatch<React.SetStateAction<Notificacion[]>>;
+  /** Oculta el encabezado propio cuando el contenedor ya lo aporta (panel mobile). */
+  hideTitle?: boolean;
+}) {
   const [tab, setTab] = useState<"todos" | NotifCategoria>("todos");
 
   const visibles = tab === "todos" ? items : items.filter((n) => n.categoria === tab);
@@ -380,12 +383,14 @@ function Notificaciones({ onCotizarHogar }: { onCotizarHogar: () => void }) {
 
   return (
     <section className="rounded-lg flex flex-col" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "22px 24px" }}>
-      <div className="flex items-center gap-2.5">
-        <Bell size={20} strokeWidth={1.8} style={{ color: PURPLE }} />
-        <h2 className="title-tertiary-bold" style={{ color: PURPLE }}>Notificaciones</h2>
-      </div>
+      {!hideTitle && (
+        <div className="flex items-center gap-2.5">
+          <Bell size={20} strokeWidth={1.8} style={{ color: PURPLE }} />
+          <h2 className="title-tertiary-bold" style={{ color: PURPLE }}>Notificaciones</h2>
+        </div>
+      )}
 
-      <div className="flex items-center gap-1 overflow-x-auto" style={{ borderBottom: "1px solid var(--gray-4)", marginTop: 14 }}>
+      <div className="flex items-center gap-1 overflow-x-auto" style={{ borderBottom: "1px solid var(--gray-4)", marginTop: hideTitle ? 0 : 14 }}>
         {NOTIF_TABS.map((t) => {
           const isActive = tab === t.id;
           return (
@@ -1103,6 +1108,9 @@ export function PortalInquilino({ onLogout }: Props) {
   const [inmueble, setInmueble] = useState("carrera-23");
   const [cotizandoHogar, setCotizandoHogar] = useState(false);
   const [polizas, setPolizas] = useState<PolizaComprada[]>([]);
+  // Notificaciones viven aquí: en mobile se abren desde la campana del header.
+  const [notifItems, setNotifItems] = useState(NOTIFICACIONES_INICIALES);
+  const [notifOpen, setNotifOpen] = useState(false);
   const seccion = TITULOS[active];
 
   /** No cancela de inmediato: un asesor debe contactar y completar la cancelación. */
@@ -1175,15 +1183,72 @@ export function PortalInquilino({ onLogout }: Props) {
         style={{ height: 56, backgroundColor: PURPLE }}
       >
         <AlquilandoLogo height={24} />
-        <button
-          title="Cerrar sesión"
-          onClick={onLogout}
-          className="flex items-center justify-center rounded-lg"
-          style={{ cursor: "pointer", width: 40, height: 40, backgroundColor: "transparent", color: "#ffffff" }}
-        >
-          <LogOut size={18} strokeWidth={1.6} />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            title="Notificaciones"
+            onClick={() => setNotifOpen(true)}
+            className="relative flex items-center justify-center rounded-lg"
+            style={{ cursor: "pointer", width: 40, height: 40, backgroundColor: "transparent", color: "#ffffff" }}
+          >
+            <Bell size={19} strokeWidth={1.6} />
+            {notifItems.length > 0 && (
+              <span
+                className="absolute flex items-center justify-center rounded-full"
+                style={{
+                  top: 5,
+                  right: 4,
+                  minWidth: 16,
+                  height: 16,
+                  padding: "0 4px",
+                  backgroundColor: "var(--alquilando)",
+                  color: PURPLE_DARK,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  lineHeight: 1,
+                }}
+              >
+                {notifItems.length}
+              </span>
+            )}
+          </button>
+          <button
+            title="Cerrar sesión"
+            onClick={onLogout}
+            className="flex items-center justify-center rounded-lg"
+            style={{ cursor: "pointer", width: 40, height: 40, backgroundColor: "transparent", color: "#ffffff" }}
+          >
+            <LogOut size={18} strokeWidth={1.6} />
+          </button>
+        </div>
       </header>
+
+      {/* Panel de notificaciones mobile: hoja a pantalla completa desde el header */}
+      {notifOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: "var(--gray-1)" }}>
+          <header
+            className="flex items-center gap-2 px-2 shrink-0"
+            style={{ height: 56, backgroundColor: PURPLE }}
+          >
+            <button
+              title="Volver"
+              onClick={() => setNotifOpen(false)}
+              className="flex items-center justify-center rounded-lg"
+              style={{ cursor: "pointer", width: 40, height: 40, backgroundColor: "transparent", color: "#ffffff" }}
+            >
+              <ArrowLeft size={19} strokeWidth={1.8} />
+            </button>
+            <span className="body-bold" style={{ color: "#ffffff" }}>Notificaciones</span>
+          </header>
+          <div className="flex-1 overflow-y-auto" style={{ padding: 16 }}>
+            <Notificaciones
+              onCotizarHogar={() => { setNotifOpen(false); setActiveRaw("seguros"); setCotizandoHogar(true); }}
+              items={notifItems}
+              setItems={setNotifItems}
+              hideTitle
+            />
+          </div>
+        </div>
+      )}
 
       {/* Mobile bottom nav — estilo app */}
       <nav
@@ -1247,7 +1312,11 @@ export function PortalInquilino({ onLogout }: Props) {
               <div className="max-md:hidden grid grid-cols-2 gap-5 max-lg:grid-cols-1 items-start">
                 <EstadoCuenta />
                 <div className="flex flex-col gap-5">
-                  <Notificaciones onCotizarHogar={() => { setActiveRaw("seguros"); setCotizandoHogar(true); }} />
+                  <Notificaciones
+                    onCotizarHogar={() => { setActiveRaw("seguros"); setCotizandoHogar(true); }}
+                    items={notifItems}
+                    setItems={setNotifItems}
+                  />
                   <BannerSeguros onVerSeguros={() => setActive("seguros")} polizas={polizas} />
                   <AyudaInicio />
                 </div>
@@ -1258,7 +1327,6 @@ export function PortalInquilino({ onLogout }: Props) {
                   inmueble={inmueble}
                   onInmueble={setInmueble}
                   polizas={polizas}
-                  onCotizarHogar={() => { setActiveRaw("seguros"); setCotizandoHogar(true); }}
                   onVerSeguros={() => setActive("seguros")}
                   goTo={setActive}
                 />
