@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, CircleCheck, Tv, Sofa, ShieldCheck, Home, Plus,
+  ArrowLeft, CircleCheck, Tv, Sofa, ShieldCheck, Home, Plus, ChevronUp, ChevronDown,
   Flame, HeartPulse, Lock, PawPrint, Wrench, Hammer, PackageCheck, Award,
   Receipt, Mail, CalendarClock, CreditCard, Download, FileText,
 } from "lucide-react";
@@ -1004,6 +1004,82 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     Number(enseresValor) <= 0 && "valor de muebles y enseres",
   ].filter(Boolean) as string[];
 
+  // La hoja de resumen mobile se abre tocando la barra fija inferior.
+  const [resumenAbierto, setResumenAbierto] = useState(false);
+
+  // Detalle del resumen, compartido entre el aside de desktop y la hoja desplegable de mobile.
+  const resumenDetalle = (
+    <>
+      <div className="flex items-start justify-between gap-4">
+        <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Inmueble</span>
+        <span className="body-small-regular text-right" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos?.direccion ?? "Sin seleccionar"}</span>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className="body-bold" style={{ color: "var(--navy)" }}>Objetos asegurables</span>
+        <div className="flex items-center justify-between gap-4">
+          <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>Equipos electrónicos</span>
+          <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOP(electronicosValor) || "$ 0"}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>Muebles y enseres</span>
+          <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOP(enseresValor) || "$ 0"}</span>
+        </div>
+      </div>
+
+      {paso === 0 && (
+        <>
+          <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
+          <div className="flex items-center justify-between gap-4">
+            <span className="body-bold" style={{ color: "var(--gray-10)" }}>Total:</span>
+            <span className="body-bold" style={{ color: "var(--navy)" }}>{total > 0 ? "$ " + total.toLocaleString("es-CO") : "$ 0"}</span>
+          </div>
+          <p className="disclamer" style={{ color: "var(--gray-8)", margin: 0 }}>
+            Te respaldamos desde $10.000.000 hasta por $1.000.000.000. Este monto está destinado a proteger
+            todos los objetos de las categorías seleccionadas.
+          </p>
+        </>
+      )}
+
+      {paso >= 1 && (
+        <>
+          {adicionalesActivas.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
+              <span className="body-bold" style={{ color: "var(--navy)" }}>Coberturas adicionales</span>
+              {adicionalesActivas.map((c) => (
+                <div key={c.id} className="flex items-center justify-between gap-4">
+                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{c.sidebarLabel}</span>
+                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(c.precio)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2">
+            <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
+            <span className="body-bold" style={{ color: "var(--navy)" }}>Plan de suscripción</span>
+            <div className="flex items-center justify-between gap-4">
+              <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{plan.nombre} Mensual</span>
+              <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(plan.precio)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>Paquete de asistencias (Incluida)</span>
+              <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(asistencia.precio)}</span>
+            </div>
+          </div>
+
+          <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
+          <div className="flex items-center justify-between gap-4">
+            <span className="body-bold" style={{ color: "var(--gray-10)" }}>Total:</span>
+            <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{formatCOPNumber(totalMensual)}</span>
+          </div>
+          <p className="disclamer" style={{ color: "var(--gray-8)", margin: 0 }}>IVA incluido.</p>
+        </>
+      )}
+    </>
+  );
+
   const textareaStyle: React.CSSProperties = {
     border: "1px solid var(--gray-5)",
     borderRadius: "var(--radius-md)",
@@ -1395,123 +1471,85 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
             Tendrás cobertura continua, hasta que decidas cancelar el seguro.
           </p>
 
-          <div className="flex items-start justify-between gap-4">
-            <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Inmueble</span>
-            <span className="body-small-regular text-right" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos?.direccion ?? "Sin seleccionar"}</span>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <span className="body-bold" style={{ color: "var(--navy)" }}>Objetos asegurables</span>
-            <div className="flex items-center justify-between gap-4">
-              <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>Equipos electrónicos</span>
-              <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOP(electronicosValor) || "$ 0"}</span>
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>Muebles y enseres</span>
-              <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOP(enseresValor) || "$ 0"}</span>
-            </div>
-          </div>
+          {resumenDetalle}
 
           {paso === 0 && (
-            <>
-              <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
-              <div className="flex items-center justify-between gap-4">
-                <span className="body-bold" style={{ color: "var(--gray-10)" }}>Total:</span>
-                <span className="body-bold" style={{ color: "var(--navy)" }}>{total > 0 ? "$ " + total.toLocaleString("es-CO") : "$ 0"}</span>
-              </div>
-              <p className="disclamer" style={{ color: "var(--gray-8)", margin: 0 }}>
-                Te respaldamos desde $10.000.000 hasta por $1.000.000.000. Este monto está destinado a proteger
-                todos los objetos de las categorías seleccionadas.
-              </p>
-              <AppButton variant="primary" bold fullWidth disabled={!puedeContinuar} onClick={() => setPaso(1)}>
-                Continuar
-              </AppButton>
-            </>
+            <AppButton variant="primary" bold fullWidth disabled={!puedeContinuar} onClick={() => setPaso(1)}>
+              Continuar
+            </AppButton>
           )}
 
-          {paso >= 1 && (
-            <>
-              {adicionalesActivas.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
-                  <span className="body-bold" style={{ color: "var(--navy)" }}>Coberturas adicionales</span>
-                  {adicionalesActivas.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between gap-4">
-                      <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{c.sidebarLabel}</span>
-                      <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(c.precio)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {paso === 1 && (
+            <AppButton variant="primary" bold fullWidth onClick={() => setPaso(2)}>
+              Continuar
+            </AppButton>
+          )}
 
-              <div className="flex flex-col gap-2">
-                <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
-                <span className="body-bold" style={{ color: "var(--navy)" }}>Plan de suscripción</span>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{plan.nombre} Mensual</span>
-                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(plan.precio)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>Paquete de asistencias (Incluida)</span>
-                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(asistencia.precio)}</span>
-                </div>
-              </div>
-
-              <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
-              <div className="flex items-center justify-between gap-4">
-                <span className="body-bold" style={{ color: "var(--gray-10)" }}>Total:</span>
-                <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{formatCOPNumber(totalMensual)}</span>
-              </div>
-              <p className="disclamer" style={{ color: "var(--gray-8)", margin: 0 }}>IVA incluido.</p>
-
-              {paso === 1 && (
-                <AppButton variant="primary" bold fullWidth onClick={() => setPaso(2)}>
-                  Continuar
-                </AppButton>
-              )}
-
-              {paso === 2 && (
-                <div className="flex items-center justify-between gap-4">
-                  <LinkText size="small" icon="chevron" onClick={() => setPaso(1)}>Cambiar plan</LinkText>
-                  <AppButton variant="primary" bold onClick={comprar}>
-                    <CreditCard size={15} /> Ir a pagar
-                  </AppButton>
-                </div>
-              )}
-            </>
+          {paso === 2 && (
+            <div className="flex items-center justify-between gap-4">
+              <LinkText size="small" icon="chevron" onClick={() => setPaso(1)}>Cambiar plan</LinkText>
+              <AppButton variant="primary" bold onClick={comprar}>
+                <CreditCard size={15} /> Ir a pagar
+              </AppButton>
+            </div>
           )}
         </aside>
       </div>
 
-      {/* Barra de acción fija en mobile: total del paso + CTA, sobre el bottom nav del portal */}
+      {/* Barra de acción fija en mobile: total del paso + CTA, sobre el bottom nav del portal.
+          Tocar la zona del total despliega el resumen completo (el mismo del aside de desktop). */}
       {paso < 3 && (
         <div
-          className="md:hidden fixed left-0 right-0 z-30"
+          className="md:hidden fixed left-0 right-0 z-30 flex flex-col"
           style={{
             bottom: "calc(62px + env(safe-area-inset-bottom))",
             backgroundColor: "#ffffff",
             borderTop: "1px solid var(--gray-4)",
-            padding: "10px 16px",
             boxShadow: "0 -4px 16px rgba(0,0,0,0.08)",
           }}
         >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-col min-w-0">
-              <span className="disclamer" style={{ color: "var(--gray-8)" }}>
+          {resumenAbierto && (
+            <div
+              className="flex flex-col gap-4 overflow-y-auto"
+              style={{ maxHeight: "55vh", padding: "16px 20px", borderBottom: "1px solid var(--gray-4)" }}
+            >
+              <div>
+                <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Así va tu protección</h2>
+                <p className="body-small-regular" style={{ color: "var(--gray-9)", margin: "2px 0 0" }}>
+                  Tendrás cobertura continua, hasta que decidas cancelar el seguro.
+                </p>
+              </div>
+              {resumenDetalle}
+              {paso === 2 && (
+                <LinkText size="small" icon="chevron" onClick={() => { setResumenAbierto(false); setPaso(1); }}>
+                  Cambiar plan
+                </LinkText>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3" style={{ padding: "10px 16px" }}>
+            <button
+              onClick={() => setResumenAbierto((v) => !v)}
+              className="flex flex-col min-w-0 text-left"
+              style={{ backgroundColor: "transparent", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              <span className="disclamer flex items-center gap-1" style={{ color: "var(--gray-8)" }}>
                 {paso === 0 ? "Total asegurado" : "Total mensual"}
+                {resumenAbierto ? <ChevronDown size={13} strokeWidth={2} /> : <ChevronUp size={13} strokeWidth={2} />}
               </span>
-              <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>
+              <span className="title-tertiary-bold flex items-center gap-1.5" style={{ color: "var(--navy)" }}>
                 {paso === 0 ? (total > 0 ? "$ " + total.toLocaleString("es-CO") : "$ 0") : formatCOPNumber(totalMensual)}
               </span>
               {paso === 0 && !puedeContinuar && faltantes.length > 0 && (
-                <span className="disclamer truncate" style={{ color: "var(--orange-status)" }}>
+                <span className="disclamer truncate w-full" style={{ color: "var(--orange-status)" }}>
                   Te falta: {faltantes.join(", ")}
                 </span>
               )}
               {paso > 0 && (
                 <span className="disclamer" style={{ color: "var(--gray-8)" }}>IVA incluido · Plan {plan.nombre}</span>
               )}
-            </div>
+            </button>
             <div className="shrink-0">
               {paso === 0 && (
                 <AppButton variant="primary" bold disabled={!puedeContinuar} onClick={() => setPaso(1)}>
