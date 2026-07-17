@@ -971,20 +971,24 @@ function MisPolizas({ polizas, onCancelar }: { polizas: PolizaComprada[]; onCanc
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-5 shrink-0 max-sm:w-full max-sm:justify-between">
-                <img
-                  src={logoSegurosBolivar}
-                  alt="Seguros Bolívar"
-                  className="shrink-0"
-                  style={{ height: 34, width: "auto", opacity: cancelada ? 0.5 : 1 }}
-                />
-                <div className="flex flex-col items-end">
-                  <span className="body-bold" style={{ color: cancelada ? "var(--gray-8)" : PURPLE }}>{formatCOPNumber(p.totalMensual)}/mes</span>
-                  <span className="disclamer" style={{ color: "var(--gray-8)" }}>
-                    {cancelada ? `Solicitada el ${p.fechaSolicitudCancelacion}` : `Próximo cobro: ${p.proximoCobro}`}
-                  </span>
+              <div className="flex items-center gap-5 shrink-0 max-sm:w-full max-sm:flex-col max-sm:items-stretch max-sm:gap-3">
+                <div className="flex items-center gap-5 max-sm:w-full max-sm:justify-between">
+                  <img
+                    src={logoSegurosBolivar}
+                    alt="Seguros Bolívar"
+                    className="shrink-0"
+                    style={{ height: 34, width: "auto", opacity: cancelada ? 0.5 : 1 }}
+                  />
+                  <div className="flex flex-col items-end">
+                    <span className="body-bold" style={{ color: cancelada ? "var(--gray-8)" : PURPLE }}>{formatCOPNumber(p.totalMensual)}/mes</span>
+                    <span className="disclamer" style={{ color: "var(--gray-8)" }}>
+                      {cancelada ? `Solicitada el ${p.fechaSolicitudCancelacion}` : `Próximo cobro: ${p.proximoCobro}`}
+                    </span>
+                  </div>
                 </div>
-                <LinkText size="small" icon="chevron" onClick={() => setSeleccionadaId(p.id)}>Ver detalle</LinkText>
+                <div className="max-sm:w-full max-sm:flex max-sm:justify-end">
+                  <LinkText size="small" icon="chevron" onClick={() => setSeleccionadaId(p.id)}>Ver detalle</LinkText>
+                </div>
               </div>
             </div>
           );
