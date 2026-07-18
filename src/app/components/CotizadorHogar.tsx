@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, CircleCheck, Tv, Sofa, ShieldCheck, Home, Plus, ChevronUp, ChevronDown,
   Flame, HeartPulse, Lock, PawPrint, Wrench, Hammer, PackageCheck, Award,
-  Receipt, Mail, CalendarClock, CreditCard, Download, FileText, Info, SlidersHorizontal,
+  Receipt, Mail, CalendarClock, CreditCard, Download, FileText, Info, SlidersHorizontal, Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Stepper } from "./kit/Stepper";
@@ -13,6 +13,7 @@ import { StatusBadge } from "./kit/StatusBadge";
 import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
 import { ToggleSwitch } from "./kit/ToggleSwitch";
+import { Callout } from "./kit/Callout";
 import logoSegurosBolivar from "../../assets/logo-seguros-bolivar.png";
 
 /**
@@ -58,13 +59,16 @@ interface InmuebleCotizacion {
   /** Si es false, ya tenemos todos los datos del inmueble: no hace falta pedirle nada más al usuario. */
   datosCompletos: boolean;
   lat: number; lng: number;
-  /** Valor de la vivienda ya conocido (cuando datosCompletos es true): sirve para sugerir montos a asegurar en el paso de objetos. */
-  valorVivienda?: number;
+  /** true cuando el inmueble se creó desde el formulario del seguro (no viene del contrato de Alquilando). */
+  externo?: boolean;
+  tipoDocumento?: string;
+  numeroDocumento?: string;
+  metrosCuadrados?: number;
 }
 
 const INMUEBLES_COTIZACION: Record<string, InmuebleCotizacion> = {
   "carrera-23": { estrato: "3", canon: "$1.400.000", ciudad: "Bogotá", direccion: "Carrera 23 # 45 - 34 sur", coordenadas: "4,593874 - -74,129384", datosCompletos: false, lat: 4.593874, lng: -74.129384 },
-  "calle-80": { estrato: "4", canon: "$2.150.000", ciudad: "Bogotá", direccion: "Calle 80 # 12 - 08, apto 502", coordenadas: "4,668350 - -74,056420", datosCompletos: true, lat: 4.668350, lng: -74.056420, valorVivienda: 320000000 },
+  "calle-80": { estrato: "4", canon: "$2.150.000", ciudad: "Bogotá", direccion: "Calle 80 # 12 - 08, apto 502", coordenadas: "4,668350 - -74,056420", datosCompletos: true, lat: 4.668350, lng: -74.056420 },
 };
 
 const INMUEBLE_OPTIONS = [
@@ -75,6 +79,22 @@ const INMUEBLE_OPTIONS = [
 const ZONA_OPTIONS = [
   { value: "urbano", label: "Urbano" },
   { value: "rural", label: "Rural" },
+];
+
+const TIPOS_DOCUMENTO = [
+  { value: "cc", label: "Cédula de ciudadanía" },
+  { value: "ce", label: "Cédula de extranjería" },
+  { value: "pasaporte", label: "Pasaporte" },
+  { value: "nit", label: "NIT" },
+];
+
+const CIUDADES_OPTIONS = [
+  { value: "bogota", label: "Bogotá" },
+  { value: "medellin", label: "Medellín" },
+  { value: "cali", label: "Cali" },
+  { value: "barranquilla", label: "Barranquilla" },
+  { value: "cartagena", label: "Cartagena" },
+  { value: "bucaramanga", label: "Bucaramanga" },
 ];
 
 const ELECTRONICOS_BASE = ["Televisores", "Computadores", "Neveras", "Objetos inteligentes", "Estufas", "Equipos de sonido"];
@@ -125,6 +145,9 @@ const PLANES: Plan[] = [
 ];
 
 const PLAN_ICONS: Record<string, LucideIcon> = { basic: Home, proteccion: ShieldCheck, premium: Award };
+
+/** Orden del carrusel mobile: premium primero, basic al final (desktop conserva el orden de PLANES). */
+const PLANES_CARRUSEL: Plan[] = [...PLANES].reverse();
 
 interface CoberturaAdicional {
   id: string;
@@ -519,11 +542,40 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
   const asistencia = ASISTENCIAS.find((a) => a.id === asistenciaId)!;
   const soloEnPlan = vistaMobile === "asistencia" ? "max-md:hidden" : "";
   const soloEnAsistencia = vistaMobile === "plan" ? "max-md:hidden" : "";
-  // En mobile, lo único obligatorio para avanzar en la pantalla de plan es elegirlo: el detalle de
-  // coberturas y las coberturas adicionales (ya tienen un default válido) se sacan del flujo lineal.
-  // La asistencia, en cambio, es su propio paso completo (misma línea gráfica que "Elige tu plan").
-  const [detallePlanAbierto, setDetallePlanAbierto] = useState(false);
+  // En mobile, lo único obligatorio para avanzar en la pantalla de plan es elegirlo: las coberturas
+  // adicionales (ya tienen un default válido) se sacan del flujo lineal. El detalle del plan elegido
+  // se muestra siempre inline debajo de las tarjetas en desktop; en mobile va dentro de cada tarjeta
+  // de un carrusel deslizable (una tarjeta = una opción completa, con su detalle debajo). La asistencia
+  // es su propio paso completo y usa el mismo patrón de carrusel en mobile.
   const [adicionalesAbiertas, setAdicionalesAbiertas] = useState(false);
+  // Cada tarjeta ocupa el 88% del ancho del carrusel (con un poco de espacio entre ellas), así se
+  // asoma un pedazo de la siguiente y el usuario entiende que puede seguir deslizando.
+  const CARD_WIDTH_RATIO = 0.88;
+  const CARD_GAP = 12;
+  const planCarruselRef = useRef<HTMLDivElement>(null);
+  const [planSlide, setPlanSlide] = useState(() => Math.max(0, PLANES_CARRUSEL.findIndex((p) => p.id === planId)));
+  const irASlidePlan = (i: number) => {
+    const el = planCarruselRef.current;
+    if (!el) return;
+    el.scrollTo({ left: i * (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP), behavior: "smooth" });
+  };
+  const onScrollPlanes = () => {
+    const el = planCarruselRef.current;
+    if (!el || el.clientWidth === 0) return;
+    setPlanSlide(Math.round(el.scrollLeft / (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP)));
+  };
+  const asistenciaCarruselRef = useRef<HTMLDivElement>(null);
+  const [asistenciaSlide, setAsistenciaSlide] = useState(() => Math.max(0, ASISTENCIAS.findIndex((a) => a.id === asistenciaId)));
+  const irASlideAsistencia = (i: number) => {
+    const el = asistenciaCarruselRef.current;
+    if (!el) return;
+    el.scrollTo({ left: i * (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP), behavior: "smooth" });
+  };
+  const onScrollAsistencias = () => {
+    const el = asistenciaCarruselRef.current;
+    if (!el || el.clientWidth === 0) return;
+    setAsistenciaSlide(Math.round(el.scrollLeft / (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP)));
+  };
   const adicionalesCount = Object.values(adicionales).filter(Boolean).length;
   useEffect(() => {
     if (mostrarPasoAdicionales) setAdicionalesAbiertas(true);
@@ -542,12 +594,13 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
 
   const contenidoCoberturasPlan = (p: Plan) => (
     <div className="flex flex-col gap-3">
-      <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>
-        La suscripción al plan {p.nombre.replace("Alquilando ", "")} incluye {p.coberturas.length} coberturas
-        y su costo es de {formatCOPNumber(p.precio)} + el paquete de asistencias que elijas.
-      </p>
-      <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
-      <span className="body-small-bold" style={{ color: "var(--gray-10)" }}>Listado de coberturas del plan {p.nombre}</span>
+      <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
+        <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
+        <div className="flex flex-col">
+          <span className="body-small-bold" style={{ color: "var(--navy)" }}>Todo lo del plan {p.nombre}</span>
+          <span className="disclamer" style={{ color: "var(--navy)" }}>{p.coberturas.length} coberturas incluidas</span>
+        </div>
+      </div>
       <div className="flex flex-col gap-3">
         {p.coberturas.map((c) => (
           <div key={c.titulo} className="flex items-start gap-2">
@@ -587,6 +640,45 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
     </div>
   );
 
+  /** Detalle de una asistencia para la tarjeta del carrusel: solo lo que suma sobre la asistencia
+   * anterior (mismo patrón que las tarjetas de plan), sin repetir la descripción larga. */
+  const contenidoCoberturasAsistenciaCard = (a: Asistencia) => {
+    const idx = ASISTENCIAS.findIndex((x) => x.id === a.id);
+    const anterior = idx > 0 ? ASISTENCIAS[idx - 1] : null;
+    const nuevas = anterior ? a.categorias.slice(anterior.categorias.length) : a.categorias;
+    const chipTitulo = anterior ? `Todo lo de ${anterior.nombre}` : null;
+    const categoriaPlural = nuevas.length === 1 ? "categoría" : "categorías";
+    const chipSubtitulo = anterior
+      ? `+ ${nuevas.length} ${categoriaPlural} nueva${nuevas.length === 1 ? "" : "s"}`
+      : `${nuevas.length} ${categoriaPlural} incluida${nuevas.length === 1 ? "" : "s"}`;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
+          <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
+          <div className="flex flex-col">
+            {chipTitulo && <span className="body-small-bold" style={{ color: "var(--navy)" }}>{chipTitulo}</span>}
+            <span className="disclamer" style={{ color: "var(--navy)" }}>{chipSubtitulo}</span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-3">
+          {nuevas.map((cat) => (
+            <div key={cat.titulo} className="flex flex-col gap-2">
+              <span className="body-small-bold" style={{ color: "var(--gray-10)" }}>{cat.titulo}</span>
+              <div className="flex flex-col gap-1.5">
+                {cat.items.map((item) => (
+                  <div key={item} className="flex items-start gap-2">
+                    <CircleCheck size={14} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
+                    <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const detallePlanContenido = plan ? contenidoCoberturasPlan(plan) : null;
 
   /** mostrarLinkSaltar: solo en el modal-paso-extra de mobile, para que el usuario sepa que puede seguir sin elegir nada. */
@@ -612,17 +704,127 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
     </div>
   );
 
+  /** Detalle de un plan para la tarjeta del carrusel: solo lo que suma sobre el plan anterior (no repite
+   * lo que ya viene incluido), y cada cobertura se corta en el título en negrita (sin ":" ni descripción). */
+  const contenidoCoberturasPlanCard = (p: Plan) => {
+    const idx = PLANES.findIndex((x) => x.id === p.id);
+    const anterior = idx > 0 ? PLANES[idx - 1] : null;
+    const nuevas = anterior ? p.coberturas.slice(anterior.coberturas.length) : p.coberturas;
+    const chipTitulo = p.id === "premium" ? "Todo lo de Protección" : p.id === "proteccion" ? "Todo lo del plan Basic" : null;
+    const chipSubtitulo = anterior ? `+ ${nuevas.length} coberturas nuevas` : `${nuevas.length} coberturas incluidas`;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
+          <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
+          <div className="flex flex-col">
+            {chipTitulo && <span className="body-small-bold" style={{ color: "var(--navy)" }}>{chipTitulo}</span>}
+            <span className="disclamer" style={{ color: "var(--navy)" }}>{chipSubtitulo}</span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-3">
+          {nuevas.map((c) => (
+            <div key={c.titulo} className="flex items-start gap-2">
+              <CircleCheck size={15} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
+              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 700 }}>{c.titulo}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  /** Tarjeta completa de una opción para el carrusel mobile: header con precio + botón de selección, y su detalle debajo. */
+  const planSlideContenido = (p: Plan) => {
+    const seleccionado = planId === p.id;
+    const Icon = PLAN_ICONS[p.id];
+    const sugerido = p.tag === "El más popular";
+    const destacado = p.id === "premium";
+    return (
+      <div
+        key={p.id}
+        className="snap-center shrink-0 rounded-xl overflow-hidden"
+        style={{
+          width: `${CARD_WIDTH_RATIO * 100}%`,
+          marginRight: CARD_GAP,
+          border: destacado ? "2px solid var(--navy)" : seleccionado ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
+          boxShadow: destacado ? "0 6px 20px rgba(0,0,0,0.12)" : "none",
+        }}
+      >
+        <div className="relative flex flex-col items-center text-center gap-2" style={{ backgroundColor: destacado ? "var(--navy)" : "var(--navy-light)", padding: "22px 20px" }}>
+          {(sugerido || destacado) && (
+            <span
+              className="tags rounded-full px-3 py-1 absolute"
+              style={destacado ? { top: 14, left: 14, backgroundColor: "#ffffff", color: "var(--navy)" } : { top: 14, left: 14, backgroundColor: "var(--navy)", color: "#ffffff" }}
+            >
+              {destacado ? "Mejor cobertura" : "Sugerido"}
+            </span>
+          )}
+          {seleccionado && (
+            <CircleCheck size={20} strokeWidth={2} className="absolute" style={{ top: 14, right: 14, color: destacado ? "#ffffff" : "var(--navy)" }} />
+          )}
+          <div className="flex items-center justify-center rounded-full" style={{ width: 48, height: 48, backgroundColor: "#ffffff", marginTop: (sugerido || destacado) ? 22 : 0 }}>
+            <Icon size={22} strokeWidth={1.7} style={{ color: "var(--navy)" }} />
+          </div>
+          <span className="title-tertiary-bold" style={{ color: destacado ? "#ffffff" : "var(--navy)" }}>{p.nombre}</span>
+          <span className="title-secondary" style={{ color: destacado ? "#ffffff" : "var(--gray-10)" }}>{formatCOPNumber(p.precio)}</span>
+          <span className="body-small-regular" style={{ color: destacado ? "rgba(255,255,255,0.75)" : "var(--gray-9)" }}>Mes ({p.tag})</span>
+          <AppButton
+            variant={destacado ? (seleccionado ? "ghost" : "accent") : (seleccionado ? "secondary" : "primary")}
+            bold
+            fullWidth
+            onClick={() => onPlan(p.id)}
+          >
+            {seleccionado ? (<><CircleCheck size={15} /> Plan seleccionado</>) : "Seleccionar plan"}
+          </AppButton>
+        </div>
+        <div className="flex flex-col gap-3" style={{ padding: "20px" }}>
+          {contenidoCoberturasPlanCard(p)}
+        </div>
+      </div>
+    );
+  };
+
+  const asistenciaSlideContenido = (a: Asistencia) => {
+    const seleccionada = asistenciaId === a.id;
+    const Icon = a.icon;
+    return (
+      <div
+        key={a.id}
+        className="snap-center shrink-0 rounded-xl overflow-hidden"
+        style={{ width: `${CARD_WIDTH_RATIO * 100}%`, marginRight: CARD_GAP, border: seleccionada ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)" }}
+      >
+        <div className="relative flex flex-col items-center text-center gap-2" style={{ backgroundColor: "var(--navy-light)", padding: "22px 20px" }}>
+          {seleccionada && (
+            <CircleCheck size={20} strokeWidth={2} className="absolute" style={{ top: 14, right: 14, color: "var(--navy)" }} />
+          )}
+          <div className="flex items-center justify-center rounded-full" style={{ width: 48, height: 48, backgroundColor: "#ffffff" }}>
+            <Icon size={22} strokeWidth={1.7} style={{ color: "var(--navy)" }} />
+          </div>
+          <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{a.nombre}</span>
+          <span className="title-secondary" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(a.precio)}</span>
+          <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Mes ({a.id === "basica" ? "Incluida" : "Adicional"})</span>
+          <AppButton variant={seleccionada ? "secondary" : "primary"} bold fullWidth onClick={() => onAsistencia(a.id)}>
+            {seleccionada ? (<><CircleCheck size={15} /> Asistencia seleccionada</>) : "Seleccionar asistencia"}
+          </AppButton>
+        </div>
+        <div className="flex flex-col gap-3" style={{ padding: "20px" }}>
+          {contenidoCoberturasAsistenciaCard(a)}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col gap-6">
-      {/* Elegir plan: obligatorio, siempre inline en mobile y desktop */}
-      <div className={`flex flex-col gap-4 ${soloEnPlan}`}>
+      {/* Elegir plan — desktop: grid de tarjetas + detalle del plan elegido debajo, como siempre. */}
+      <div className={`hidden md:flex flex-col gap-4 ${soloEnPlan}`}>
         <div>
           <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige tu suscripción mensual</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
             Sin cláusulas de permanencia. Pagas mes a mes y puedes cancelar fácil cuando quieras.
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-4 max-sm:grid-cols-1" role="radiogroup" aria-label="Plan de suscripción">
+        <div className="grid grid-cols-3 gap-4" role="radiogroup" aria-label="Plan de suscripción">
           {PLANES.map((p) => (
             <SuscripcionCard
               key={p.id}
@@ -637,22 +839,48 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
           ))}
         </div>
       </div>
-
-      {/* Detalle del plan elegido: siempre visible en desktop, en modal en mobile. Sin plan elegido, no hay nada que mostrar. */}
       {plan && (
-        <>
-          <div className={`rounded-lg flex-col gap-3 hidden md:flex ${soloEnPlan}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
-            <h3 className="body-bold" style={{ color: "var(--navy)" }}>Plan {plan.nombre}</h3>
-            {detallePlanContenido}
-          </div>
-          <div className={`md:hidden ${soloEnPlan}`}>
-            <LinkText size="small" onClick={() => setDetallePlanAbierto(true)}>Ver coberturas incluidas en {plan.nombre}</LinkText>
-          </div>
-          <Modal open={detallePlanAbierto} onClose={() => setDetallePlanAbierto(false)} title={`Plan ${plan.nombre}`} width={620}>
-            {detallePlanContenido}
-          </Modal>
-        </>
+        <div className={`hidden md:flex rounded-lg flex-col gap-3 ${soloEnPlan}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
+          <h3 className="body-bold" style={{ color: "var(--navy)" }}>Plan {plan.nombre}</h3>
+          {detallePlanContenido}
+        </div>
       )}
+
+      {/* Elegir plan — mobile: carrusel deslizable, cada tarjeta trae su propio detalle de coberturas debajo. */}
+      <div className={`md:hidden flex flex-col gap-3 ${soloEnPlan}`}>
+        <div>
+          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige tu suscripción mensual</h2>
+          <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
+            Sin cláusulas de permanencia. Desliza para comparar los planes.
+          </p>
+        </div>
+        <div className="flex items-center justify-center gap-1.5">
+          {PLANES_CARRUSEL.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Ir al plan ${i + 1}`}
+              onClick={() => irASlidePlan(i)}
+              className="rounded-full transition-all"
+              style={{ width: i === planSlide ? 18 : 6, height: 6, backgroundColor: i === planSlide ? "var(--navy)" : "var(--gray-4)", cursor: "pointer" }}
+            />
+          ))}
+        </div>
+        <div
+          ref={planCarruselRef}
+          onScroll={onScrollPlanes}
+          className="flex overflow-x-auto snap-x snap-mandatory"
+          style={{ scrollbarWidth: "none" }}
+          role="radiogroup"
+          aria-label="Plan de suscripción"
+        >
+          {PLANES_CARRUSEL.map((p) => planSlideContenido(p))}
+        </div>
+        {/* Refleja la tarjeta visible en el carrusel (no la seleccionada), para poder ver el detalle de cualquiera. */}
+        <LinkText size="small" onClick={() => setPreviewPlanId(PLANES_CARRUSEL[planSlide]?.id ?? null)}>
+          Ver el paquete completo de {PLANES_CARRUSEL[planSlide]?.nombre}
+        </LinkText>
+      </div>
 
       {/* Coberturas adicionales: ya tiene un default válido (ninguna activa), no es obligatoria para avanzar.
           Desktop la conserva siempre visible; mobile la deja detrás de un modal opcional en la pantalla del plan. */}
@@ -678,9 +906,8 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
         </div>
       </Modal>
 
-      {/* Paquetes de asistencias: obligatorio elegir uno (con default), misma línea gráfica que "Elige tu plan".
-          Desktop siempre visible; mobile es su propia pantalla (paso propio), sin modal. */}
-      <div className={`flex flex-col gap-4 ${soloEnAsistencia}`}>
+      {/* Paquetes de asistencias — desktop: grid + detalle debajo, como siempre. */}
+      <div className={`hidden md:flex flex-col gap-4 ${soloEnAsistencia}`}>
         <div>
           <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Paquetes de asistencias</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
@@ -688,7 +915,7 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
             qué tan completo quieres que sea tu equipo de rescate (plomeros, cerrajeros, electricistas).
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-4 max-sm:grid-cols-1" role="radiogroup" aria-label="Paquete de asistencias">
+        <div className="grid grid-cols-3 gap-4" role="radiogroup" aria-label="Paquete de asistencias">
           {ASISTENCIAS.map((a) => (
             <SuscripcionCard
               key={a.id}
@@ -703,13 +930,48 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
           ))}
         </div>
       </div>
-
-      <div className={`rounded-lg flex flex-col gap-3 ${soloEnAsistencia}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
+      <div className={`hidden md:flex rounded-lg flex-col gap-3 ${soloEnAsistencia}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
         <div>
           <h3 className="body-bold" style={{ color: "var(--navy)" }}>Has seleccionado: {asistencia.nombre}</h3>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>{asistencia.descripcion}</p>
         </div>
         {categoriasAsistenciaContenido(asistencia)}
+      </div>
+
+      {/* Paquetes de asistencias — mobile: carrusel deslizable, mismo patrón que el paso "Tu plan". */}
+      <div className={`md:hidden flex flex-col gap-3 ${soloEnAsistencia}`}>
+        <div>
+          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Paquetes de asistencias</h2>
+          <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
+            Desliza para comparar qué tan completo quieres que sea tu equipo de rescate.
+          </p>
+        </div>
+        <div className="flex items-center justify-center gap-1.5">
+          {ASISTENCIAS.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Ir a la asistencia ${i + 1}`}
+              onClick={() => irASlideAsistencia(i)}
+              className="rounded-full transition-all"
+              style={{ width: i === asistenciaSlide ? 18 : 6, height: 6, backgroundColor: i === asistenciaSlide ? "var(--navy)" : "var(--gray-4)", cursor: "pointer" }}
+            />
+          ))}
+        </div>
+        <div
+          ref={asistenciaCarruselRef}
+          onScroll={onScrollAsistencias}
+          className="flex overflow-x-auto snap-x snap-mandatory"
+          style={{ scrollbarWidth: "none" }}
+          role="radiogroup"
+          aria-label="Paquete de asistencias"
+        >
+          {ASISTENCIAS.map((a) => asistenciaSlideContenido(a))}
+        </div>
+        {/* Refleja la tarjeta visible en el carrusel (no la seleccionada), para poder ver el detalle de cualquiera. */}
+        <LinkText size="small" onClick={() => setPreviewAsistenciaId(ASISTENCIAS[asistenciaSlide]?.id ?? null)}>
+          Ver el paquete completo de {ASISTENCIAS[asistenciaSlide]?.nombre}
+        </LinkText>
       </div>
 
       {/* Vista previa de cualquier plan/asistencia desde el ícono (i) de cada tarjeta, sin necesidad de seleccionarlo. */}
@@ -1039,30 +1301,46 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     setInmueble(id);
     // Elegir un inmueble existente cierra el formulario de "nuevo inmueble" si estaba abierto.
     setAgregandoInmueble(false);
-    // Si ya conocemos el valor de la vivienda de este inmueble, lo precargamos (sirve para sugerir
+    // Si ya conocemos el canon de este inmueble (datosCompletos), lo precargamos (sirve para sugerir
     // montos a asegurar en el paso de objetos); si no, se deja en blanco para que el usuario lo ingrese.
     const d = inmueblesData[id];
-    setValorVivienda(d?.valorVivienda ? String(d.valorVivienda) : "");
+    setCanonArrendamiento(d?.datosCompletos ? parseDigits(d.canon) : "");
   };
 
-  // Formulario inline para agregar un inmueble nuevo a la lista.
+  /** Solo los inmuebles agregados desde el formulario del seguro (externo) se pueden eliminar. */
+  const eliminarInmueble = (id: string) => {
+    setInmuebleOptions((prev) => prev.filter((opt) => opt.value !== id));
+    setInmueblesData((prev) => {
+      const { [id]: _eliminado, ...resto } = prev;
+      return resto;
+    });
+    if (inmueble === id) {
+      setInmueble("");
+      setCanonArrendamiento("");
+    }
+    setDetalleInmuebleAbierto(false);
+  };
+
+  // Formulario para agregar un inmueble nuevo: es el formulario propio del seguro (no el de Alquilando),
+  // así que solo pide lo que la aseguradora necesita para adaptar la cobertura.
   // Mientras está abierto se deselecciona el inmueble para no mostrar sus datos abajo.
   const [agregandoInmueble, setAgregandoInmueble] = useState(false);
   const [inmuebleAntesDeAgregar, setInmuebleAntesDeAgregar] = useState<string | null>(null);
-  const [nuevoDireccion, setNuevoDireccion] = useState("");
+  const [nuevoTipoDocumento, setNuevoTipoDocumento] = useState("");
+  const [nuevoNumeroDocumento, setNuevoNumeroDocumento] = useState("");
   const [nuevoCiudad, setNuevoCiudad] = useState("");
-  const [nuevoEstrato, setNuevoEstrato] = useState("");
-  const [nuevoCanon, setNuevoCanon] = useState("");
-  const [nuevoAntiguedad, setNuevoAntiguedad] = useState("");
-  const [nuevoValorVivienda, setNuevoValorVivienda] = useState("");
-  const [nuevoInfoAdicional, setNuevoInfoAdicional] = useState("");
-  const [nuevoZona, setNuevoZona] = useState("urbano");
-  const [nuevoObservaciones, setNuevoObservaciones] = useState("");
+  const [nuevoDireccion, setNuevoDireccion] = useState("");
+  const [nuevoMetrosCuadrados, setNuevoMetrosCuadrados] = useState("");
+  const [nuevoCanonArrendamiento, setNuevoCanonArrendamiento] = useState("");
+  const [nuevoAceptaTerminos, setNuevoAceptaTerminos] = useState(false);
   const nuevoValido =
+    nuevoTipoDocumento !== "" &&
+    nuevoNumeroDocumento.trim() !== "" &&
+    nuevoCiudad !== "" &&
     nuevoDireccion.trim() !== "" &&
-    nuevoCiudad.trim() !== "" &&
-    nuevoAntiguedad.trim() !== "" &&
-    Number(nuevoValorVivienda) > 0;
+    Number(nuevoMetrosCuadrados) > 0 &&
+    Number(nuevoCanonArrendamiento) > 0 &&
+    nuevoAceptaTerminos;
 
   const abrirNuevoInmueble = () => {
     setInmuebleAntesDeAgregar(inmueble);
@@ -1072,22 +1350,22 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
 
   const resetNuevoInmueble = () => {
     setAgregandoInmueble(false);
-    setNuevoDireccion("");
+    setNuevoTipoDocumento("");
+    setNuevoNumeroDocumento("");
     setNuevoCiudad("");
-    setNuevoEstrato("");
-    setNuevoCanon("");
-    setNuevoAntiguedad("");
-    setNuevoValorVivienda("");
-    setNuevoInfoAdicional("");
-    setNuevoZona("urbano");
-    setNuevoObservaciones("");
+    setNuevoDireccion("");
+    setNuevoMetrosCuadrados("");
+    setNuevoCanonArrendamiento("");
+    setNuevoAceptaTerminos(false);
   };
+
+  const nuevoCiudadLabel = CIUDADES_OPTIONS.find((c) => c.value === nuevoCiudad)?.label ?? "";
 
   // Coordenadas del inmueble nuevo: se derivan automáticamente de la dirección + ciudad
   // (simula geolocalización) apenas hay suficiente texto para ubicarlo, sin pedirle nada al usuario.
   const { lat: nuevoLat, lng: nuevoLng } = useMemo(
-    () => coordenadasDesdeDireccion(nuevoDireccion, nuevoCiudad),
-    [nuevoDireccion, nuevoCiudad],
+    () => coordenadasDesdeDireccion(nuevoDireccion, nuevoCiudadLabel),
+    [nuevoDireccion, nuevoCiudadLabel],
   );
   const nuevoCoordenadas =
     `${nuevoLat.toFixed(6)}`.replace(".", ",") + " - " + `${nuevoLng.toFixed(6)}`.replace(".", ",");
@@ -1102,32 +1380,32 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     if (!nuevoValido) return;
     const id = `nuevo-${Date.now()}`;
     const nuevo: InmuebleCotizacion = {
-      estrato: nuevoEstrato.trim() || "—",
-      canon: nuevoCanon.trim() ? `$${nuevoCanon.trim()}` : "—",
-      ciudad: nuevoCiudad.trim(),
+      estrato: "—",
+      canon: formatCOP(nuevoCanonArrendamiento),
+      ciudad: nuevoCiudadLabel,
       direccion: nuevoDireccion.trim(),
       coordenadas: nuevoCoordenadas,
-      // El formulario de creación ya pidió todos los datos: no se repite la sección de detalles.
+      // Este formulario ya pidió el canon de arrendamiento: no hace falta repetir el bloque de
+      // "Completa los datos del inmueble" después.
       datosCompletos: true,
+      externo: true,
+      tipoDocumento: TIPOS_DOCUMENTO.find((t) => t.value === nuevoTipoDocumento)?.label,
+      numeroDocumento: nuevoNumeroDocumento.trim(),
+      metrosCuadrados: Number(nuevoMetrosCuadrados),
       lat: nuevoLat,
       lng: nuevoLng,
     };
     setInmueblesData((prev) => ({ ...prev, [id]: nuevo }));
     setInmuebleOptions((prev) => [...prev, { value: id, label: nuevo.direccion }]);
-    setAntiguedad(nuevoAntiguedad);
-    setValorVivienda(nuevoValorVivienda);
-    setInfoAdicional(nuevoInfoAdicional);
-    setZona(nuevoZona);
-    setObservaciones(nuevoObservaciones);
     cambiarInmueble(id);
     setInmuebleAntesDeAgregar(null);
     resetNuevoInmueble();
   };
 
   const [infoAdicional, setInfoAdicional] = useState("");
-  const [antiguedad, setAntiguedad] = useState("");
   const [zona, setZona] = useState("urbano");
-  const [valorVivienda, setValorVivienda] = useState("");
+  // Único dato requerido del inmueble cuando no lo tenemos ya: el canon de arrendamiento (incluye administración si aplica).
+  const [canonArrendamiento, setCanonArrendamiento] = useState("");
   const [observaciones, setObservaciones] = useState("");
 
   const [electronicosValor, setElectronicosValor] = useState("");
@@ -1167,12 +1445,12 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   const asistencia = ASISTENCIAS.find((a) => a.id === asistenciaId)!;
   const adicionalesActivas = COBERTURAS_ADICIONALES.filter((c) => adicionales[c.id]);
 
-  // 3 montos sugeridos por categoría, calculados como % del valor de la vivienda que ya conocemos.
+  // 3 montos sugeridos por categoría, calculados como múltiplos del canon de arrendamiento que ya conocemos.
   const montosSugeridos = useMemo(() => {
-    const base = Number(valorVivienda) || 0;
+    const base = Number(canonArrendamiento) || 0;
     if (base <= 0) return MONTOS_RAPIDOS_FALLBACK;
-    return [0.05, 0.1, 0.2].map((pct) => String(Math.round((base * pct) / 100000) * 100000));
-  }, [valorVivienda]);
+    return [10, 20, 40].map((mult) => String(Math.round((base * mult) / 100000) * 100000));
+  }, [canonArrendamiento]);
 
   const total = useMemo(
     () => Number(electronicosValor || 0) + Number(enseresValor || 0),
@@ -1184,8 +1462,8 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     [plan, asistencia, adicionalesActivas],
   );
 
-  // Los campos marcados con * son obligatorios, salvo que el inmueble ya tenga todos sus datos precargados.
-  const detallesCompletos = datos ? (!datos.datosCompletos ? (antiguedad.trim() !== "" && Number(valorVivienda) > 0) : true) : false;
+  // El campo marcado con * es obligatorio, salvo que el inmueble ya tenga todos sus datos precargados.
+  const detallesCompletos = datos ? (!datos.datosCompletos ? Number(canonArrendamiento) > 0 : true) : false;
   const objetosCompletos = Number(electronicosValor) > 0 && Number(enseresValor) > 0;
   const puedeContinuar = detallesCompletos && objetosCompletos;
 
@@ -1303,55 +1581,70 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     resize: "vertical",
   };
 
-  // Formulario "Nuevo inmueble": compartido entre el bloque inline de desktop y el Modal de mobile.
+  /** Suffix visual (m²) superpuesto sobre un TextInput, sin tocar el kit component. */
+  const metrosCuadradosInput = (
+    <span className="relative inline-block w-full">
+      <TextInput placeholder="0" value={nuevoMetrosCuadrados} onChange={(v) => setNuevoMetrosCuadrados(v.replace(/\D/g, "").slice(0, 5))} className="w-full" />
+      <span
+        className="absolute body-small-regular pointer-events-none"
+        style={{ right: 12, top: "50%", transform: "translateY(-50%)", color: "var(--gray-8)" }}
+      >
+        m²
+      </span>
+    </span>
+  );
+
+  // Formulario "Nuevo inmueble": es el formulario propio del seguro (no el de Alquilando), así que
+  // solo pide lo que la aseguradora necesita para adaptar la cobertura — no reusa los campos del
+  // inmueble de Alquilando (estrato, canon, etc). Compartido entre el bloque inline de desktop y el Modal de mobile.
   const formularioNuevoInmueble = (
     <div className="flex flex-col gap-4">
+      <Callout variant="info" title="Ingrese sus datos">
+        Esto nos ayuda a adaptar su cobertura. Este inmueble se crea solo para este seguro: no queda
+        vinculado a tu contrato de Alquilando.
+      </Callout>
       <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
-        <Field label="Dirección" required>
-          <TextInput placeholder="Ej. Calle 100 # 15 - 20, apto 301" value={nuevoDireccion} onChange={setNuevoDireccion} />
+        <Field label="Tipo de documento" required>
+          <SelectInput options={TIPOS_DOCUMENTO} value={nuevoTipoDocumento} onChange={setNuevoTipoDocumento} placeholder="Seleccione una opción" className="w-full" />
+        </Field>
+        <Field label="Número de documento" required>
+          <TextInput placeholder="Digite aquí" value={nuevoNumeroDocumento} onChange={(v) => setNuevoNumeroDocumento(v.replace(/\D/g, ""))} />
         </Field>
         <Field label="Ciudad" required>
-          <TextInput placeholder="Ej. Bogotá" value={nuevoCiudad} onChange={setNuevoCiudad} />
+          <SelectInput options={CIUDADES_OPTIONS} value={nuevoCiudad} onChange={setNuevoCiudad} placeholder="Seleccione una opción" className="w-full" />
         </Field>
-        <Field label="Estrato">
-          <SelectInput
-            options={["1", "2", "3", "4", "5", "6"].map((v) => ({ value: v, label: v }))}
-            value={nuevoEstrato}
-            onChange={setNuevoEstrato}
-          />
+        <Field label="Dirección" required>
+          <TextInput placeholder="Ej: Cra 1 #1-21" value={nuevoDireccion} onChange={setNuevoDireccion} />
         </Field>
-        <Field label="Canon mensual">
-          <TextInput placeholder="Ej. 1.800.000" value={nuevoCanon} onChange={setNuevoCanon} />
+        <Field label="Metros cuadrados de su vivienda" required>
+          {metrosCuadradosInput}
         </Field>
-        <Field label="Años de antigüedad" required>
-          <TextInput placeholder="Digite aquí" value={nuevoAntiguedad} onChange={setNuevoAntiguedad} />
-        </Field>
-        <Field label="Valor de la vivienda" required>
-          <TextInput placeholder="$ 0" value={nuevoValorVivienda} onChange={setNuevoValorVivienda} />
-        </Field>
-        <Field label="Información adicional del inmueble">
-          <TextInput placeholder="Torre, piso, apto" value={nuevoInfoAdicional} onChange={setNuevoInfoAdicional} />
-        </Field>
-        <Field label="Zona">
-          <SelectInput options={ZONA_OPTIONS} value={nuevoZona} onChange={setNuevoZona} />
+        <Field label="Canon de arrendamiento (incluye administración si aplica)" required>
+          <TextInput placeholder="$ 0" value={formatCOP(nuevoCanonArrendamiento)} onChange={(v) => setNuevoCanonArrendamiento(parseDigits(v))} />
         </Field>
       </div>
-      <Field label="Observaciones">
-        <textarea
-          placeholder="Escriba aquí..."
-          value={nuevoObservaciones}
-          onChange={(e) => setNuevoObservaciones(e.target.value)}
-          style={textareaStyle}
-        />
-      </Field>
 
-      {/* Coordenadas: se calculan solas a partir de la dirección + ciudad, sin mapa. */}
-      {nuevoValido && (
-        <div className="flex items-center justify-between gap-4 rounded-lg" style={{ backgroundColor: "var(--gray-1)", padding: "10px 14px" }}>
-          <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Coordenadas (automáticas)</span>
-          <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{nuevoCoordenadas}</span>
-        </div>
-      )}
+      <label className="flex items-start gap-3" style={{ cursor: "pointer" }}>
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={nuevoAceptaTerminos}
+          onClick={() => setNuevoAceptaTerminos((v) => !v)}
+          className="flex items-center justify-center rounded shrink-0"
+          style={{
+            width: 20, height: 20, marginTop: 1,
+            border: `1.5px solid ${nuevoAceptaTerminos ? "var(--navy)" : "var(--gray-5)"}`,
+            backgroundColor: nuevoAceptaTerminos ? "var(--navy)" : "#ffffff",
+            cursor: "pointer",
+          }}
+        >
+          {nuevoAceptaTerminos && <CircleCheck size={13} strokeWidth={2.5} style={{ color: "#ffffff" }} />}
+        </button>
+        <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>
+          Acepto los <span style={{ color: "var(--navy)", textDecoration: "underline", fontWeight: 600 }}>Términos y Condiciones del Seguro de Hogar</span>
+        </span>
+      </label>
+
       <div className="flex items-center justify-end gap-3">
         <AppButton variant="secondary" onClick={cancelarNuevoInmueble}>Cancelar</AppButton>
         <AppButton variant="primary" bold disabled={!nuevoValido} onClick={guardarNuevoInmueble}>
@@ -1442,6 +1735,22 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                           {selected && (
                             <CircleCheck size={18} strokeWidth={2} className="absolute" style={{ top: 14, right: 14, color: "var(--navy)" }} />
                           )}
+                          {d.externo && (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              title="Eliminar inmueble"
+                              aria-label="Eliminar inmueble"
+                              onClick={(e) => { e.stopPropagation(); eliminarInmueble(opt.value); }}
+                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); eliminarInmueble(opt.value); } }}
+                              className="absolute flex items-center justify-center rounded-full transition-colors"
+                              style={{ top: 14, right: selected ? 44 : 14, width: 28, height: 28, color: "var(--gray-8)", cursor: "pointer" }}
+                              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--destructive)"; e.currentTarget.style.backgroundColor = "var(--red-status-light)"; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--gray-8)"; e.currentTarget.style.backgroundColor = "transparent"; }}
+                            >
+                              <Trash2 size={15} strokeWidth={1.8} />
+                            </span>
+                          )}
                           <div className="flex items-center gap-3" style={{ paddingRight: 24 }}>
                             <div
                               className="flex items-center justify-center rounded-full shrink-0"
@@ -1449,9 +1758,10 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                             >
                               <Home size={17} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
                             </div>
-                            <div className="flex flex-col min-w-0">
+                            <div className="flex flex-col min-w-0 gap-1">
                               <span className="body-bold truncate" style={{ color: "var(--gray-10)" }}>{d.direccion}</span>
                               <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{d.ciudad}</span>
+                              {d.externo && <StatusBadge label="Agregado para este seguro" variant="pending" />}
                             </div>
                           </div>
                           <hr className="w-full" style={{ borderColor: selected ? "rgba(0,0,0,0.08)" : "var(--gray-3)", margin: 0 }} />
@@ -1549,10 +1859,27 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                           >
                             <Home size={15} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
                           </div>
-                          <div className="flex flex-col min-w-0 flex-1">
+                          <div className="flex flex-col min-w-0 flex-1 gap-1">
                             <span className="body-bold truncate" style={{ color: "var(--gray-10)" }}>{d.direccion}</span>
                             <span className="body-small-regular truncate" style={{ color: "var(--gray-9)" }}>{d.ciudad}</span>
+                            {d.externo && <StatusBadge label="Agregado para este seguro" variant="pending" />}
                           </div>
+                          {d.externo && (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              title="Eliminar inmueble"
+                              aria-label="Eliminar inmueble"
+                              onClick={(e) => { e.stopPropagation(); eliminarInmueble(opt.value); }}
+                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); eliminarInmueble(opt.value); } }}
+                              className="flex items-center justify-center rounded-full shrink-0 transition-colors"
+                              style={{ width: 30, height: 30, color: "var(--gray-8)", cursor: "pointer" }}
+                              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--destructive)"; e.currentTarget.style.backgroundColor = "var(--red-status-light)"; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--gray-8)"; e.currentTarget.style.backgroundColor = "transparent"; }}
+                            >
+                              <Trash2 size={15} strokeWidth={1.8} />
+                            </span>
+                          )}
                           {selected && (
                             <CircleCheck size={18} strokeWidth={2} className="shrink-0" style={{ color: "var(--navy)" }} />
                           )}
@@ -1578,28 +1905,62 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                   <Modal open={detalleInmuebleAbierto} onClose={() => setDetalleInmuebleAbierto(false)} title="Detalles del inmueble">
                     {datos && (
                       <div className="flex flex-col gap-3">
+                        {datos.externo && (
+                          <div className="flex flex-col gap-1.5 items-start">
+                            <StatusBadge label="Agregado para este seguro" variant="pending" />
+                            <span className="disclamer" style={{ color: "var(--gray-8)" }}>No está vinculado a tu contrato de Alquilando.</span>
+                          </div>
+                        )}
                         <div className="flex flex-col">
                           <span className="disclamer" style={{ color: "var(--gray-8)" }}>Dirección</span>
                           <span className="body-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos.direccion}, {datos.ciudad}</span>
                         </div>
-                        <div className="flex items-center gap-6 flex-wrap">
-                          <div className="flex flex-col">
-                            <span className="disclamer" style={{ color: "var(--gray-8)" }}>Estrato</span>
-                            <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos.estrato}</span>
+                        {datos.externo ? (
+                          <div className="flex items-center gap-6 flex-wrap">
+                            <div className="flex flex-col">
+                              <span className="disclamer" style={{ color: "var(--gray-8)" }}>Tipo de documento</span>
+                              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos.tipoDocumento}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="disclamer" style={{ color: "var(--gray-8)" }}>Número de documento</span>
+                              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos.numeroDocumento}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="disclamer" style={{ color: "var(--gray-8)" }}>Metros cuadrados</span>
+                              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos.metrosCuadrados} m²</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="disclamer" style={{ color: "var(--gray-8)" }}>Canon de arrendamiento</span>
+                              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos.canon}</span>
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="disclamer" style={{ color: "var(--gray-8)" }}>Canon mensual</span>
-                            <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos.canon}</span>
+                        ) : (
+                          <div className="flex items-center gap-6 flex-wrap">
+                            <div className="flex flex-col">
+                              <span className="disclamer" style={{ color: "var(--gray-8)" }}>Estrato</span>
+                              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos.estrato}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="disclamer" style={{ color: "var(--gray-8)" }}>Canon mensual</span>
+                              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos.canon}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="disclamer" style={{ color: "var(--gray-8)" }}>Tipo</span>
+                              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>Apartamento</span>
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="disclamer" style={{ color: "var(--gray-8)" }}>Tipo</span>
-                            <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>Apartamento</span>
-                          </div>
-                        </div>
+                        )}
                         <div className="flex items-center justify-between gap-4 rounded-lg" style={{ backgroundColor: "var(--gray-1)", padding: "8px 12px" }}>
                           <span className="disclamer" style={{ color: "var(--gray-8)" }}>Coordenadas</span>
                           <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{datos.coordenadas}</span>
                         </div>
+                        {datos.externo && (
+                          <div className="flex justify-end">
+                            <AppButton variant="secondary" onClick={() => eliminarInmueble(inmueble)}>
+                              <Trash2 size={15} /> Eliminar inmueble
+                            </AppButton>
+                          </div>
+                        )}
                       </div>
                     )}
                   </Modal>
@@ -1640,11 +2001,8 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
 
                       {/* Solo lo obligatorio para avanzar: siempre visible, en desktop y mobile */}
                       <div className="grid grid-cols-2 gap-x-6 gap-y-4 max-sm:grid-cols-1">
-                        <Field label="Años de antigüedad" required>
-                          <TextInput placeholder="Digite aquí" value={antiguedad} onChange={(v) => setAntiguedad(v.replace(/\D/g, "").slice(0, 3))} className="w-full" />
-                        </Field>
-                        <Field label="Valor de la vivienda" required>
-                          <TextInput placeholder="$ 0" value={formatCOP(valorVivienda)} onChange={(v) => setValorVivienda(parseDigits(v))} className="w-full" />
+                        <Field label="Canon de arrendamiento (incluye administración si aplica)" required>
+                          <TextInput placeholder="$ 0" value={formatCOP(canonArrendamiento)} onChange={(v) => setCanonArrendamiento(parseDigits(v))} className="w-full" />
                         </Field>
                       </div>
 
