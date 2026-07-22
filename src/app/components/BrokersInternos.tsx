@@ -15,9 +15,9 @@ import { Footer } from "./kit/Footer";
 
 const PAGE_SIZE = 10;
 
-type EstadoInterno = "activo" | "vacaciones" | "inactivo";
+export type EstadoInterno = "activo" | "vacaciones" | "inactivo";
 
-interface BrokerInternoRow {
+export interface BrokerInternoRow {
   id: string;
   nombre: string;
   zona: string;
@@ -68,7 +68,11 @@ const METRICS = [
   { label: "Cumplimiento promedio", value: "63%" },
 ];
 
-export function BrokersInternos() {
+interface Props {
+  onViewBroker?: (broker: BrokerInternoRow) => void;
+}
+
+export function BrokersInternos({ onViewBroker }: Props) {
   const [page, setPage] = useState(1);
   const [searchBy, setSearchBy] = useState("");
   const [query, setQuery] = useState("");
@@ -99,7 +103,7 @@ export function BrokersInternos() {
       acciones: (
         <div className="flex items-center gap-1">
           <IconButton icon={MessageCircle} title="Contactar por WhatsApp" />
-          <IconButton icon={Eye} title="Ver tablero" />
+          <IconButton icon={Eye} title="Ver tablero" onClick={() => onViewBroker?.(r)} />
         </div>
       ),
     };
