@@ -14,6 +14,8 @@ import { Solicitudes } from "./components/Solicitudes";
 import { Inmobiliarias } from "./components/Inmobiliarias";
 import { BrokerDetalle } from "./components/BrokerDetalle";
 import { BrokersInternos } from "./components/BrokersInternos";
+import { BrokerInternoDetalle } from "./components/BrokerInternoDetalle";
+import type { BrokerInternoRow } from "./components/BrokersInternos";
 import type { BrokerRow } from "./components/Brokers";
 import { Toast } from "./components/kit/Toast";
 import { InmuebleDetalle } from "./components/InmuebleDetalle";
@@ -42,12 +44,13 @@ export default function App() {
   const [page, setPage] = useState<Page>("login");
   const [active, setActive] = useState("inicio");
   const [selectedBroker, setSelectedBroker] = useState<BrokerRow | null>(null);
+  const [selectedInternoBroker, setSelectedInternoBroker] = useState<BrokerInternoRow | null>(null);
   const [selectedInmueble, setSelectedInmueble] = useState<InmuebleData | null>(null);
   const [pendingApprove, setPendingApprove] = useState<BrokerRow | null>(null);
   const [pendingInactivate, setPendingInactivate] = useState<BrokerRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const goToSection = (id: string) => { setActive(id); setSelectedBroker(null); setSelectedInmueble(null); };
+  const goToSection = (id: string) => { setActive(id); setSelectedBroker(null); setSelectedInternoBroker(null); setSelectedInmueble(null); };
 
   const handleApproveBroker = () => {
     if (!selectedBroker) return;
@@ -115,7 +118,16 @@ export default function App() {
           {active === "propietarios" && <Propietarios />}
           {active === "solicitudes" && <Solicitudes />}
           {active === "inmobiliarias" && <Inmobiliarias />}
-          {active === "brokers-internos" && <BrokersInternos />}
+          {active === "brokers-internos" && (
+            selectedInternoBroker ? (
+              <BrokerInternoDetalle
+                broker={selectedInternoBroker}
+                onBack={() => setSelectedInternoBroker(null)}
+              />
+            ) : (
+              <BrokersInternos onViewBroker={setSelectedInternoBroker} />
+            )
+          )}
           {active === "brokers-externos" && (
             selectedInmueble ? (
               <InmuebleDetalle inmueble={selectedInmueble} onBack={() => setSelectedInmueble(null)} />
