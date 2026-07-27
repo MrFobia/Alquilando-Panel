@@ -4,14 +4,16 @@ interface Props {
   value?: string;
   onChange?: (value: string) => void;
   className?: string;
+  min?: string;
 }
 
-export function DateInput({ value = "", onChange, className = "" }: Props) {
+export function DateInput({ value = "", onChange, className = "", min }: Props) {
   return (
     <span className={`relative inline-block ${className}`}>
       <input
         type="date"
         value={value}
+        min={min}
         onChange={(e) => onChange?.(e.target.value)}
         className="body-regular w-full date-input-clean"
         style={{

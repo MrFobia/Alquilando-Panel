@@ -3,7 +3,7 @@ import {
   Home, CreditCard, FileText, Inbox, LifeBuoy, LogOut, Construction, Shield,
   Bell, AlertCircle, ChevronRight, X, CircleDollarSign, Barcode, MessageCircle,
   Phone, MessageSquareText, CarFront, PawPrint, Sofa, CircleCheck, ShieldCheck,
-  ArrowLeft, ShieldOff, PhoneCall, ChevronDown, ChevronUp,
+  ArrowLeft, ShieldOff, PhoneCall, ChevronDown, ChevronUp, Download,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AlquilandoLogo } from "./kit/AlquilandoLogo";
@@ -17,6 +17,10 @@ import { TextInput } from "./kit/TextInput";
 import { Accordion } from "./kit/Accordion";
 import { Modal } from "./kit/Modal";
 import { Callout } from "./kit/Callout";
+import { DataTable } from "./kit/DataTable";
+import { Pagination } from "./kit/Pagination";
+import { MonthRangePicker } from "./kit/MonthRangePicker";
+import { IconButton } from "./kit/IconButton";
 import segurosBanner from "../../assets/seguros-banner.png";
 import logoSegurosBolivar from "../../assets/logo-seguros-bolivar.png";
 import { CotizadorHogar, formatCOPNumber, formatFechaCorta } from "./CotizadorHogar";
@@ -79,12 +83,12 @@ const FECHAS_PAGO: { label: string; value: string; vigente?: boolean }[] = [
   { label: "Antes del 24 / 07 / 2026", value: "$9.055.543", vigente: true },
 ];
 
-function EstadoCuenta() {
+function EstadoCuenta({ onVerHistorial }: { onVerHistorial?: () => void } = {}) {
   return (
     <section className="rounded-lg flex flex-col" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "22px 24px" }}>
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <h2 className="title-tertiary-bold" style={{ color: PURPLE }}>Estado de cuenta</h2>
-        <LinkText size="small" icon="chevron">Ver historial de pagos</LinkText>
+        <LinkText size="small" icon="chevron" onClick={onVerHistorial}>Ver historial de pagos</LinkText>
       </div>
 
       <div className="flex items-center justify-between gap-4 flex-wrap" style={{ marginTop: 18 }}>
@@ -160,6 +164,126 @@ function EstadoCuenta() {
         </div>
       </div>
     </section>
+  );
+}
+
+// ─── Mis pagos: historial completo ──────────────────────────────────────────
+
+const MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+type EstadoPago = "Pagado" | "Pendiente" | "Vencido";
+
+interface PagoHistorial {
+  year: number;
+  month: number; // 0-11
+  fechaPago: string | null;
+  valor: string;
+  metodo: string;
+  estado: EstadoPago;
+}
+
+const HISTORIAL_PAGOS: PagoHistorial[] = [
+  { year: 2026, month: 6, fechaPago: null, valor: "$9.055.543", metodo: "—", estado: "Pendiente" },
+  { year: 2026, month: 5, fechaPago: "26/06/2026", valor: "$8.980.120", metodo: "PSE", estado: "Pagado" },
+  { year: 2026, month: 4, fechaPago: "25/05/2026", valor: "$8.980.120", metodo: "PSE", estado: "Pagado" },
+  { year: 2026, month: 3, fechaPago: "24/04/2026", valor: "$8.980.120", metodo: "Consignación", estado: "Pagado" },
+  { year: 2026, month: 2, fechaPago: "02/04/2026", valor: "$8.980.120", metodo: "PSE", estado: "Vencido" },
+  { year: 2026, month: 1, fechaPago: "23/02/2026", valor: "$8.910.400", metodo: "PSE", estado: "Pagado" },
+  { year: 2026, month: 0, fechaPago: "22/01/2026", valor: "$8.910.400", metodo: "Consignación", estado: "Pagado" },
+  { year: 2025, month: 11, fechaPago: "24/12/2025", valor: "$8.910.400", metodo: "PSE", estado: "Pagado" },
+  { year: 2025, month: 10, fechaPago: "25/11/2025", valor: "$8.910.400", metodo: "PSE", estado: "Pagado" },
+  { year: 2025, month: 9, fechaPago: "24/10/2025", valor: "$8.850.000", metodo: "Consignación", estado: "Pagado" },
+  { year: 2025, month: 8, fechaPago: "23/09/2025", valor: "$8.850.000", metodo: "PSE", estado: "Pagado" },
+  { year: 2025, month: 7, fechaPago: "25/08/2025", valor: "$8.850.000", metodo: "PSE", estado: "Pagado" },
+  { year: 2025, month: 6, fechaPago: "24/07/2025", valor: "$8.850.000", metodo: "PSE", estado: "Pagado" },
+  { year: 2025, month: 5, fechaPago: "26/06/2025", valor: "$8.850.000", metodo: "Consignación", estado: "Pagado" },
+];
+
+const PAGOS_COLUMNS = [
+  { key: "mes", header: "Mes", width: "22%" },
+  { key: "fechaPago", header: "Fecha de pago", width: "18%" },
+  { key: "valor", header: "Valor", align: "right" as const, width: "18%" },
+  { key: "metodo", header: "Método", width: "18%" },
+  { key: "estado", header: "Estado", width: "14%" },
+  { key: "comprobante", header: "Comprobante", align: "center" as const, width: "10%" },
+];
+
+const ESTADO_PAGO_BADGE: Record<EstadoPago, { variant: "active" | "pending" | "rejected" }> = {
+  Pagado: { variant: "active" },
+  Pendiente: { variant: "pending" },
+  Vencido: { variant: "rejected" },
+};
+
+const PAGOS_PAGE_SIZE = 6;
+
+function HistorialPagos() {
+  const [page, setPage] = useState(1);
+  const [range, setRange] = useState<{ start: { year: number; month: number } | null; end: { year: number; month: number } | null }>({ start: null, end: null });
+
+  const toIndex = (year: number, month: number) => year * 12 + month;
+
+  const filtered = HISTORIAL_PAGOS.filter((p) => {
+    if (!range.start) return true;
+    const idx = toIndex(p.year, p.month);
+    const startIdx = toIndex(range.start.year, range.start.month);
+    const endIdx = range.end ? toIndex(range.end.year, range.end.month) : startIdx;
+    return idx >= startIdx && idx <= endIdx;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGOS_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = filtered.slice((safePage - 1) * PAGOS_PAGE_SIZE, safePage * PAGOS_PAGE_SIZE);
+
+  const tableRows = pageRows.map((p) => ({
+    mes: `${MESES[p.month]} ${p.year}`,
+    fechaPago: p.fechaPago ?? "—",
+    valor: p.valor,
+    metodo: p.metodo,
+    estado: <StatusBadge label={p.estado} variant={ESTADO_PAGO_BADGE[p.estado].variant} />,
+    comprobante: p.estado === "Pagado"
+      ? <IconButton icon={Download} title="Descargar comprobante" />
+      : <span className="body-small-regular" style={{ color: "var(--gray-6)" }}>—</span>,
+  }));
+
+  return (
+    <section
+      id="historial-pagos"
+      className="rounded-lg flex flex-col gap-4"
+      style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "22px 24px" }}
+    >
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <h2 className="title-tertiary-bold" style={{ color: PURPLE }}>Historial de pagos</h2>
+        <MonthRangePicker onChange={(r) => { setRange(r); setPage(1); }} />
+      </div>
+
+      {tableRows.length > 0 ? (
+        <>
+          <DataTable columns={PAGOS_COLUMNS} rows={tableRows} />
+          <p className="body-regular text-right" style={{ color: "var(--gray-9)", margin: 0 }}>
+            Mostrando <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{pageRows.length}</span> de{" "}
+            <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{filtered.length}</span>
+          </p>
+          <Pagination page={safePage} totalPages={totalPages} onChange={setPage} />
+        </>
+      ) : (
+        <EmptyState
+          title="Sin pagos en este rango"
+          description="No encontramos pagos para el rango de meses seleccionado. Prueba con otro rango."
+        />
+      )}
+    </section>
+  );
+}
+
+function SeccionPagos() {
+  return (
+    <div className="flex flex-col gap-5">
+      <EstadoCuenta onVerHistorial={() => document.getElementById("historial-pagos")?.scrollIntoView({ behavior: "smooth" })} />
+      <HistorialPagos />
+    </div>
   );
 }
 
@@ -1103,7 +1227,7 @@ export function PortalInquilino({ onLogout }: Props) {
 
   const setActive = (id: string) => { setActiveRaw(id); setCotizandoHogar(false); };
 
-  const enConstruccion = !["inicio", "seguros", "ayuda"].includes(active);
+  const enConstruccion = !["inicio", "pagos", "seguros", "ayuda"].includes(active);
 
   return (
     <div
@@ -1323,6 +1447,7 @@ export function PortalInquilino({ onLogout }: Props) {
               )
               : <SeccionSeguros onCotizarHogar={() => setCotizandoHogar(true)} polizas={polizas} onCancelarPoliza={solicitarCancelacion} />
           )}
+          {active === "pagos" && <SeccionPagos />}
           {active === "ayuda" && <SeccionAyuda />}
 
           {enConstruccion && (

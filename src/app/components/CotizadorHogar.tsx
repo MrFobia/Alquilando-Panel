@@ -81,6 +81,13 @@ const ZONA_OPTIONS = [
   { value: "rural", label: "Rural" },
 ];
 
+const RELACION_INMUEBLE_OPTIONS = [
+  { value: "propietario-vive", label: "Soy propietario y vivo en ella" },
+  { value: "propietario-no-vive", label: "Soy propietario y no vivo en la vivienda" },
+  { value: "arrendatario", label: "Soy arrendatario" },
+  { value: "solo-contenidos", label: "Solo quiero asegurar contenidos" },
+];
+
 const TIPOS_DOCUMENTO = [
   { value: "cc", label: "Cédula de ciudadanía" },
   { value: "ce", label: "Cédula de extranjería" },
@@ -814,6 +821,36 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
     );
   };
 
+  /** Encabezado de la sección de asistencia: mismo contenido en desktop y mobile, solo cambia el layout que lo envuelve.
+   * Deja explícito que la asistencia va incluida y es obligatoria (el usuario elige el nivel, no si la tiene),
+   * que no hay cláusulas de permanencia, y a qué paquete accederá con la selección actual. */
+  const asistenciaEncabezado = (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Plan de asistencia por suscripción</h2>
+        <StatusBadge label="Incluida y obligatoria" variant="active" />
+      </div>
+      <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>
+        El seguro cubre los daños grandes, pero esta asistencia resuelve los líos cotidianos y siempre viene
+        incluida en tu póliza: no puedes prescindir de ella, solo elegir qué tan completo quieres que sea tu
+        equipo de rescate (plomeros, cerrajeros, electricistas).
+      </p>
+      <div className="flex items-start gap-2 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 12px" }}>
+        <Lock size={15} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0, marginTop: 2 }} />
+        <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
+          Sin cláusulas de permanencia: se cobra junto con tu póliza mes a mes y puedes cambiar de paquete
+          cuando quieras.
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <ShieldCheck size={15} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
+        <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
+          Accederás a: <span style={{ fontWeight: 700 }}>{asistencia.nombre}</span>
+        </span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-6">
       {/* Elegir plan — desktop: grid de tarjetas + detalle del plan elegido debajo, como siempre. */}
@@ -908,13 +945,7 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
 
       {/* Paquetes de asistencias — desktop: grid + detalle debajo, como siempre. */}
       <div className={`hidden md:flex flex-col gap-4 ${soloEnAsistencia}`}>
-        <div>
-          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Paquetes de asistencias</h2>
-          <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-            El seguro cubre los daños grandes, pero estas asistencias resuelven los líos cotidianos. Elige
-            qué tan completo quieres que sea tu equipo de rescate (plomeros, cerrajeros, electricistas).
-          </p>
-        </div>
+        {asistenciaEncabezado}
         <div className="grid grid-cols-3 gap-4" role="radiogroup" aria-label="Paquete de asistencias">
           {ASISTENCIAS.map((a) => (
             <SuscripcionCard
@@ -940,12 +971,10 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
 
       {/* Paquetes de asistencias — mobile: carrusel deslizable, mismo patrón que el paso "Tu plan". */}
       <div className={`md:hidden flex flex-col gap-3 ${soloEnAsistencia}`}>
-        <div>
-          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Paquetes de asistencias</h2>
-          <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-            Desliza para comparar qué tan completo quieres que sea tu equipo de rescate.
-          </p>
-        </div>
+        {asistenciaEncabezado}
+        <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>
+          Desliza para comparar qué tan completo quieres que sea tu equipo de rescate.
+        </p>
         <div className="flex items-center justify-center gap-1.5">
           {ASISTENCIAS.map((_, i) => (
             <button
@@ -1305,6 +1334,8 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     // montos a asegurar en el paso de objetos); si no, se deja en blanco para que el usuario lo ingrese.
     const d = inmueblesData[id];
     setCanonArrendamiento(d?.datosCompletos ? parseDigits(d.canon) : "");
+    // Cambiar de inmueble vuelve a pedir la relación con el nuevo inmueble.
+    setRelacionInmueble("");
   };
 
   /** Solo los inmuebles agregados desde el formulario del seguro (externo) se pueden eliminar. */
@@ -1317,6 +1348,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     if (inmueble === id) {
       setInmueble("");
       setCanonArrendamiento("");
+      setRelacionInmueble("");
     }
     setDetalleInmuebleAbierto(false);
   };
@@ -1404,9 +1436,11 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
 
   const [infoAdicional, setInfoAdicional] = useState("");
   const [zona, setZona] = useState("urbano");
-  // Único dato requerido del inmueble cuando no lo tenemos ya: el canon de arrendamiento (incluye administración si aplica).
+  // Canon de arrendamiento se sigue guardando (viene con el inmueble o se recibe al agregarlo manualmente)
+  // pero ya no se pide en el paso de "Completa los datos del inmueble".
   const [canonArrendamiento, setCanonArrendamiento] = useState("");
-  const [observaciones, setObservaciones] = useState("");
+  // Relación del usuario con el inmueble: siempre obligatorio, sin importar el origen del inmueble.
+  const [relacionInmueble, setRelacionInmueble] = useState("");
 
   const [electronicosValor, setElectronicosValor] = useState("");
   const [enseresValor, setEnseresValor] = useState("");
@@ -1462,8 +1496,8 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     [plan, asistencia, adicionalesActivas],
   );
 
-  // El campo marcado con * es obligatorio, salvo que el inmueble ya tenga todos sus datos precargados.
-  const detallesCompletos = datos ? (!datos.datosCompletos ? Number(canonArrendamiento) > 0 : true) : false;
+  // Obligatorio siempre: quién es el usuario respecto al inmueble seleccionado.
+  const detallesCompletos = datos ? relacionInmueble !== "" : false;
   const objetosCompletos = Number(electronicosValor) > 0 && Number(enseresValor) > 0;
   const puedeContinuar = detallesCompletos && objetosCompletos;
 
@@ -1569,17 +1603,6 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
       )}
     </>
   );
-
-  const textareaStyle: React.CSSProperties = {
-    border: "1px solid var(--gray-5)",
-    borderRadius: "var(--radius-md)",
-    padding: "10px 12px",
-    color: "var(--gray-10)",
-    outline: "none",
-    width: "100%",
-    minHeight: 88,
-    resize: "vertical",
-  };
 
   /** Suffix visual (m²) superpuesto sobre un TextInput, sin tocar el kit component. */
   const metrosCuadradosInput = (
@@ -1704,38 +1727,115 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
           <section className={`rounded-lg flex flex-col gap-6 p-5 md:px-7 md:py-6 ${paso === 0 && mStep === 1 ? "max-md:hidden" : ""}`} style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)" }}>
             {paso === 0 && (
               <div className="flex flex-col gap-6">
-                {/* Selección de inmueble — desktop: tarjetas completas, sin cambios */}
-                <div className="flex flex-col gap-4 max-md:hidden">
-                  <div>
-                    <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Selecciona el inmueble a asegurar</h2>
-                    <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-                      La cobertura aplicará únicamente al inmueble que elijas aquí.
-                    </p>
+                {/* Selección de inmueble — desktop: tarjetas completas, dividida en dos secciones */}
+                <div className="flex flex-col gap-6 max-md:hidden">
+                  <Callout variant="info" title="Solo podrás asegurar un inmueble por póliza">
+                    Si deseas asegurar más de un inmueble, deberás realizar el proceso nuevamente para cada uno.
+                  </Callout>
+
+                  {/* Sección 1: inmuebles administrados en Alquilando, no se pueden eliminar */}
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Inmuebles con Alquilando</h2>
+                      <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
+                        Elige uno de los inmuebles que ya administras en la plataforma.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4" role="radiogroup" aria-label="Inmueble con Alquilando">
+                      {inmuebleOptions.filter((opt) => !inmueblesData[opt.value].externo).map((opt) => {
+                        const d = inmueblesData[opt.value];
+                        const selected = inmueble === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => cambiarInmueble(opt.value)}
+                            className="relative rounded-lg flex flex-col gap-3 text-left transition-colors"
+                            style={{
+                              cursor: "pointer",
+                              padding: "16px 18px",
+                              border: selected ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
+                              backgroundColor: selected ? "var(--navy-light)" : "#ffffff",
+                            }}
+                            onMouseEnter={(e) => { if (!selected) e.currentTarget.style.borderColor = "var(--gray-6)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = selected ? "var(--navy)" : "var(--gray-4)"; }}
+                          >
+                            {selected && (
+                              <CircleCheck size={18} strokeWidth={2} className="absolute" style={{ top: 14, right: 14, color: "var(--navy)" }} />
+                            )}
+                            <div className="flex items-center gap-3" style={{ paddingRight: 24 }}>
+                              <div
+                                className="flex items-center justify-center rounded-full shrink-0"
+                                style={{ width: 38, height: 38, backgroundColor: selected ? "#ffffff" : "var(--navy-light)" }}
+                              >
+                                <Home size={17} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
+                              </div>
+                              <div className="flex flex-col min-w-0 gap-1">
+                                <span className="body-bold truncate" style={{ color: "var(--gray-10)" }}>{d.direccion}</span>
+                                <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{d.ciudad}</span>
+                              </div>
+                            </div>
+                            <hr className="w-full" style={{ borderColor: selected ? "rgba(0,0,0,0.08)" : "var(--gray-3)", margin: 0 }} />
+                            <div className="flex items-center gap-6 flex-wrap">
+                              <div className="flex flex-col">
+                                <span className="disclamer" style={{ color: "var(--gray-8)" }}>Estrato</span>
+                                <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{d.estrato}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="disclamer" style={{ color: "var(--gray-8)" }}>Canon mensual</span>
+                                <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{d.canon}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="disclamer" style={{ color: "var(--gray-8)" }}>Tipo</span>
+                                <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>Apartamento</span>
+                              </div>
+                            </div>
+                            {selected && (
+                              <div className="flex items-center justify-between gap-4 rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.6)", padding: "8px 12px" }}>
+                                <span className="disclamer" style={{ color: "var(--gray-8)" }}>Coordenadas</span>
+                                <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{d.coordenadas}</span>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4" role="radiogroup" aria-label="Inmueble a asegurar">
-                    {inmuebleOptions.map((opt) => {
-                      const d = inmueblesData[opt.value];
-                      const selected = inmueble === opt.value;
-                      return (
-                        <button
-                          key={opt.value}
-                          role="radio"
-                          aria-checked={selected}
-                          onClick={() => cambiarInmueble(opt.value)}
-                          className="relative rounded-lg flex flex-col gap-3 text-left transition-colors"
-                          style={{
-                            cursor: "pointer",
-                            padding: "16px 18px",
-                            border: selected ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
-                            backgroundColor: selected ? "var(--navy-light)" : "#ffffff",
-                          }}
-                          onMouseEnter={(e) => { if (!selected) e.currentTarget.style.borderColor = "var(--gray-6)"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = selected ? "var(--navy)" : "var(--gray-4)"; }}
-                        >
-                          {selected && (
-                            <CircleCheck size={18} strokeWidth={2} className="absolute" style={{ top: 14, right: 14, color: "var(--navy)" }} />
-                          )}
-                          {d.externo && (
+
+                  <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
+
+                  {/* Sección 2: inmuebles creados solo para esta póliza, se pueden eliminar */}
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Agregar inmueble para asegurar</h2>
+                      <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
+                        ¿No ves tu inmueble en la lista de arriba? Regístralo aquí solo para esta póliza.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4" role="radiogroup" aria-label="Inmueble agregado para esta póliza">
+                      {inmuebleOptions.filter((opt) => inmueblesData[opt.value].externo).map((opt) => {
+                        const d = inmueblesData[opt.value];
+                        const selected = inmueble === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => cambiarInmueble(opt.value)}
+                            className="relative rounded-lg flex flex-col gap-3 text-left transition-colors"
+                            style={{
+                              cursor: "pointer",
+                              padding: "16px 18px",
+                              border: selected ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
+                              backgroundColor: selected ? "var(--navy-light)" : "#ffffff",
+                            }}
+                            onMouseEnter={(e) => { if (!selected) e.currentTarget.style.borderColor = "var(--gray-6)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = selected ? "var(--navy)" : "var(--gray-4)"; }}
+                          >
+                            {selected && (
+                              <CircleCheck size={18} strokeWidth={2} className="absolute" style={{ top: 14, right: 14, color: "var(--navy)" }} />
+                            )}
                             <span
                               role="button"
                               tabIndex={0}
@@ -1750,121 +1850,173 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                             >
                               <Trash2 size={15} strokeWidth={1.8} />
                             </span>
-                          )}
-                          <div className="flex items-center gap-3" style={{ paddingRight: 24 }}>
-                            <div
-                              className="flex items-center justify-center rounded-full shrink-0"
-                              style={{ width: 38, height: 38, backgroundColor: selected ? "#ffffff" : "var(--navy-light)" }}
-                            >
-                              <Home size={17} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
+                            <div className="flex items-center gap-3" style={{ paddingRight: 24 }}>
+                              <div
+                                className="flex items-center justify-center rounded-full shrink-0"
+                                style={{ width: 38, height: 38, backgroundColor: selected ? "#ffffff" : "var(--navy-light)" }}
+                              >
+                                <Home size={17} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
+                              </div>
+                              <div className="flex flex-col min-w-0 gap-1">
+                                <span className="body-bold truncate" style={{ color: "var(--gray-10)" }}>{d.direccion}</span>
+                                <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{d.ciudad}</span>
+                                <StatusBadge label="Agregado para este seguro" variant="pending" />
+                              </div>
                             </div>
-                            <div className="flex flex-col min-w-0 gap-1">
-                              <span className="body-bold truncate" style={{ color: "var(--gray-10)" }}>{d.direccion}</span>
-                              <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{d.ciudad}</span>
-                              {d.externo && <StatusBadge label="Agregado para este seguro" variant="pending" />}
+                            <hr className="w-full" style={{ borderColor: selected ? "rgba(0,0,0,0.08)" : "var(--gray-3)", margin: 0 }} />
+                            <div className="flex items-center gap-6 flex-wrap">
+                              <div className="flex flex-col">
+                                <span className="disclamer" style={{ color: "var(--gray-8)" }}>Estrato</span>
+                                <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{d.estrato}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="disclamer" style={{ color: "var(--gray-8)" }}>Canon mensual</span>
+                                <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{d.canon}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="disclamer" style={{ color: "var(--gray-8)" }}>Tipo</span>
+                                <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>Apartamento</span>
+                              </div>
                             </div>
-                          </div>
-                          <hr className="w-full" style={{ borderColor: selected ? "rgba(0,0,0,0.08)" : "var(--gray-3)", margin: 0 }} />
-                          <div className="flex items-center gap-6 flex-wrap">
-                            <div className="flex flex-col">
-                              <span className="disclamer" style={{ color: "var(--gray-8)" }}>Estrato</span>
-                              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{d.estrato}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="disclamer" style={{ color: "var(--gray-8)" }}>Canon mensual</span>
-                              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{d.canon}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="disclamer" style={{ color: "var(--gray-8)" }}>Tipo</span>
-                              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>Apartamento</span>
-                            </div>
-                          </div>
-                          {selected && (
-                            <div className="flex items-center justify-between gap-4 rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.6)", padding: "8px 12px" }}>
-                              <span className="disclamer" style={{ color: "var(--gray-8)" }}>Coordenadas</span>
-                              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{d.coordenadas}</span>
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                    {/* Card para agregar un inmueble que no está en la lista */}
-                    <button
-                      onClick={abrirNuevoInmueble}
-                      className="rounded-lg flex flex-col items-center justify-center gap-2 transition-colors"
-                      style={{
-                        cursor: "pointer",
-                        padding: "16px 18px",
-                        minHeight: 120,
-                        border: "1.5px dashed var(--gray-5)",
-                        backgroundColor: agregandoInmueble ? "var(--navy-light)" : "#ffffff",
-                        color: "var(--navy)",
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--navy)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--gray-5)"; }}
-                    >
-                      <div
-                        className="flex items-center justify-center rounded-full"
-                        style={{ width: 38, height: 38, backgroundColor: "var(--navy-light)" }}
+                            {selected && (
+                              <div className="flex items-center justify-between gap-4 rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.6)", padding: "8px 12px" }}>
+                                <span className="disclamer" style={{ color: "var(--gray-8)" }}>Coordenadas</span>
+                                <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{d.coordenadas}</span>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                      {/* Card para agregar un inmueble que no está en la lista */}
+                      <button
+                        onClick={abrirNuevoInmueble}
+                        className="rounded-lg flex flex-col items-center justify-center gap-2 transition-colors"
+                        style={{
+                          cursor: "pointer",
+                          padding: "16px 18px",
+                          minHeight: 120,
+                          border: "1.5px dashed var(--gray-5)",
+                          backgroundColor: agregandoInmueble ? "var(--navy-light)" : "#ffffff",
+                          color: "var(--navy)",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--navy)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--gray-5)"; }}
                       >
-                        <Plus size={17} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
-                      </div>
-                      <span className="body-bold">Agregar nuevo inmueble</span>
-                      <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>
-                        ¿No ves tu inmueble? Regístralo aquí.
-                      </span>
-                    </button>
-                  </div>
-
-                  {agregandoInmueble && (
-                    <div
-                      className="rounded-lg flex flex-col gap-4"
-                      style={{ border: "1px solid var(--gray-4)", backgroundColor: "var(--gray-1)", padding: "18px 20px" }}
-                    >
-                      <h3 className="body-bold" style={{ color: "var(--navy)" }}>Nuevo inmueble</h3>
-                      {formularioNuevoInmueble}
+                        <div
+                          className="flex items-center justify-center rounded-full"
+                          style={{ width: 38, height: 38, backgroundColor: "var(--navy-light)" }}
+                        >
+                          <Plus size={17} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
+                        </div>
+                        <span className="body-bold">Agregar nuevo inmueble</span>
+                        <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>
+                          ¿No ves tu inmueble? Regístralo aquí.
+                        </span>
+                      </button>
                     </div>
-                  )}
+
+                    {agregandoInmueble && (
+                      <div
+                        className="rounded-lg flex flex-col gap-4"
+                        style={{ border: "1px solid var(--gray-4)", backgroundColor: "var(--gray-1)", padding: "18px 20px" }}
+                      >
+                        <h3 className="body-bold" style={{ color: "var(--navy)" }}>Nuevo inmueble</h3>
+                        {formularioNuevoInmueble}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Selección de inmueble — mobile: lista compacta, el resto va en modales. Pantalla propia (mStep 0). */}
-                <div className={`flex flex-col gap-3 md:hidden ${mStep !== 0 ? "max-md:hidden" : ""}`}>
-                  <div>
-                    <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Selecciona tu inmueble</h2>
-                    <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-                      La cobertura aplicará solo a este inmueble.
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2" role="radiogroup" aria-label="Inmueble a asegurar">
-                    {inmuebleOptions.map((opt) => {
-                      const d = inmueblesData[opt.value];
-                      const selected = inmueble === opt.value;
-                      return (
-                        <button
-                          key={opt.value}
-                          role="radio"
-                          aria-checked={selected}
-                          onClick={() => cambiarInmueble(opt.value)}
-                          className="relative rounded-lg flex items-center gap-3 text-left transition-colors"
-                          style={{
-                            cursor: "pointer",
-                            padding: "12px 14px",
-                            border: selected ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
-                            backgroundColor: selected ? "var(--navy-light)" : "#ffffff",
-                          }}
-                        >
-                          <div
-                            className="flex items-center justify-center rounded-full shrink-0"
-                            style={{ width: 34, height: 34, backgroundColor: selected ? "#ffffff" : "var(--navy-light)" }}
+                {/* Selección de inmueble — mobile: lista compacta, el resto va en modales. Pantalla propia (mStep 0). Dividida en dos secciones. */}
+                <div className={`flex flex-col gap-4 md:hidden ${mStep !== 0 ? "max-md:hidden" : ""}`}>
+                  <Callout variant="info" title="Solo podrás asegurar un inmueble por póliza">
+                    Si deseas asegurar más de un inmueble, deberás realizar el proceso nuevamente para cada uno.
+                  </Callout>
+
+                  {/* Sección 1: inmuebles administrados en Alquilando, no se pueden eliminar */}
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Inmuebles con Alquilando</h2>
+                      <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
+                        Elige uno de los inmuebles que ya administras en la plataforma.
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2" role="radiogroup" aria-label="Inmueble con Alquilando">
+                      {inmuebleOptions.filter((opt) => !inmueblesData[opt.value].externo).map((opt) => {
+                        const d = inmueblesData[opt.value];
+                        const selected = inmueble === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => cambiarInmueble(opt.value)}
+                            className="relative rounded-lg flex items-center gap-3 text-left transition-colors"
+                            style={{
+                              cursor: "pointer",
+                              padding: "12px 14px",
+                              border: selected ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
+                              backgroundColor: selected ? "var(--navy-light)" : "#ffffff",
+                            }}
                           >
-                            <Home size={15} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
-                          </div>
-                          <div className="flex flex-col min-w-0 flex-1 gap-1">
-                            <span className="body-bold truncate" style={{ color: "var(--gray-10)" }}>{d.direccion}</span>
-                            <span className="body-small-regular truncate" style={{ color: "var(--gray-9)" }}>{d.ciudad}</span>
-                            {d.externo && <StatusBadge label="Agregado para este seguro" variant="pending" />}
-                          </div>
-                          {d.externo && (
+                            <div
+                              className="flex items-center justify-center rounded-full shrink-0"
+                              style={{ width: 34, height: 34, backgroundColor: selected ? "#ffffff" : "var(--navy-light)" }}
+                            >
+                              <Home size={15} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
+                            </div>
+                            <div className="flex flex-col min-w-0 flex-1 gap-1">
+                              <span className="body-bold truncate" style={{ color: "var(--gray-10)" }}>{d.direccion}</span>
+                              <span className="body-small-regular truncate" style={{ color: "var(--gray-9)" }}>{d.ciudad}</span>
+                            </div>
+                            {selected && (
+                              <CircleCheck size={18} strokeWidth={2} className="shrink-0" style={{ color: "var(--navy)" }} />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
+
+                  {/* Sección 2: inmuebles creados solo para esta póliza, se pueden eliminar */}
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Agregar inmueble para asegurar</h2>
+                      <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
+                        ¿No ves tu inmueble arriba? Regístralo aquí solo para esta póliza.
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2" role="radiogroup" aria-label="Inmueble agregado para esta póliza">
+                      {inmuebleOptions.filter((opt) => inmueblesData[opt.value].externo).map((opt) => {
+                        const d = inmueblesData[opt.value];
+                        const selected = inmueble === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => cambiarInmueble(opt.value)}
+                            className="relative rounded-lg flex items-center gap-3 text-left transition-colors"
+                            style={{
+                              cursor: "pointer",
+                              padding: "12px 14px",
+                              border: selected ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
+                              backgroundColor: selected ? "var(--navy-light)" : "#ffffff",
+                            }}
+                          >
+                            <div
+                              className="flex items-center justify-center rounded-full shrink-0"
+                              style={{ width: 34, height: 34, backgroundColor: selected ? "#ffffff" : "var(--navy-light)" }}
+                            >
+                              <Home size={15} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
+                            </div>
+                            <div className="flex flex-col min-w-0 flex-1 gap-1">
+                              <span className="body-bold truncate" style={{ color: "var(--gray-10)" }}>{d.direccion}</span>
+                              <span className="body-small-regular truncate" style={{ color: "var(--gray-9)" }}>{d.ciudad}</span>
+                              <StatusBadge label="Agregado para este seguro" variant="pending" />
+                            </div>
                             <span
                               role="button"
                               tabIndex={0}
@@ -1879,23 +2031,23 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                             >
                               <Trash2 size={15} strokeWidth={1.8} />
                             </span>
-                          )}
-                          {selected && (
-                            <CircleCheck size={18} strokeWidth={2} className="shrink-0" style={{ color: "var(--navy)" }} />
-                          )}
-                        </button>
-                      );
-                    })}
-                    <button
-                      onClick={abrirNuevoInmueble}
-                      className="rounded-lg flex items-center gap-3 transition-colors"
-                      style={{ cursor: "pointer", padding: "12px 14px", border: "1.5px dashed var(--gray-5)", color: "var(--navy)" }}
-                    >
-                      <div className="flex items-center justify-center rounded-full shrink-0" style={{ width: 34, height: 34, backgroundColor: "var(--navy-light)" }}>
-                        <Plus size={15} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
-                      </div>
-                      <span className="body-bold">Agregar nuevo inmueble</span>
-                    </button>
+                            {selected && (
+                              <CircleCheck size={18} strokeWidth={2} className="shrink-0" style={{ color: "var(--navy)" }} />
+                            )}
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={abrirNuevoInmueble}
+                        className="rounded-lg flex items-center gap-3 transition-colors"
+                        style={{ cursor: "pointer", padding: "12px 14px", border: "1.5px dashed var(--gray-5)", color: "var(--navy)" }}
+                      >
+                        <div className="flex items-center justify-center rounded-full shrink-0" style={{ width: 34, height: 34, backgroundColor: "var(--navy-light)" }}>
+                          <Plus size={15} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
+                        </div>
+                        <span className="body-bold">Agregar nuevo inmueble</span>
+                      </button>
+                    </div>
                   </div>
 
                   {datos && (
@@ -1971,17 +2123,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                 </div>
 
                 {/* Datos del inmueble: en mobile es parte de la pantalla de inmueble (mStep 0), no de la de objetos. */}
-                {datos && (datos.datosCompletos ? (
-                  <div
-                    className={`flex items-center gap-3 rounded-lg ${mStep !== 0 ? "max-md:hidden" : ""}`}
-                    style={{ backgroundColor: "var(--green-status-light)", padding: "14px 18px" }}
-                  >
-                    <CircleCheck size={18} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0 }} />
-                    <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
-                      Ya tenemos todos los datos de este inmueble. No necesitas completar nada más aquí.
-                    </span>
-                  </div>
-                ) : (
+                {datos && (
                   <div className={`flex flex-col gap-6 ${mStep !== 0 ? "max-md:hidden" : ""}`}>
                     <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
 
@@ -1990,7 +2132,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                         <div>
                           <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Completa los datos del inmueble</h2>
                           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-                            Ya precargamos lo que sabemos de tu inmueble. Completa los campos marcados con
+                            Completa los campos marcados con
                             <span style={{ color: "var(--destructive)" }}> *</span> para poder continuar.
                           </p>
                         </div>
@@ -1999,45 +2141,45 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                           : <StatusBadge label="Requerido" variant="pending" />}
                       </div>
 
-                      {/* Solo lo obligatorio para avanzar: siempre visible, en desktop y mobile */}
+                      {/* Obligatorio para todo inmueble, sin importar si viene de Alquilando o fue agregado manualmente */}
                       <div className="grid grid-cols-2 gap-x-6 gap-y-4 max-sm:grid-cols-1">
-                        <Field label="Canon de arrendamiento (incluye administración si aplica)" required>
-                          <TextInput placeholder="$ 0" value={formatCOP(canonArrendamiento)} onChange={(v) => setCanonArrendamiento(parseDigits(v))} className="w-full" />
+                        <Field label="¿Quién eres respecto a este inmueble?" required>
+                          <SelectInput
+                            options={RELACION_INMUEBLE_OPTIONS}
+                            value={relacionInmueble}
+                            onChange={setRelacionInmueble}
+                            placeholder="Seleccione una opción"
+                            className="w-full"
+                          />
                         </Field>
+                        {!datos.datosCompletos && (
+                          <Field label="Tipo de inmueble">
+                            <TextInput value="Apartamento" disabled className="w-full" />
+                          </Field>
+                        )}
                       </div>
 
-                      {/* Campos opcionales: siempre visibles en desktop, plegados en mobile para acortar el paso */}
-                      <div className="md:hidden">
-                        <LinkText size="small" onClick={() => setMasDetallesAbiertos((v) => !v)}>
-                          {masDetallesAbiertos ? "Ocultar detalles opcionales" : "Agregar más detalles (opcional)"}
-                        </LinkText>
-                      </div>
-                      <div className={`grid grid-cols-2 gap-x-6 gap-y-4 max-sm:grid-cols-1 ${masDetallesAbiertos ? "" : "max-md:hidden"}`}>
-                        <Field label="Tipo de inmueble">
-                          <TextInput value="Apartamento" disabled className="w-full" />
-                        </Field>
-                        <Field label="Información adicional del inmueble">
-                          <TextInput placeholder="Torre, piso, apto" value={infoAdicional} onChange={setInfoAdicional} className="w-full" />
-                        </Field>
-                        <Field label="Zona">
-                          <SelectInput options={ZONA_OPTIONS} value={zona} onChange={setZona} className="w-full" />
-                        </Field>
-                        <label className="flex flex-col gap-1.5 col-span-full">
-                          <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Observaciones</span>
-                          <textarea
-                            className="body-regular"
-                            placeholder="Escriba aquí..."
-                            value={observaciones}
-                            onChange={(e) => setObservaciones(e.target.value)}
-                            style={textareaStyle}
-                            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--navy)"; }}
-                            onBlur={(e) => { e.currentTarget.style.borderColor = "var(--gray-5)"; }}
-                          />
-                        </label>
-                      </div>
+                      {!datos.datosCompletos && (
+                        <>
+                          {/* Campos opcionales: siempre visibles en desktop, plegados en mobile para acortar el paso */}
+                          <div className="md:hidden">
+                            <LinkText size="small" onClick={() => setMasDetallesAbiertos((v) => !v)}>
+                              {masDetallesAbiertos ? "Ocultar detalles opcionales" : "Agregar más detalles (opcional)"}
+                            </LinkText>
+                          </div>
+                          <div className={`grid grid-cols-2 gap-x-6 gap-y-4 max-sm:grid-cols-1 ${masDetallesAbiertos ? "" : "max-md:hidden"}`}>
+                            <Field label="Zona">
+                              <SelectInput options={ZONA_OPTIONS} value={zona} onChange={setZona} className="w-full" />
+                            </Field>
+                            <Field label="Información adicional del inmueble">
+                              <TextInput placeholder="Torre, piso, apto" value={infoAdicional} onChange={setInfoAdicional} className="w-full" />
+                            </Field>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
-                ))}
+                )}
               </div>
             )}
 

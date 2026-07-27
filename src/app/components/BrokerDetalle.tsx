@@ -11,8 +11,24 @@ import { DocumentCard } from "./kit/DocumentCard";
 import { FileDropzone } from "./kit/FileDropzone";
 import { ProgressBar } from "./kit/ProgressBar";
 import { Footer } from "./kit/Footer";
+import { MetricsRow } from "./kit/MetricsRow";
 import { DataTable } from "./kit/DataTable";
 import { TabBar } from "./kit/TabBar";
+import { Modal } from "./kit/Modal";
+import { DateInput } from "./kit/DateInput";
+import { ESTADO_INTERNO_BADGE, ESTADOS_AUSENCIA } from "./BrokersInternos";
+import type { EstadoInterno } from "./BrokersInternos";
+
+function formatFecha(iso?: string) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+const ESTADO_INTERNO_OPTIONS = (Object.keys(ESTADO_INTERNO_BADGE) as EstadoInterno[]).map((value) => ({
+  value,
+  label: ESTADO_INTERNO_BADGE[value].label,
+}));
 
 const STEPS = [
   { id: "registrado", label: "Registrado" },
@@ -85,6 +101,11 @@ interface Props {
   onApprove?: () => void;
   onInactivate?: () => void;
   onViewInmueble?: (inmueble: (typeof INMUEBLES_CAPTACION)[number]) => void;
+  estadoInterno?: EstadoInterno;
+  estadoInternoDesde?: string;
+  estadoInternoHasta?: string;
+  onChangeEstadoInterno?: (estado: EstadoInterno, meta?: { desde?: string; hasta?: string }) => void;
+  desempenoInterno?: { contratosMes: string; contratosAno: string; cumplimiento: number };
 }
 
 function SectionCard({ children, padding = 24, className = "" }: { children: React.ReactNode; padding?: number; className?: string }) {
@@ -116,7 +137,7 @@ function Gated({ blocked, children }: { blocked: boolean; children: React.ReactN
   );
 }
 
-export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewInmueble }: Props) {
+export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewInmueble, estadoInterno, estadoInternoDesde, estadoInternoHasta, onChangeEstadoInterno, desempenoInterno }: Props) {
   const isActiveBroker = broker.estadoBroker === "activo";
 
   // Step 0 (Registrado) is completed on arrival; `current` is the step being worked on.
@@ -129,6 +150,26 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
   const [progreso, setProgreso] = useState(0);
   const [asesor, setAsesor] = useState("sin");
   const [brokerTab, setBrokerTab] = useState("captacion");
+  const [modalEstado, setModalEstado] = useState<EstadoInterno | null>(null);
+  const [formDesde, setFormDesde] = useState("");
+  const [formHasta, setFormHasta] = useState("");
+
+  const handleEstadoChange = (value: string) => {
+    const nuevo = value as EstadoInterno;
+    if (ESTADOS_AUSENCIA.includes(nuevo)) {
+      setFormDesde(new Date().toISOString().slice(0, 10));
+      setFormHasta("");
+      setModalEstado(nuevo);
+    } else {
+      onChangeEstadoInterno?.(nuevo);
+    }
+  };
+
+  const confirmarEstadoAusencia = () => {
+    if (!modalEstado || !formHasta || formHasta < formDesde) return;
+    onChangeEstadoInterno?.(modalEstado, { desde: formDesde, hasta: formHasta });
+    setModalEstado(null);
+  };
 
   const allDone = current >= STEPS.length;
   const approveStep = (step: number) => { if (current === step) setCurrent(step + 1); };
@@ -174,10 +215,16 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
           <span className="subtitle" style={{ color: "var(--gray-10)" }}>
             {isActiveBroker ? `Código: ${broker.id}` : "Evaluación de Postulante"}
           </span>
-          <div><StatusBadge label={isActiveBroker ? "Activo" : estadoActual.label} variant={isActiveBroker ? "active" : estadoActual.variant} /></div>
+          <div>
+            {estadoInterno ? (
+              <StatusBadge label={ESTADO_INTERNO_BADGE[estadoInterno].label} variant={ESTADO_INTERNO_BADGE[estadoInterno].variant} />
+            ) : (
+              <StatusBadge label={isActiveBroker ? "Activo" : estadoActual.label} variant={isActiveBroker ? "active" : estadoActual.variant} />
+            )}
+          </div>
         </div>
         <div className="flex items-end gap-4 shrink-0">
-          {isActiveBroker ? (
+          {estadoInterno ? null : isActiveBroker ? (
             <AppButton variant="danger" bold onClick={onInactivate}>Inactivar broker</AppButton>
           ) : (
             <>
@@ -189,6 +236,16 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
           )}
         </div>
       </section>
+
+      {desempenoInterno && (
+        <MetricsRow
+          metrics={[
+            { label: "Contratos mes", value: desempenoInterno.contratosMes },
+            { label: "Contratos año", value: desempenoInterno.contratosAno },
+            { label: "Cumplimiento meta", value: `${desempenoInterno.cumplimiento}%` },
+          ]}
+        />
+      )}
 
       {!isActiveBroker && (
         <SectionCard padding={20}>
@@ -219,6 +276,26 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
           {brokerTab === "perfil" && (
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-4 gap-x-6 gap-y-5 max-lg:grid-cols-2">
+                {estadoInterno && (
+                  <InfoField
+                    label="Estado del broker"
+                    value={
+                      <div className="flex flex-col gap-1.5">
+                        <SelectInput
+                          options={ESTADO_INTERNO_OPTIONS}
+                          value={estadoInterno}
+                          onChange={handleEstadoChange}
+                          className="w-full max-w-[220px]"
+                        />
+                        {ESTADOS_AUSENCIA.includes(estadoInterno) && estadoInternoHasta && (
+                          <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>
+                            Hasta el {formatFecha(estadoInternoHasta)}
+                          </span>
+                        )}
+                      </div>
+                    }
+                  />
+                )}
                 <InfoField label="Tipo de persona" value="Natural" />
                 <InfoField label="Tipo de documento" value="Cédula de ciudadanía" />
                 <InfoField label="Número del documento" value={broker.id} />
@@ -533,6 +610,42 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
         </Gated>
       </section>
       </>
+      )}
+
+      {estadoInterno && (
+        <Modal
+          open={!!modalEstado}
+          onClose={() => setModalEstado(null)}
+          title={modalEstado ? `Registrar ${ESTADO_INTERNO_BADGE[modalEstado].label.toLowerCase()}` : ""}
+          width={420}
+        >
+          <div className="flex flex-col gap-4">
+            <p className="body-regular" style={{ color: "var(--gray-9)", margin: 0 }}>
+              Define el rango de fechas en que el broker no estará disponible. Puedes reactivarlo antes si es necesario.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <span className="body-bold" style={{ color: "var(--gray-10)" }}>Desde</span>
+                <DateInput value={formDesde} onChange={setFormDesde} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="body-bold" style={{ color: "var(--gray-10)" }}>Hasta</span>
+                <DateInput value={formHasta} onChange={setFormHasta} min={formDesde} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <AppButton variant="secondary" bold onClick={() => setModalEstado(null)}>Cancelar</AppButton>
+              <AppButton
+                variant="primary"
+                bold
+                disabled={!formHasta || formHasta < formDesde}
+                onClick={confirmarEstadoAusencia}
+              >
+                Confirmar
+              </AppButton>
+            </div>
+          </div>
+        </Modal>
       )}
 
       <Footer />

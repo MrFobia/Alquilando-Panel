@@ -15,9 +15,9 @@ import { Footer } from "./kit/Footer";
 
 const PAGE_SIZE = 10;
 
-type EstadoInterno = "activo" | "vacaciones" | "inactivo";
+export type EstadoInterno = "activo" | "vacaciones" | "enfermedad" | "incapacidad" | "inactivo";
 
-interface BrokerInternoRow {
+export interface BrokerInternoRow {
   id: string;
   nombre: string;
   zona: string;
@@ -25,9 +25,11 @@ interface BrokerInternoRow {
   contratosAno: string;
   cumplimiento: number;
   estado: EstadoInterno;
+  estadoDesde?: string;
+  estadoHasta?: string;
 }
 
-const ROWS: BrokerInternoRow[] = [
+export const BROKERS_INTERNOS_ROWS: BrokerInternoRow[] = [
   { id: "1.020.789.456", nombre: "Angie Carolina Duarte", zona: "Bogotá", contratosMes: "9", contratosAno: "64", cumplimiento: 90, estado: "activo" },
   { id: "45.678.912", nombre: "Ruby Esperanza Meza", zona: "Caribe", contratosMes: "7", contratosAno: "58", cumplimiento: 78, estado: "activo" },
   { id: "1.014.567.890", nombre: "Julián Esteban Rueda", zona: "Bogotá", contratosMes: "5", contratosAno: "41", cumplimiento: 62, estado: "activo" },
@@ -38,11 +40,16 @@ const ROWS: BrokerInternoRow[] = [
   { id: "1.010.987.654", nombre: "Tatiana Reyes Amador", zona: "Sur", contratosMes: "4", contratosAno: "36", cumplimiento: 58, estado: "activo" },
 ];
 
-const ESTADO_BADGE: Record<EstadoInterno, { label: string; variant: "active" | "pending" | "neutral" }> = {
+export const ESTADO_INTERNO_BADGE: Record<EstadoInterno, { label: string; variant: "active" | "pending" | "violet" | "rejected" | "neutral" }> = {
   activo: { label: "Activo", variant: "active" },
   vacaciones: { label: "Vacaciones", variant: "pending" },
+  enfermedad: { label: "Enfermedad", variant: "violet" },
+  incapacidad: { label: "Incapacidad", variant: "rejected" },
   inactivo: { label: "Inactivo", variant: "neutral" },
 };
+
+/** Estados internos que representan una ausencia temporal con fecha de fin. */
+export const ESTADOS_AUSENCIA: EstadoInterno[] = ["vacaciones", "enfermedad", "incapacidad"];
 
 const COLUMNS = [
   { key: "id", header: "Documento", width: 130 },
@@ -68,7 +75,12 @@ const METRICS = [
   { label: "Cumplimiento promedio", value: "63%" },
 ];
 
-export function BrokersInternos() {
+interface Props {
+  rows: BrokerInternoRow[];
+  onViewBroker: (broker: BrokerInternoRow) => void;
+}
+
+export function BrokersInternos({ rows, onViewBroker }: Props) {
   const [page, setPage] = useState(1);
   const [searchBy, setSearchBy] = useState("");
   const [query, setQuery] = useState("");
@@ -77,7 +89,7 @@ export function BrokersInternos() {
   const doSearch = () => { setApplied({ by: searchBy, q: query }); setPage(1); };
   const clearSearch = () => { setQuery(""); setApplied(null); setPage(1); };
 
-  const sourceRows = ROWS.filter((r) => {
+  const sourceRows = rows.filter((r) => {
     if (!applied || !applied.q.trim()) return true;
     const q = applied.q.trim().toLowerCase();
     const fields = applied.by
@@ -91,7 +103,7 @@ export function BrokersInternos() {
   const pageRows = sourceRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const tableRows = pageRows.map((r) => {
-    const badge = ESTADO_BADGE[r.estado];
+    const badge = ESTADO_INTERNO_BADGE[r.estado];
     return {
       ...r,
       cumplimiento: <ProgressBar value={r.cumplimiento} />,
@@ -99,7 +111,7 @@ export function BrokersInternos() {
       acciones: (
         <div className="flex items-center gap-1">
           <IconButton icon={MessageCircle} title="Contactar por WhatsApp" />
-          <IconButton icon={Eye} title="Ver tablero" />
+          <IconButton icon={Eye} title="Ver detalle" onClick={() => onViewBroker(r)} />
         </div>
       ),
     };
@@ -132,7 +144,7 @@ export function BrokersInternos() {
 
         {tableRows.length > 0 ? (
           <>
-            <DataTable columns={COLUMNS} rows={tableRows} />
+            <DataTable columns={COLUMNS} rows={tableRows} onRowClick={(i) => onViewBroker(pageRows[i])} />
             <p className="body-regular text-right" style={{ color: "var(--gray-9)", margin: 0 }}>
               Mostrando <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{pageRows.length}</span> de{" "}
               <span style={{ fontWeight: 600, color: "var(--gray-10)" }}>{sourceRows.length}</span>

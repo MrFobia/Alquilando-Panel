@@ -41,7 +41,7 @@ const ESTUDIO_ROWS: EstudioRow[] = [
   { consecutivo: "-", inmueble: "4631", asegurado: "-", email: "-", celular: "3186654421" },
 ];
 
-type EstadoContrato = "elaboracion" | "ejecucion" | "precontrato";
+type EstadoContrato = "elaboracion" | "precontrato" | "rechazado" | "administracion" | "terminado";
 type TipoContrato = "comercial" | "vivienda";
 
 interface ContratoRow {
@@ -56,24 +56,33 @@ interface ContratoRow {
   tipo: TipoContrato;
 }
 
-const ADMIN_ROWS: ContratoRow[] = [
+const ELABORACION_ROWS: ContratoRow[] = [
   { contrato: "-", inmobiliaria: "Alquilando SAS", direccion: "-", inmueble: "-", zona: "-", inicio: "-", fin: "-", estado: "elaboracion", tipo: "vivienda" },
   { contrato: "-", inmobiliaria: "Alquilando SAS", direccion: "-", inmueble: "-", zona: "-", inicio: "-", fin: "-", estado: "elaboracion", tipo: "comercial" },
   { contrato: "-", inmobiliaria: "Alquilando SAS", direccion: "-", inmueble: "-", zona: "-", inicio: "-", fin: "-", estado: "elaboracion", tipo: "vivienda" },
   { contrato: "-", inmobiliaria: "Alquilando SAS", direccion: "-", inmueble: "-", zona: "-", inicio: "-", fin: "-", estado: "elaboracion", tipo: "vivienda" },
-  { contrato: "2939", inmobiliaria: "Alquilando SAS", direccion: "CL 18 # 100 - 08 OF 3", inmueble: "CL 18 # 100 - 08 OF 3", zona: "BOGOTA", inicio: "2023-06-01", fin: "2027-05-31", estado: "ejecucion", tipo: "comercial" },
   { contrato: "-", inmobiliaria: "Alquilando SAS", direccion: "-", inmueble: "-", zona: "-", inicio: "-", fin: "-", estado: "elaboracion", tipo: "vivienda" },
-  { contrato: "4367", inmobiliaria: "Consultoria & Marketing Inmobiliario S.A.S", direccion: "CR 85 K # 26 G - 53 AP 909 - BRR MODELIA", inmueble: "CR 85 K # 26 G - 53 AP 909", zona: "Occidente", inicio: "2026-06-01", fin: "2027-05-31", estado: "ejecucion", tipo: "vivienda" },
   { contrato: "-", inmobiliaria: "Alquilando SAS", direccion: "-", inmueble: "-", zona: "-", inicio: "-", fin: "-", estado: "elaboracion", tipo: "comercial" },
-  { contrato: "4365", inmobiliaria: "Alquilando Caribe", direccion: "CR 74 # 31 F - 76 AP 1001 - BRR 12 DE OCTUBRE", inmueble: "CR 74 # 31 F - 76 AP 1001", zona: "Norte", inicio: "2026-06-01", fin: "2027-05-31", estado: "ejecucion", tipo: "vivienda" },
   { contrato: "-", inmobiliaria: "Alquilando SAS", direccion: "-", inmueble: "-", zona: "-", inicio: "-", fin: "-", estado: "elaboracion", tipo: "vivienda" },
-  { contrato: "4360", inmobiliaria: "Alquilando SAS", direccion: "KR 85K # 26G 53 TO 1 AP 1218 - BRR MODELIA", inmueble: "KR 85K # 26G 53 AP 1218", zona: "Occidente", inicio: "2026-05-01", fin: "2027-04-30", estado: "ejecucion", tipo: "vivienda" },
   { contrato: "-", inmobiliaria: "Alquilando SAS", direccion: "-", inmueble: "-", zona: "-", inicio: "-", fin: "-", estado: "elaboracion", tipo: "comercial" },
-  { contrato: "4358", inmobiliaria: "Izban", direccion: "CL 50 SUR 93D 38 IN 5 AP 204 - BRR KENNEDY", inmueble: "CL 50 SUR 93D 38 AP 204", zona: "Sur", inicio: "2026-05-01", fin: "2027-04-30", estado: "ejecucion", tipo: "vivienda" },
-  { contrato: "4351", inmobiliaria: "Edificatoria", direccion: "CL 81 # 109 - 10 AP 203 - BRR BOLIVIA", inmueble: "CL 81 # 109 - 10 AP 203", zona: "Occidente", inicio: "2026-04-15", fin: "2027-04-14", estado: "ejecucion", tipo: "vivienda" },
 ];
 
-const PENDIENTE_ROWS: ContratoRow[] = [
+const ADMIN_ROWS: ContratoRow[] = [
+  { contrato: "2939", inmobiliaria: "Alquilando SAS", direccion: "CL 18 # 100 - 08 OF 3", inmueble: "CL 18 # 100 - 08 OF 3", zona: "BOGOTA", inicio: "2023-06-01", fin: "2027-05-31", estado: "administracion", tipo: "comercial" },
+  { contrato: "4367", inmobiliaria: "Consultoria & Marketing Inmobiliario S.A.S", direccion: "CR 85 K # 26 G - 53 AP 909 - BRR MODELIA", inmueble: "CR 85 K # 26 G - 53 AP 909", zona: "Occidente", inicio: "2026-06-01", fin: "2027-05-31", estado: "administracion", tipo: "vivienda" },
+  { contrato: "4365", inmobiliaria: "Alquilando Caribe", direccion: "CR 74 # 31 F - 76 AP 1001 - BRR 12 DE OCTUBRE", inmueble: "CR 74 # 31 F - 76 AP 1001", zona: "Norte", inicio: "2026-06-01", fin: "2027-05-31", estado: "administracion", tipo: "vivienda" },
+  { contrato: "4360", inmobiliaria: "Alquilando SAS", direccion: "KR 85K # 26G 53 TO 1 AP 1218 - BRR MODELIA", inmueble: "KR 85K # 26G 53 AP 1218", zona: "Occidente", inicio: "2026-05-01", fin: "2027-04-30", estado: "administracion", tipo: "vivienda" },
+  { contrato: "4358", inmobiliaria: "Izban", direccion: "CL 50 SUR 93D 38 IN 5 AP 204 - BRR KENNEDY", inmueble: "CL 50 SUR 93D 38 AP 204", zona: "Sur", inicio: "2026-05-01", fin: "2027-04-30", estado: "administracion", tipo: "vivienda" },
+  { contrato: "4351", inmobiliaria: "Edificatoria", direccion: "CL 81 # 109 - 10 AP 203 - BRR BOLIVIA", inmueble: "CL 81 # 109 - 10 AP 203", zona: "Occidente", inicio: "2026-04-15", fin: "2027-04-14", estado: "administracion", tipo: "vivienda" },
+];
+
+const RECHAZADO_ROWS: ContratoRow[] = [
+  { contrato: "-", inmobiliaria: "Broker Externo", direccion: "AV 68 # 40 - 12", inmueble: "Local comercial", zona: "Occidente", inicio: "-", fin: "-", estado: "rechazado", tipo: "comercial" },
+  { contrato: "-", inmobiliaria: "Alquilando SAS", direccion: "CL 90 # 15 - 20 AP 302 - BRR CHICO", inmueble: "Apartamento", zona: "Norte", inicio: "-", fin: "-", estado: "rechazado", tipo: "vivienda" },
+  { contrato: "-", inmobiliaria: "back bone", direccion: "CR 24 # 63 - 40", inmueble: "Oficina", zona: "Centro", inicio: "-", fin: "-", estado: "rechazado", tipo: "comercial" },
+];
+
+const PRECONTRATO_ROWS: ContratoRow[] = [
   { contrato: "-", inmobiliaria: "Consultoria & Marketing Inmobiliario S.A.S", direccion: "CL 47 B SUR # 22 - 55 AP 513 - BRR TUNAL", inmueble: "Apartamento", zona: "Sur", inicio: "2026-07-01", fin: "2027-06-30", estado: "precontrato", tipo: "vivienda" },
   { contrato: "-", inmobiliaria: "Alquilando SAS", direccion: "CL 81 # 109 - 10 AP 203 - BRR BOLIVIA", inmueble: "Apartamento", zona: "Occidente", inicio: "2026-07-01", fin: "2027-06-30", estado: "precontrato", tipo: "vivienda" },
   { contrato: "-", inmobiliaria: "Broker Externo", direccion: "-", inmueble: "Local comercial", zona: "-", inicio: "-", fin: "-", estado: "precontrato", tipo: "comercial" },
@@ -87,16 +96,29 @@ const PENDIENTE_ROWS: ContratoRow[] = [
   { contrato: "-", inmobiliaria: "Alquilando SAS", direccion: "CR 7 # 52 - 44 AP 511 - BRR CHAPINERO", inmueble: "Apartamento", zona: "Norte", inicio: "2026-03-15", fin: "2027-03-14", estado: "precontrato", tipo: "vivienda" },
 ];
 
-const TABS = [
-  { id: "estudio", label: "En estudio poliza", count: ESTUDIO_ROWS.length },
-  { id: "admin", label: "Contratos en administración", count: ADMIN_ROWS.length },
-  { id: "pendiente", label: "Pendiente de aprobación", count: PENDIENTE_ROWS.length },
+const JURIDICO_ROWS: ContratoRow[] = [...PRECONTRATO_ROWS, ...RECHAZADO_ROWS];
+
+const TERMINADOS_ROWS: ContratoRow[] = [
+  { contrato: "4102", inmobiliaria: "Alquilando SAS", direccion: "CL 100 # 15 - 20 AP 501 - BRR CHICO", inmueble: "CL 100 # 15 - 20 AP 501", zona: "Norte", inicio: "2025-01-01", fin: "2025-12-31", estado: "terminado", tipo: "vivienda" },
+  { contrato: "4088", inmobiliaria: "Alquilando Caribe", direccion: "CR 50 # 72 - 30 AP 204 - BRR EL PRADO", inmueble: "CR 50 # 72 - 30 AP 204", zona: "Norte", inicio: "2024-11-01", fin: "2025-10-31", estado: "terminado", tipo: "vivienda" },
+  { contrato: "4071", inmobiliaria: "Izban", direccion: "CL 45 # 22 - 10 LOCAL 2", inmueble: "CL 45 # 22 - 10 LOCAL 2", zona: "Centro", inicio: "2024-06-01", fin: "2025-05-31", estado: "terminado", tipo: "comercial" },
+  { contrato: "4055", inmobiliaria: "Edificatoria", direccion: "CR 15 # 88 - 40 AP 803 - BRR SANTA BARBARA", inmueble: "CR 15 # 88 - 40 AP 803", zona: "Norte", inicio: "2024-03-15", fin: "2025-03-14", estado: "terminado", tipo: "vivienda" },
 ];
 
-const ESTADO_BADGE: Record<EstadoContrato, { label: string; variant: "pending" | "active" | "violet" }> = {
+const TABS = [
+  { id: "elaboracion", label: "En elaboración", count: ELABORACION_ROWS.length },
+  { id: "juridico", label: "En aprobación jurídico", count: JURIDICO_ROWS.length },
+  { id: "estudio", label: "En estudio de póliza", count: ESTUDIO_ROWS.length },
+  { id: "admin", label: "En administración", count: ADMIN_ROWS.length },
+  { id: "terminados", label: "Terminados", count: TERMINADOS_ROWS.length },
+];
+
+const ESTADO_BADGE: Record<EstadoContrato, { label: string; variant: "pending" | "active" | "violet" | "rejected" | "neutral" }> = {
   elaboracion: { label: "En elaboración", variant: "pending" },
-  ejecucion: { label: "En ejecucion", variant: "active" },
+  administracion: { label: "En administración", variant: "active" },
   precontrato: { label: "Pre contrato", variant: "violet" },
+  rechazado: { label: "Rechazado", variant: "rejected" },
+  terminado: { label: "Terminado", variant: "neutral" },
 };
 
 const ESTUDIO_COLUMNS = [
@@ -137,7 +159,7 @@ const ESTUDIO_SEARCH_OPTIONS = [
 ];
 
 export function Contratos() {
-  const [tab, setTab] = useState("estudio");
+  const [tab, setTab] = useState("elaboracion");
   const [page, setPage] = useState(1);
   const [searchBy, setSearchBy] = useState("");
   const [query, setQuery] = useState("");
@@ -189,10 +211,17 @@ export function Contratos() {
       return fields.some((v) => v.toLowerCase().includes(q));
     });
 
+  const CONTRATO_ROWS_BY_TAB: Record<string, ContratoRow[]> = {
+    elaboracion: ELABORACION_ROWS,
+    juridico: JURIDICO_ROWS,
+    admin: ADMIN_ROWS,
+    terminados: TERMINADOS_ROWS,
+  };
+
   const isEstudio = tab === "estudio";
   const sourceRows = isEstudio
     ? filterEstudio(ESTUDIO_ROWS)
-    : filterContratos(tab === "admin" ? ADMIN_ROWS : PENDIENTE_ROWS);
+    : filterContratos(CONTRATO_ROWS_BY_TAB[tab] ?? []);
 
   const totalPages = Math.max(1, Math.ceil(sourceRows.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -210,9 +239,9 @@ export function Contratos() {
         return {
           ...r,
           estado: <StatusBadge label={badge.label} variant={badge.variant} />,
-          opciones: r.estado === "elaboracion"
-            ? <IconButton icon={Pencil} title="Continuar edición" onClick={tab === "admin" ? () => setCreating(true) : undefined} />
-            : <IconButton icon={Eye} title="Ver resumen" onClick={tab === "admin" ? () => setViewingEstado(true) : undefined} />,
+          opciones: tab === "elaboracion"
+            ? <IconButton icon={Pencil} title="Continuar edición" onClick={() => setCreating(true)} />
+            : <IconButton icon={Eye} title="Ver resumen" onClick={() => setViewingEstado(true)} />,
         };
       });
 
@@ -259,7 +288,7 @@ export function Contratos() {
               columns={isEstudio ? ESTUDIO_COLUMNS : CONTRATO_COLUMNS}
               rows={tableRows}
               loading={loading}
-              onRowClick={tab === "admin" ? (i) => {
+              onRowClick={!isEstudio ? (i) => {
                 const row = pageRows[i] as ContratoRow;
                 if (row.estado === "elaboracion") setCreating(true);
                 else setViewingEstado(true);

@@ -13,8 +13,9 @@ import { Propietarios } from "./components/Propietarios";
 import { Solicitudes } from "./components/Solicitudes";
 import { Inmobiliarias } from "./components/Inmobiliarias";
 import { BrokerDetalle } from "./components/BrokerDetalle";
-import { BrokersInternos } from "./components/BrokersInternos";
+import { BrokersInternos, BROKERS_INTERNOS_ROWS } from "./components/BrokersInternos";
 import type { BrokerRow } from "./components/Brokers";
+import type { BrokerInternoRow, EstadoInterno } from "./components/BrokersInternos";
 import { Toast } from "./components/kit/Toast";
 import { InmuebleDetalle } from "./components/InmuebleDetalle";
 import type { InmuebleData } from "./components/InmuebleDetalle";
@@ -42,12 +43,29 @@ export default function App() {
   const [page, setPage] = useState<Page>("login");
   const [active, setActive] = useState("inicio");
   const [selectedBroker, setSelectedBroker] = useState<BrokerRow | null>(null);
+  const [selectedBrokerInterno, setSelectedBrokerInterno] = useState<BrokerInternoRow | null>(null);
+  const [brokersInternosRows, setBrokersInternosRows] = useState<BrokerInternoRow[]>(BROKERS_INTERNOS_ROWS);
+
+  const currentBrokerInterno = selectedBrokerInterno
+    ? brokersInternosRows.find((r) => r.id === selectedBrokerInterno.id) ?? selectedBrokerInterno
+    : null;
+
+  const handleChangeEstadoInterno = (estado: EstadoInterno, meta?: { desde?: string; hasta?: string }) => {
+    if (!currentBrokerInterno) return;
+    setBrokersInternosRows((prev) =>
+      prev.map((r) =>
+        r.id === currentBrokerInterno.id
+          ? { ...r, estado, estadoDesde: meta?.desde, estadoHasta: meta?.hasta }
+          : r,
+      ),
+    );
+  };
   const [selectedInmueble, setSelectedInmueble] = useState<InmuebleData | null>(null);
   const [pendingApprove, setPendingApprove] = useState<BrokerRow | null>(null);
   const [pendingInactivate, setPendingInactivate] = useState<BrokerRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const goToSection = (id: string) => { setActive(id); setSelectedBroker(null); setSelectedInmueble(null); };
+  const goToSection = (id: string) => { setActive(id); setSelectedBroker(null); setSelectedBrokerInterno(null); setSelectedInmueble(null); };
 
   const handleApproveBroker = () => {
     if (!selectedBroker) return;
@@ -115,7 +133,30 @@ export default function App() {
           {active === "propietarios" && <Propietarios />}
           {active === "solicitudes" && <Solicitudes />}
           {active === "inmobiliarias" && <Inmobiliarias />}
-          {active === "brokers-internos" && <BrokersInternos />}
+          {active === "brokers-internos" && (
+            currentBrokerInterno ? (
+              <BrokerDetalle
+                broker={{
+                  id: currentBrokerInterno.id,
+                  nombre: currentBrokerInterno.nombre,
+                  asesor: currentBrokerInterno.zona,
+                  estadoBroker: "activo",
+                }}
+                onBack={() => setSelectedBrokerInterno(null)}
+                estadoInterno={currentBrokerInterno.estado}
+                estadoInternoDesde={currentBrokerInterno.estadoDesde}
+                estadoInternoHasta={currentBrokerInterno.estadoHasta}
+                onChangeEstadoInterno={handleChangeEstadoInterno}
+                desempenoInterno={{
+                  contratosMes: currentBrokerInterno.contratosMes,
+                  contratosAno: currentBrokerInterno.contratosAno,
+                  cumplimiento: currentBrokerInterno.cumplimiento,
+                }}
+              />
+            ) : (
+              <BrokersInternos rows={brokersInternosRows} onViewBroker={setSelectedBrokerInterno} />
+            )
+          )}
           {active === "brokers-externos" && (
             selectedInmueble ? (
               <InmuebleDetalle inmueble={selectedInmueble} onBack={() => setSelectedInmueble(null)} />
