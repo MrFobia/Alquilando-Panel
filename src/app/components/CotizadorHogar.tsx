@@ -459,6 +459,539 @@ function CategoriaAsegurable({
 
 // ─── Arma tu plan (paso 2) ────────────────────────────────────────────────────
 
+// ─── Arma tu plan (paso 2) ────────────────────────────────────────────────────
+
+/**
+ * Layout del paso 2. "clasico" es el que se muestra hoy: la disposición previa al rediseño,
+ * con los textos, planes y precios actuales. "figma" conserva la maqueta de HOGAR DIGITAL
+ * (tarjetas autocontenidas, asistencias en lista y detalle en drawer) para poder compararlas.
+ */
+const LAYOUT_PASO_2: "clasico" | "figma" = "clasico";
+
+function SuscripcionCard({
+  icon: Icon, nombre, precio, tag, selected, onSelect, onInfo,
+}: { icon: LucideIcon; nombre: string; precio: number; tag: string; selected: boolean; onSelect: () => void; onInfo?: () => void }) {
+  return (
+    <button
+      role="radio"
+      aria-checked={selected}
+      onClick={onSelect}
+      className="relative rounded-lg flex flex-col items-center text-center gap-2 transition-colors"
+      style={{
+        cursor: "pointer",
+        padding: "18px 16px",
+        border: selected ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
+        backgroundColor: selected ? "var(--navy-light)" : "#ffffff",
+      }}
+      onMouseEnter={(e) => { if (!selected) e.currentTarget.style.borderColor = "var(--gray-6)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = selected ? "var(--navy)" : "var(--gray-4)"; }}
+    >
+      {selected && (
+        <CircleCheck size={18} strokeWidth={2} className="absolute" style={{ top: 10, right: 10, color: "var(--navy)" }} />
+      )}
+      {onInfo && (
+        <span
+          role="button"
+          aria-label={`Ver qué incluye ${nombre}`}
+          onClick={(e) => { e.stopPropagation(); onInfo(); }}
+          className="absolute flex items-center justify-center rounded-full"
+          style={{ top: 10, left: 10, width: 22, height: 22, color: "var(--gray-8)", cursor: "pointer" }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--navy)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--gray-8)"; }}
+        >
+          <Info size={16} strokeWidth={1.8} />
+        </span>
+      )}
+      <div
+        className="flex items-center justify-center rounded-full"
+        style={{ width: 42, height: 42, backgroundColor: selected ? "#ffffff" : "var(--navy-light)" }}
+      >
+        <Icon size={20} strokeWidth={1.7} style={{ color: "var(--navy)" }} />
+      </div>
+      <span className="body-bold" style={{ color: "var(--navy)" }}>{nombre}</span>
+      <span className="title-tertiary-bold" style={{ color: "var(--gray-10)" }}>
+        {precio === 0 ? "Incluido" : <>{formatCOPNumber(precio)}<span className="body-small-regular">/año</span></>}
+      </span>
+      <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{tag}</span>
+    </button>
+  );
+}
+
+function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistenciaId, onAsistencia, onContinuar, vistaMobile, mostrarPasoAdicionales, onContinuarDesdeAdicionales }: ArmaTuPlanProps) {
+  // Sin plan preseleccionado: el usuario debe elegir uno explícitamente antes de poder continuar.
+  const plan = planId ? PLANES.find((p) => p.id === planId) : undefined;
+  const asistencia = ASISTENCIAS.find((a) => a.id === asistenciaId)!;
+  const soloEnPlan = vistaMobile === "asistencia" ? "max-md:hidden" : "";
+  const soloEnAsistencia = vistaMobile === "plan" ? "max-md:hidden" : "";
+  // En mobile, lo único obligatorio para avanzar en la pantalla de plan es elegirlo: las coberturas
+  // adicionales (ya tienen un default válido) se sacan del flujo lineal. El detalle del plan elegido
+  // se muestra siempre inline debajo de las tarjetas en desktop; en mobile va dentro de cada tarjeta
+  // de un carrusel deslizable (una tarjeta = una opción completa, con su detalle debajo). La asistencia
+  // es su propio paso completo y usa el mismo patrón de carrusel en mobile.
+  const [adicionalesAbiertas, setAdicionalesAbiertas] = useState(false);
+  // Cada tarjeta ocupa el 88% del ancho del carrusel (con un poco de espacio entre ellas), así se
+  // asoma un pedazo de la siguiente y el usuario entiende que puede seguir deslizando.
+  const CARD_WIDTH_RATIO = 0.88;
+  const CARD_GAP = 12;
+  const planCarruselRef = useRef<HTMLDivElement>(null);
+  const [planSlide, setPlanSlide] = useState(() => Math.max(0, PLANES_CARRUSEL.findIndex((p) => p.id === planId)));
+  const irASlidePlan = (i: number) => {
+    const el = planCarruselRef.current;
+    if (!el) return;
+    el.scrollTo({ left: i * (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP), behavior: "smooth" });
+  };
+  const onScrollPlanes = () => {
+    const el = planCarruselRef.current;
+    if (!el || el.clientWidth === 0) return;
+    setPlanSlide(Math.round(el.scrollLeft / (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP)));
+  };
+  const asistenciaCarruselRef = useRef<HTMLDivElement>(null);
+  const [asistenciaSlide, setAsistenciaSlide] = useState(() => Math.max(0, ASISTENCIAS.findIndex((a) => a.id === asistenciaId)));
+  const irASlideAsistencia = (i: number) => {
+    const el = asistenciaCarruselRef.current;
+    if (!el) return;
+    el.scrollTo({ left: i * (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP), behavior: "smooth" });
+  };
+  const onScrollAsistencias = () => {
+    const el = asistenciaCarruselRef.current;
+    if (!el || el.clientWidth === 0) return;
+    setAsistenciaSlide(Math.round(el.scrollLeft / (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP)));
+  };
+  const adicionalesCount = Object.values(adicionales).filter(Boolean).length;
+  useEffect(() => {
+    if (mostrarPasoAdicionales) setAdicionalesAbiertas(true);
+  }, [mostrarPasoAdicionales]);
+  // Cerrar el modal: si se abrió como paso extra (desde "Continuar"), cerrarlo también avanza al siguiente paso,
+  // haya o no coberturas elegidas. Si se abrió manualmente con el botón, cerrarlo solo cierra (sigue en el paso).
+  const cerrarAdicionales = () => {
+    setAdicionalesAbiertas(false);
+    if (mostrarPasoAdicionales) onContinuarDesdeAdicionales?.();
+  };
+  // Vista previa de cualquier plan/asistencia (no solo el seleccionado): así el usuario compara antes de elegir.
+  const [previewPlanId, setPreviewPlanId] = useState<string | null>(null);
+  const [previewAsistenciaId, setPreviewAsistenciaId] = useState<string | null>(null);
+  const previewPlan = previewPlanId ? PLANES.find((p) => p.id === previewPlanId) : null;
+  const previewAsistencia = previewAsistenciaId ? ASISTENCIAS.find((a) => a.id === previewAsistenciaId) : null;
+
+  const contenidoCoberturasPlan = (p: Plan) => (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
+        <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
+        <div className="flex flex-col">
+          <span className="body-small-bold" style={{ color: "var(--navy)" }}>Todo lo del {p.nombre}</span>
+          <span className="disclamer" style={{ color: "var(--navy)" }}>{p.coberturas.length} coberturas incluidas</span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-3">
+        {p.coberturas.map((c) => (
+          <div key={c.titulo} className="flex items-start gap-2">
+            <CircleCheck size={15} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
+            <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
+              <span style={{ fontWeight: 700 }}>{c.titulo}: </span>{c.descripcion}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const categoriasAsistenciaContenido = (a: Asistencia) => (
+    <div className="flex flex-col gap-3">
+      {a.categorias.map((cat) => (
+        <div key={cat.titulo} className="flex flex-col gap-2">
+          <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
+          <span className="body-small-bold" style={{ color: "var(--gray-10)" }}>{cat.titulo}</span>
+          <div className="flex flex-col gap-1.5">
+            {cat.items.map((item) => (
+              <div key={item} className="flex items-start gap-2">
+                <CircleCheck size={14} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
+                <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const contenidoCoberturasAsistencia = (a: Asistencia) => (
+    <div className="flex flex-col gap-3">
+      <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>{a.descripcion}</p>
+      {categoriasAsistenciaContenido(a)}
+    </div>
+  );
+
+  /** Detalle de una asistencia para la tarjeta del carrusel: solo lo que suma sobre la asistencia
+   * anterior (mismo patrón que las tarjetas de plan), sin repetir la descripción larga. */
+  const contenidoCoberturasAsistenciaCard = (a: Asistencia) => {
+    const idx = ASISTENCIAS.findIndex((x) => x.id === a.id);
+    const anterior = idx > 0 ? ASISTENCIAS[idx - 1] : null;
+    const nuevas = anterior ? a.categorias.slice(anterior.categorias.length) : a.categorias;
+    const chipTitulo = anterior ? `Todo lo de ${anterior.nombre}` : null;
+    const categoriaPlural = nuevas.length === 1 ? "categoría" : "categorías";
+    const chipSubtitulo = anterior
+      ? `+ ${nuevas.length} ${categoriaPlural} nueva${nuevas.length === 1 ? "" : "s"}`
+      : `${nuevas.length} ${categoriaPlural} incluida${nuevas.length === 1 ? "" : "s"}`;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
+          <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
+          <div className="flex flex-col">
+            {chipTitulo && <span className="body-small-bold" style={{ color: "var(--navy)" }}>{chipTitulo}</span>}
+            <span className="disclamer" style={{ color: "var(--navy)" }}>{chipSubtitulo}</span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-3">
+          {nuevas.map((cat) => (
+            <div key={cat.titulo} className="flex flex-col gap-2">
+              <span className="body-small-bold" style={{ color: "var(--gray-10)" }}>{cat.titulo}</span>
+              <div className="flex flex-col gap-1.5">
+                {cat.items.map((item) => (
+                  <div key={item} className="flex items-start gap-2">
+                    <CircleCheck size={14} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
+                    <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const detallePlanContenido = plan ? contenidoCoberturasPlan(plan) : null;
+
+  /** mostrarLinkSaltar: solo en el modal-paso-extra de mobile, para que el usuario sepa que puede seguir sin elegir nada. */
+  const coberturasAdicionalesContenido = (mostrarLinkSaltar: boolean) => (
+    <div className="flex flex-col gap-3">
+      <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>
+        Tu seguro viene listo. Si lo deseas, suma coberturas adicionales según tus necesidades.
+      </p>
+      {mostrarLinkSaltar && (
+        <LinkText size="small" onClick={cerrarAdicionales}>Continuar sin agregar coberturas</LinkText>
+      )}
+      <div className="flex flex-col gap-3">
+        {COBERTURAS_ADICIONALES.map((c) => (
+          <CoberturaAdicionalRow
+            key={c.id}
+            cobertura={c}
+            activa={!!adicionales[c.id]}
+            onToggle={(v) => onToggleAdicional(c.id, v)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  /** Detalle de un plan para la tarjeta del carrusel: solo lo que suma sobre el plan anterior (no repite
+   * lo que ya viene incluido), y cada cobertura se corta en el título en negrita (sin ":" ni descripción). */
+  const contenidoCoberturasPlanCard = (p: Plan) => {
+    const idx = PLANES.findIndex((x) => x.id === p.id);
+    const anterior = idx > 0 ? PLANES[idx - 1] : null;
+    const nuevas = anterior ? p.coberturas.slice(anterior.coberturas.length) : p.coberturas;
+    const chipTitulo = anterior ? `Todo lo del ${anterior.nombre}` : null;
+    const chipSubtitulo = anterior ? `${anterior.coberturas.length} coberturas incluidas` : `${nuevas.length} coberturas incluidas`;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
+          <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
+          <div className="flex flex-col">
+            {chipTitulo && <span className="body-small-bold" style={{ color: "var(--navy)" }}>{chipTitulo}</span>}
+            <span className="disclamer" style={{ color: "var(--navy)" }}>{chipSubtitulo}</span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-3">
+          {nuevas.map((c) => (
+            <div key={c.titulo} className="flex items-start gap-2">
+              <CircleCheck size={15} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
+              <span className="body-small-regular" style={{ color: "var(--gray-10)", fontWeight: 700 }}>{c.titulo}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  /** Tarjeta completa de una opción para el carrusel mobile: header con precio + botón de selección, y su detalle debajo. */
+  const planSlideContenido = (p: Plan) => {
+    const seleccionado = planId === p.id;
+    const Icon = PLAN_ICONS[p.id];
+    const sugerido = !!p.sugerido;
+    const destacado = !!p.sugerido;
+    return (
+      <div
+        key={p.id}
+        className="snap-center shrink-0 rounded-xl overflow-hidden"
+        style={{
+          width: `${CARD_WIDTH_RATIO * 100}%`,
+          marginRight: CARD_GAP,
+          border: destacado ? "2px solid var(--navy)" : seleccionado ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
+          boxShadow: destacado ? "0 6px 20px rgba(0,0,0,0.12)" : "none",
+        }}
+      >
+        <div className="relative flex flex-col items-center text-center gap-2" style={{ backgroundColor: destacado ? "var(--navy)" : "var(--navy-light)", padding: "22px 20px" }}>
+          {(sugerido || destacado) && (
+            <span
+              className="tags rounded-full px-3 py-1 absolute"
+              style={destacado ? { top: 14, left: 14, backgroundColor: "#ffffff", color: "var(--navy)" } : { top: 14, left: 14, backgroundColor: "var(--navy)", color: "#ffffff" }}
+            >
+              Sugerido
+            </span>
+          )}
+          {seleccionado && (
+            <CircleCheck size={20} strokeWidth={2} className="absolute" style={{ top: 14, right: 14, color: destacado ? "#ffffff" : "var(--navy)" }} />
+          )}
+          <div className="flex items-center justify-center rounded-full" style={{ width: 48, height: 48, backgroundColor: "#ffffff", marginTop: (sugerido || destacado) ? 22 : 0 }}>
+            <Icon size={22} strokeWidth={1.7} style={{ color: "var(--navy)" }} />
+          </div>
+          <span className="title-tertiary-bold" style={{ color: destacado ? "#ffffff" : "var(--navy)" }}>{p.nombre}</span>
+          <span className="title-secondary" style={{ color: destacado ? "#ffffff" : "var(--gray-10)" }}>{formatCOPNumber(p.precio)}<span className="body-small-regular">/año</span></span>
+          <span className="body-small-regular" style={{ color: destacado ? "rgba(255,255,255,0.75)" : "var(--gray-9)" }}>{p.tag}</span>
+          <AppButton
+            variant={destacado ? (seleccionado ? "ghost" : "accent") : (seleccionado ? "secondary" : "primary")}
+            bold
+            fullWidth
+            onClick={() => onPlan(p.id)}
+          >
+            {seleccionado ? (<><CircleCheck size={15} /> Plan seleccionado</>) : "Seleccionar plan"}
+          </AppButton>
+        </div>
+        <div className="flex flex-col gap-3" style={{ padding: "20px" }}>
+          {contenidoCoberturasPlanCard(p)}
+        </div>
+      </div>
+    );
+  };
+
+  const asistenciaSlideContenido = (a: Asistencia) => {
+    const seleccionada = asistenciaId === a.id;
+    const Icon = a.icon;
+    return (
+      <div
+        key={a.id}
+        className="snap-center shrink-0 rounded-xl overflow-hidden"
+        style={{ width: `${CARD_WIDTH_RATIO * 100}%`, marginRight: CARD_GAP, border: seleccionada ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)" }}
+      >
+        <div className="relative flex flex-col items-center text-center gap-2" style={{ backgroundColor: "var(--navy-light)", padding: "22px 20px" }}>
+          {seleccionada && (
+            <CircleCheck size={20} strokeWidth={2} className="absolute" style={{ top: 14, right: 14, color: "var(--navy)" }} />
+          )}
+          <div className="flex items-center justify-center rounded-full" style={{ width: 48, height: 48, backgroundColor: "#ffffff" }}>
+            <Icon size={22} strokeWidth={1.7} style={{ color: "var(--navy)" }} />
+          </div>
+          <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{a.nombre}</span>
+          <span className="title-secondary" style={{ color: "var(--gray-10)" }}>{a.precio === 0 ? "Incluido" : <>{formatCOPNumber(a.precio)}<span className="body-small-regular">/año</span></>}</span>
+          <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{a.precio === 0 ? "Incluido con tu plan" : "Mejora opcional"}</span>
+          <AppButton variant={seleccionada ? "secondary" : "primary"} bold fullWidth onClick={() => onAsistencia(a.id)}>
+            {seleccionada ? (<><CircleCheck size={15} /> Asistencia seleccionada</>) : "Seleccionar asistencia"}
+          </AppButton>
+        </div>
+        <div className="flex flex-col gap-3" style={{ padding: "20px" }}>
+          {contenidoCoberturasAsistenciaCard(a)}
+        </div>
+      </div>
+    );
+  };
+
+  /** Encabezado de la sección de asistencia: mismo contenido en desktop y mobile, solo cambia el layout que lo envuelve.
+   * Deja explícito que la asistencia va incluida y es obligatoria (el usuario elige el nivel, no si la tiene),
+   * que no hay cláusulas de permanencia, y a qué paquete accederá con la selección actual. */
+  const asistenciaEncabezado = (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Mejorar asistencias</h2>
+        <StatusBadge label="Asistencias S incluidas" variant="active" />
+      </div>
+      <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>
+        Sácale el jugo a tu plan y usa las asistencias en tu día a día. El seguro cubre los daños grandes,
+        pero estas asistencias resuelven los líos cotidianos (plomeros, cerrajeros, electricistas).
+      </p>
+      <div className="flex items-start gap-2 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 12px" }}>
+        <Lock size={15} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0, marginTop: 2 }} />
+        <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
+          Puedes personalizar tus asistencias y coberturas antes de confirmar. Cualquier cambio actualizará
+          el precio automáticamente.
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <ShieldCheck size={15} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
+        <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
+          Accederás a: <span style={{ fontWeight: 700 }}>{asistencia.nombre}</span>
+        </span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Elegir plan — desktop: grid de tarjetas + detalle del plan elegido debajo, como siempre. */}
+      <div className={`hidden md:flex flex-col gap-4 ${soloEnPlan}`}>
+        <div>
+          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Este es tu plan sugerido</h2>
+          <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
+            Personalizándolo a las necesidades de tu hogar.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-4" role="radiogroup" aria-label="Plan de seguro">
+          {PLANES.map((p) => (
+            <SuscripcionCard
+              key={p.id}
+              icon={PLAN_ICONS[p.id]}
+              nombre={p.nombre}
+              precio={p.precio}
+              tag={p.tag}
+              selected={planId === p.id}
+              onSelect={() => onPlan(p.id)}
+              onInfo={() => setPreviewPlanId(p.id)}
+            />
+          ))}
+        </div>
+      </div>
+      {plan && (
+        <div className={`hidden md:flex rounded-lg flex-col gap-3 ${soloEnPlan}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
+          <h3 className="body-bold" style={{ color: "var(--navy)" }}>Todo lo que debes conocer del {plan.nombre}</h3>
+          {detallePlanContenido}
+        </div>
+      )}
+
+      {/* Elegir plan — mobile: carrusel deslizable, cada tarjeta trae su propio detalle de coberturas debajo. */}
+      <div className={`md:hidden flex flex-col gap-3 ${soloEnPlan}`}>
+        <div>
+          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Este es tu plan sugerido</h2>
+          <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
+            Personalizándolo a las necesidades de tu hogar. Desliza para comparar los planes.
+          </p>
+        </div>
+        <div className="flex items-center justify-center gap-1.5">
+          {PLANES_CARRUSEL.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Ir al plan ${i + 1}`}
+              onClick={() => irASlidePlan(i)}
+              className="rounded-full transition-all"
+              style={{ width: i === planSlide ? 18 : 6, height: 6, backgroundColor: i === planSlide ? "var(--navy)" : "var(--gray-4)", cursor: "pointer" }}
+            />
+          ))}
+        </div>
+        <div
+          ref={planCarruselRef}
+          onScroll={onScrollPlanes}
+          className="flex overflow-x-auto snap-x snap-mandatory"
+          style={{ scrollbarWidth: "none" }}
+          role="radiogroup"
+          aria-label="Plan de seguro"
+        >
+          {PLANES_CARRUSEL.map((p) => planSlideContenido(p))}
+        </div>
+        {/* Refleja la tarjeta visible en el carrusel (no la seleccionada), para poder ver el detalle de cualquiera. */}
+        <LinkText size="small" onClick={() => setPreviewPlanId(PLANES_CARRUSEL[planSlide]?.id ?? null)}>
+          Ver el paquete completo de {PLANES_CARRUSEL[planSlide]?.nombre}
+        </LinkText>
+      </div>
+
+      {/* Coberturas adicionales: ya tiene un default válido (ninguna activa), no es obligatoria para avanzar.
+          Desktop la conserva siempre visible; mobile la deja detrás de un modal opcional en la pantalla del plan. */}
+      <div className={`rounded-lg flex flex-col hidden md:flex ${soloEnPlan}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
+        <h3 className="body-bold" style={{ color: "var(--navy)" }}>Incluir coberturas</h3>
+        <div style={{ marginTop: 8 }}>{coberturasAdicionalesContenido(false)}</div>
+      </div>
+      <div className={`md:hidden ${soloEnPlan}`}>
+        <AppButton variant="secondary" onClick={() => setAdicionalesAbiertas(true)}>
+          <SlidersHorizontal size={15} />
+          Incluir coberturas{adicionalesCount > 0 ? ` (${adicionalesCount})` : ""}
+        </AppButton>
+      </div>
+      <Modal open={adicionalesAbiertas} onClose={cerrarAdicionales} title="Incluir coberturas" width={620}>
+        <div className="flex flex-col gap-4">
+          {coberturasAdicionalesContenido(!!mostrarPasoAdicionales)}
+          {/* Al abrirse como paso extra (desde "Continuar"), se necesita una acción explícita para seguir avanzando. */}
+          {mostrarPasoAdicionales && (
+            <div className="flex items-center justify-end">
+              <AppButton variant="primary" bold onClick={cerrarAdicionales}>Continuar</AppButton>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Paquetes de asistencias — desktop: grid + detalle debajo, como siempre. */}
+      <div className={`hidden md:flex flex-col gap-4 ${soloEnAsistencia}`}>
+        {asistenciaEncabezado}
+        <div className="grid grid-cols-3 gap-4" role="radiogroup" aria-label="Paquete de asistencias">
+          {ASISTENCIAS.map((a) => (
+            <SuscripcionCard
+              key={a.id}
+              icon={a.icon}
+              nombre={a.nombre}
+              precio={a.precio}
+              tag={a.precio === 0 ? "Incluido con tu plan" : "Mejora opcional"}
+              selected={asistenciaId === a.id}
+              onSelect={() => onAsistencia(a.id)}
+              onInfo={() => setPreviewAsistenciaId(a.id)}
+            />
+          ))}
+        </div>
+      </div>
+      <div className={`hidden md:flex rounded-lg flex-col gap-3 ${soloEnAsistencia}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
+        <div>
+          <h3 className="body-bold" style={{ color: "var(--navy)" }}>Has seleccionado: {asistencia.nombre}</h3>
+          <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>{asistencia.descripcion}</p>
+        </div>
+        {categoriasAsistenciaContenido(asistencia)}
+      </div>
+
+      {/* Paquetes de asistencias — mobile: carrusel deslizable, mismo patrón que el paso "Tu plan". */}
+      <div className={`md:hidden flex flex-col gap-3 ${soloEnAsistencia}`}>
+        {asistenciaEncabezado}
+        <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>
+          Desliza para comparar qué tan completo quieres que sea tu equipo de rescate.
+        </p>
+        <div className="flex items-center justify-center gap-1.5">
+          {ASISTENCIAS.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Ir a la asistencia ${i + 1}`}
+              onClick={() => irASlideAsistencia(i)}
+              className="rounded-full transition-all"
+              style={{ width: i === asistenciaSlide ? 18 : 6, height: 6, backgroundColor: i === asistenciaSlide ? "var(--navy)" : "var(--gray-4)", cursor: "pointer" }}
+            />
+          ))}
+        </div>
+        <div
+          ref={asistenciaCarruselRef}
+          onScroll={onScrollAsistencias}
+          className="flex overflow-x-auto snap-x snap-mandatory"
+          style={{ scrollbarWidth: "none" }}
+          role="radiogroup"
+          aria-label="Paquete de asistencias"
+        >
+          {ASISTENCIAS.map((a) => asistenciaSlideContenido(a))}
+        </div>
+        {/* Refleja la tarjeta visible en el carrusel (no la seleccionada), para poder ver el detalle de cualquiera. */}
+        <LinkText size="small" onClick={() => setPreviewAsistenciaId(ASISTENCIAS[asistenciaSlide]?.id ?? null)}>
+          Ver el paquete completo de {ASISTENCIAS[asistenciaSlide]?.nombre}
+        </LinkText>
+      </div>
+
+      {/* Vista previa de cualquier plan/asistencia desde el ícono (i) de cada tarjeta, sin necesidad de seleccionarlo. */}
+      <Modal open={!!previewPlan} onClose={() => setPreviewPlanId(null)} title={previewPlan ? `Todo lo que debes conocer del ${previewPlan.nombre}` : ""} width={620}>
+        {previewPlan && contenidoCoberturasPlan(previewPlan)}
+      </Modal>
+      <Modal open={!!previewAsistencia} onClose={() => setPreviewAsistenciaId(null)} title={previewAsistencia?.nombre ?? ""} width={620}>
+        {previewAsistencia && contenidoCoberturasAsistencia(previewAsistencia)}
+      </Modal>
+
+      {/* Continuar (en mobile lo cubre la barra fija inferior) */}
+      <div className="flex items-center justify-end max-md:hidden">
+        <AppButton variant="primary" bold disabled={!plan} onClick={onContinuar}>Continuar</AppButton>
+      </div>
+    </div>
+  );
+}
+
+
 /** Fila de un nivel de asistencias: nombre + qué aporta a la izquierda, precio (o "Incluido") a la derecha. */
 function AsistenciaRow({ asistencia, selected, onSelect }: { asistencia: Asistencia; selected: boolean; onSelect: () => void }) {
   const incluida = asistencia.precio === 0;
@@ -544,7 +1077,7 @@ interface ArmaTuPlanProps {
   onContinuarDesdeAdicionales?: () => void;
 }
 
-function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistenciaId, onAsistencia, onContinuar, vistaMobile, mostrarPasoAdicionales, onContinuarDesdeAdicionales }: ArmaTuPlanProps) {
+function ArmaTuPlanFigma({ planId, onPlan, adicionales, onToggleAdicional, asistenciaId, onAsistencia, onContinuar, vistaMobile, mostrarPasoAdicionales, onContinuarDesdeAdicionales }: ArmaTuPlanProps) {
   // Sin plan preseleccionado: el usuario debe elegir uno explícitamente antes de poder continuar.
   const plan = planId ? PLANES.find((p) => p.id === planId) : undefined;
   const asistencia = ASISTENCIAS.find((a) => a.id === asistenciaId)!;
@@ -2107,20 +2640,24 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
               </div>
             )}
 
-            {paso === 1 && (
-              <ArmaTuPlan
-                planId={planId}
-                onPlan={setPlanId}
-                adicionales={adicionales}
-                onToggleAdicional={toggleAdicional}
-                asistenciaId={asistenciaId}
-                onAsistencia={setAsistenciaId}
-                onContinuar={() => setPaso(2)}
-                vistaMobile={mStep === 2 ? "plan" : "asistencia"}
-                mostrarPasoAdicionales={mostrarPasoAdicionales}
-                onContinuarDesdeAdicionales={() => { setMostrarPasoAdicionales(false); setMStep(3); }}
-              />
-            )}
+            {paso === 1 && (() => {
+              // Ambas variantes reciben exactamente las mismas props: cambiar LAYOUT_PASO_2 no toca el estado del flujo.
+              const PasoDosLayout = LAYOUT_PASO_2 === "figma" ? ArmaTuPlanFigma : ArmaTuPlan;
+              return (
+                <PasoDosLayout
+                  planId={planId}
+                  onPlan={setPlanId}
+                  adicionales={adicionales}
+                  onToggleAdicional={toggleAdicional}
+                  asistenciaId={asistenciaId}
+                  onAsistencia={setAsistenciaId}
+                  onContinuar={() => setPaso(2)}
+                  vistaMobile={mStep === 2 ? "plan" : "asistencia"}
+                  mostrarPasoAdicionales={mostrarPasoAdicionales}
+                  onContinuarDesdeAdicionales={() => { setMostrarPasoAdicionales(false); setMStep(3); }}
+                />
+              );
+            })()}
 
             {paso === 2 && (
               <ConfirmaTuPlan
