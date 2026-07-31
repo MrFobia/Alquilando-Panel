@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, CircleCheck, Tv, Sofa, ShieldCheck, Home, Plus, ChevronUp, ChevronDown,
-  Flame, HeartPulse, Lock, PawPrint, Wrench, Hammer, PackageCheck, Award,
+  Flame, Lock, Wrench, Hammer, PackageCheck, Award,
   Receipt, Mail, CalendarClock, CreditCard, Download, FileText, Info, SlidersHorizontal, Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -14,6 +14,7 @@ import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
 import { ToggleSwitch } from "./kit/ToggleSwitch";
 import { Callout } from "./kit/Callout";
+import { Accordion } from "./kit/Accordion";
 import logoSegurosBolivar from "../../assets/logo-seguros-bolivar.png";
 
 /**
@@ -35,23 +36,23 @@ function Field({ label, required, children }: { label: string; required?: boolea
 }
 
 const PASOS = [
-  { id: "configura", label: "Configura tu plan" },
+  { id: "configura", label: "Selecciona tu inmueble" },
   { id: "arma", label: "Arma tu plan" },
-  { id: "confirma", label: "Confirma tu plan" },
-  { id: "pagar", label: "Pagar" },
+  { id: "confirma", label: "Confirma tu seguro" },
+  { id: "pagar", label: "Compra tu seguro" },
 ];
 
 /**
- * Mobile parte "Configura tu plan" en 2 pantallas (inmueble / objetos) y "Arma tu plan" en otras 2
+ * Mobile parte "Selecciona tu inmueble" en 2 pantallas (inmueble / objetos) y "Arma tu plan" en otras 2
  * (plan / asistencia), para que cada pantalla pida solo lo necesario para avanzar.
  */
 const MPASOS = [
-  { id: "inmueble", label: "Tu inmueble" },
-  { id: "objetos", label: "Tus objetos" },
-  { id: "plan", label: "Tu plan" },
-  { id: "asistencia", label: "Asistencia" },
-  { id: "confirma", label: "Confirma tu plan" },
-  { id: "pagar", label: "Pagar" },
+  { id: "inmueble", label: "Selecciona tu inmueble" },
+  { id: "objetos", label: "Asegura tus pertenencias" },
+  { id: "plan", label: "Arma tu plan" },
+  { id: "asistencia", label: "Elige tu asistencia" },
+  { id: "confirma", label: "Confirma tu seguro" },
+  { id: "pagar", label: "Compra tu seguro" },
 ];
 
 interface InmuebleCotizacion {
@@ -64,11 +65,16 @@ interface InmuebleCotizacion {
   tipoDocumento?: string;
   numeroDocumento?: string;
   metrosCuadrados?: number;
+  tipoInmueble?: string;
+  anoConstruccion?: string;
+  zona?: string;
+  /** true cuando el inmueble ya tiene una póliza de hogar activa: no se puede comprar otra para el mismo inmueble. */
+  polizaActiva?: boolean;
 }
 
 const INMUEBLES_COTIZACION: Record<string, InmuebleCotizacion> = {
   "carrera-23": { estrato: "3", canon: "$1.400.000", ciudad: "Bogotá", direccion: "Carrera 23 # 45 - 34 sur", coordenadas: "4,593874 - -74,129384", datosCompletos: false, lat: 4.593874, lng: -74.129384 },
-  "calle-80": { estrato: "4", canon: "$2.150.000", ciudad: "Bogotá", direccion: "Calle 80 # 12 - 08, apto 502", coordenadas: "4,668350 - -74,056420", datosCompletos: true, lat: 4.668350, lng: -74.056420 },
+  "calle-80": { estrato: "4", canon: "$2.150.000", ciudad: "Bogotá", direccion: "Calle 80 # 12 - 08, apto 502", coordenadas: "4,668350 - -74,056420", datosCompletos: true, lat: 4.668350, lng: -74.056420, polizaActiva: true },
 };
 
 const INMUEBLE_OPTIONS = [
@@ -104,37 +110,61 @@ const CIUDADES_OPTIONS = [
   { value: "bucaramanga", label: "Bucaramanga" },
 ];
 
+const TIPO_INMUEBLE_OPTIONS = [
+  { value: "apartamento", label: "Apartamento" },
+  { value: "casa", label: "Casa" },
+  { value: "oficina", label: "Oficina" },
+  { value: "local", label: "Local comercial" },
+];
+
+/** Requerido por la API de la aseguradora para tasar el riesgo, aunque Alquilando no lo tenga guardado. */
+const ANOS_CONSTRUCCION_OPTIONS = [
+  { value: "0-5", label: "Menos de 5 años" },
+  { value: "5-10", label: "5 a 10 años" },
+  { value: "10-15", label: "10 a 15 años" },
+  { value: "15-20", label: "15 a 20 años" },
+  { value: "20-25", label: "20 a 25 años" },
+  { value: "25-30", label: "25 a 30 años" },
+  { value: "30-40", label: "30 a 40 años" },
+  { value: "40+", label: "Más de 40 años" },
+];
+
 const ELECTRONICOS_BASE = ["Televisores", "Computadores", "Neveras", "Objetos inteligentes", "Estufas", "Equipos de sonido"];
 const ELECTRONICOS_EXTRA = ["Consolas de videojuegos", "Tablets", "Cámaras fotográficas", "Lavadoras y secadoras"];
 const ENSERES_BASE = ["Muebles", "Camas", "Libros", "Armarios", "Ropa", "Cortinas"];
 const ENSERES_EXTRA = ["Vajillas y utensilios de cocina", "Tapetes y decoración", "Colchones", "Bicicletas"];
 
-// ─── Planes de suscripción ───────────────────────────────────────────────────
+// ─── Planes ──────────────────────────────────────────────────────────────────
 
 export interface Cobertura {
   titulo: string;
   descripcion: string;
 }
 
-const COBERTURAS_BASIC: Cobertura[] = [
+const COBERTURAS_BASICO: Cobertura[] = [
   { titulo: "Daños por incendio o daños por agua internos", descripcion: "Cubre daños que se originen por incendios, explosiones y agua al interior del inmueble (Ej. tubos rotos)." },
-  { titulo: "Daños por agua de origen exterior", descripcion: "Cubre daños causados a la vivienda por lluvias, huracanes, vientos fuertes o granizadas." },
-  { titulo: "Daños y pérdidas por disturbios sociales", descripcion: "Protegemos tu hogar ante alteraciones del orden público, huelgas o disturbios." },
+  { titulo: "Daños por agua origen exterior", descripcion: "Cubre daños causados a la vivienda por lluvias, huracanes, vientos fuertes o granizadas." },
   { titulo: "Robo con violencia", descripcion: "Cubre la pérdida de objetos asegurados o daños a la vivienda ocasionados por robos violentos dentro del hogar." },
   { titulo: "Daños eléctricos y errores de montaje", descripcion: "Tus contenidos eléctricos están protegidos frente a caídas de energía, cortos circuitos, malas conexiones o bajonazos de luz." },
+  { titulo: "Daños y pérdidas por disturbios sociales", descripcion: "Protegemos tu hogar ante alteraciones del orden público, huelgas o disturbios." },
   { titulo: "Daños accidentales a la estructura", descripcion: "Cubre accidentes que dañen tu hogar como caída de aviones, choque de autos o caída de árboles." },
 ];
 
-const COBERTURAS_PROTECCION: Cobertura[] = [
-  ...COBERTURAS_BASIC,
-  { titulo: "Rotura de vidrios y espejos", descripcion: "Cubre la rotura accidental de vidrios, espejos y superficies de cristal en tu hogar." },
-  { titulo: "Gastos médicos por accidentes en el hogar", descripcion: "Cubre gastos médicos si tú o un visitante sufren un accidente dentro de la vivienda." },
+const COBERTURAS_CLASICO: Cobertura[] = [
+  ...COBERTURAS_BASICO,
+  { titulo: "Daños por desastres naturales", descripcion: "Cubre daños ocasionados por maremotos, tsunamis, erupción de volcanes, temblores y/o terremotos." },
+  { titulo: "Amparo por invalidez o fallecimiento", descripcion: "Tú y tus beneficiarios estarán protegidos si tienen algún tipo de lesión o enfermedad que les cause invalidez o la muerte, al igual que la empleada doméstica estará protegida ante accidentes dentro del hogar." },
+  { titulo: "Seguridad digital básica", descripcion: "Protege tus cuentas y dispositivos con monitoreo básico ante fraudes digitales y suplantación de identidad." },
+  { titulo: "Daños a terceros", descripcion: "Cubre los gastos de los daños que causes a otros: si se rompe tu tubería y mojas el piso de abajo, o si tu mascota hace una travesura." },
 ];
 
 const COBERTURAS_PREMIUM: Cobertura[] = [
-  ...COBERTURAS_PROTECCION,
-  { titulo: "Pérdida de alquiler temporal", descripcion: "Si tu vivienda queda inhabitable por un siniestro cubierto, te ayudamos a pagar un arriendo temporal." },
-  { titulo: "Asistencia legal en arrendamientos", descripcion: "Acceso a asesoría legal para conflictos relacionados con tu contrato de arrendamiento." },
+  ...COBERTURAS_CLASICO,
+  { titulo: "Robo sin violencia", descripcion: "Cubre daños a la vivienda y pérdida de objetos asegurados por robos dentro de tu hogar." },
+  { titulo: "Cobertura extendida por robo", descripcion: "Cubre la pérdida de objetos electrónicos asegurados, fuera de la vivienda causados por robos violentos." },
+  { titulo: "Seguridad digital full", descripcion: "Monitoreo avanzado 24/7, alertas en tiempo real y soporte prioritario ante cualquier incidente de ciberseguridad." },
+  { titulo: "Bici protección", descripcion: "Protege tu bicicleta ante robo y daños accidentales, dentro y fuera de tu hogar." },
+  { titulo: "Gastos médicos mascotas", descripcion: "Cubre los gastos veterinarios de tu mascota por accidentes o urgencias dentro del hogar." },
 ];
 
 interface Plan {
@@ -142,16 +172,18 @@ interface Plan {
   nombre: string;
   precio: number;
   tag: string;
+  /** Plan que el cotizador recomienda según los datos del inmueble: es el único que lleva el chip "Sugerido". */
+  sugerido?: boolean;
   coberturas: Cobertura[];
 }
 
 const PLANES: Plan[] = [
-  { id: "basic", nombre: "Alquilando Basic", precio: 15000, tag: "Ideal para empezar", coberturas: COBERTURAS_BASIC },
-  { id: "proteccion", nombre: "Alquilando Protección", precio: 28000, tag: "El más popular", coberturas: COBERTURAS_PROTECCION },
-  { id: "premium", nombre: "Alquilando Premium", precio: 40000, tag: "Cobertura total", coberturas: COBERTURAS_PREMIUM },
+  { id: "basico", nombre: "Plan Básico", precio: 822943, tag: "+ Plan S de asistencias incluido", coberturas: COBERTURAS_BASICO },
+  { id: "clasico", nombre: "Plan Clásico", precio: 1217296, tag: "+ Plan S de asistencias incluido", coberturas: COBERTURAS_CLASICO },
+  { id: "premium", nombre: "Plan Premium", precio: 2974670, tag: "+ Plan S de asistencias incluido", sugerido: true, coberturas: COBERTURAS_PREMIUM },
 ];
 
-const PLAN_ICONS: Record<string, LucideIcon> = { basic: Home, proteccion: ShieldCheck, premium: Award };
+const PLAN_ICONS: Record<string, LucideIcon> = { basico: Home, clasico: ShieldCheck, premium: Award };
 
 /** Orden del carrusel mobile: premium primero, basic al final (desktop conserva el orden de PLANES). */
 const PLANES_CARRUSEL: Plan[] = [...PLANES].reverse();
@@ -168,48 +200,30 @@ interface CoberturaAdicional {
 
 const COBERTURAS_ADICIONALES: CoberturaAdicional[] = [
   {
-    id: "terremoto",
+    id: "desastres-naturales",
     icon: Flame,
-    titulo: "¿Te preocupa un terremoto?",
-    descripcion: "Nadie sabe cuándo temblará o lloverá de más. Activa esto para que nosotros paguemos las reparaciones si ocurre un terremoto, inundación o incendio. Duerme tranquilo pase lo que pase afuera.",
-    precio: 20000,
+    titulo: "Daños por desastres naturales",
+    descripcion: "Cubre daños ocasionados por maremotos, tsunamis, erupción de volcanes, temblores y/o terremotos.",
+    precio: 288852,
     sidebarLabel: "Daños por desastres naturales",
     defaultOn: false,
   },
   {
-    id: "invalidez",
-    icon: HeartPulse,
-    titulo: "Amparo por invalidez o fallecimiento",
-    descripcion: "Tú y tus beneficiarios estarán protegidos si tienen algún tipo de lesión o enfermedad que les cause invalidez o la muerte, al igual que la empleada doméstica estará protegida ante accidentes dentro del hogar.",
-    precio: 20000,
-    sidebarLabel: "Amparo por invalidez o fallecim...",
-    defaultOn: false,
-  },
-  {
-    id: "seguridad-basica",
+    id: "robo-sin-violencia",
     icon: Lock,
-    titulo: "Seguridad digital básica",
-    descripcion: "Protege tus cuentas y dispositivos con monitoreo básico ante fraudes digitales y suplantación de identidad.",
-    precio: 20000,
-    sidebarLabel: "Seguridad digital básica",
+    titulo: "Robo sin violencia",
+    descripcion: "Cubre daños a la vivienda y pérdida de objetos asegurados por robos dentro de tu hogar.",
+    precio: 494508,
+    sidebarLabel: "Robo sin violencia",
     defaultOn: false,
   },
   {
-    id: "seguridad-full",
+    id: "robo-extendida",
     icon: ShieldCheck,
-    titulo: "Seguridad digital full",
-    descripcion: "Monitoreo avanzado 24/7, alertas en tiempo real y soporte prioritario ante cualquier incidente de ciberseguridad.",
-    precio: 20000,
-    sidebarLabel: "Seguridad digital full",
-    defaultOn: false,
-  },
-  {
-    id: "mascotas",
-    icon: PawPrint,
-    titulo: "¿Tienes mascotas o vecinos delicados?",
-    descripcion: "Evita peleas costosas con los vecinos. Si se rompe tu tubería y mojas el piso de abajo, o si tu mascota hace una travesura, nosotros cubrimos los gastos de los daños que causes a otros.",
-    precio: 20000,
-    sidebarLabel: "Daños a terceros",
+    titulo: "Cobertura extendida por robo",
+    descripcion: "Cubre la pérdida de objetos electrónicos asegurados, fuera de la vivienda causados por robos violentos.",
+    precio: 330465,
+    sidebarLabel: "Cobertura extendida por robo",
     defaultOn: false,
   },
 ];
@@ -219,20 +233,20 @@ export interface CategoriaAsistencia {
   items: string[];
 }
 
-const ASISTENCIA_BASICA: CategoriaAsistencia[] = [
-  { titulo: "Plomería", items: ["Daños o roturas en griferías sanitarias o accesorios que componen los mezcladores o llaves.", "Daños en las conexiones de agua entre las redes y los aparatos sanitarios.", "Obstrucción en las redes de agua potable y/o aguas negras o residuales."] },
-  { titulo: "Electricidad", items: ["Cortos en tomas eléctricas y salidas de iluminación.", "Daño de tacos o breakers por sobrecarga o sobrecalentamiento."] },
-  { titulo: "Cerrajería", items: ["Apertura de puerta por cierre accidental o pérdida de llaves de puertas exteriores.", "Cambio de cerradura por daño o desgaste de la chapa exterior."] },
+const ASISTENCIA_S: CategoriaAsistencia[] = [
+  { titulo: "Plomería", items: ["Llaves sanitarias y accesorios", "Conexiones de agua y redes sanitarias", "Redes de agua potable, aguas negras o residuales"] },
+  { titulo: "Electricidad", items: ["Tomas eléctricas y salidas de iluminación", "Tacos o breakers"] },
+  { titulo: "Cerrajería", items: ["Pérdida de llaves y apertura de puertas exteriores"] },
 ];
 
-const ASISTENCIA_PROTECCION: CategoriaAsistencia[] = [
-  ...ASISTENCIA_BASICA,
-  { titulo: "Vidriería", items: ["Cambio de vidrios rotos en ventanas y puertas.", "Reparación de mallas de seguridad dañadas."] },
+const ASISTENCIA_M: CategoriaAsistencia[] = [
+  ...ASISTENCIA_S,
+  { titulo: "Reparación de vidrios", items: ["Que los balonazos no te tomen por sorpresa, te ayudamos a reparar esos vidrios rotos."] },
 ];
 
-const ASISTENCIA_PREMIUM: CategoriaAsistencia[] = [
-  ...ASISTENCIA_PROTECCION,
-  { titulo: "Electrodomésticos", items: ["Revisión y reparación básica de neveras, lavadoras y estufas.", "Diagnóstico técnico a domicilio sin costo adicional."] },
+const ASISTENCIA_L: CategoriaAsistencia[] = [
+  ...ASISTENCIA_M,
+  { titulo: "Asesoría jurídica y legal", items: ["¿Tus vecinos hacen mucho ruido? Con nuestra asesoría legal la tranquilidad volverá a tu hogar."] },
 ];
 
 interface Asistencia {
@@ -245,9 +259,9 @@ interface Asistencia {
 }
 
 const ASISTENCIAS: Asistencia[] = [
-  { id: "basica", icon: Wrench, nombre: "Asistencia Basica", precio: 5000, descripcion: "Este plan de asistencia viene incluido con el plan Alquilando basic. Se sumarán $5.000 a tu mensualidad.", categorias: ASISTENCIA_BASICA },
-  { id: "proteccion", icon: Hammer, nombre: "Asistencia Protección", precio: 18000, descripcion: "Sube tu equipo de rescate un nivel: más categorías cubiertas para resolver los líos del día a día.", categorias: ASISTENCIA_PROTECCION },
-  { id: "premium", icon: PackageCheck, nombre: "Asistencia Premium", precio: 40000, descripcion: "El equipo de rescate más completo, con cobertura para electrodomésticos incluida.", categorias: ASISTENCIA_PREMIUM },
+  { id: "s", icon: Wrench, nombre: "Asistencias S", precio: 0, descripcion: "Servicios esenciales ya activos", categorias: ASISTENCIA_S },
+  { id: "m", icon: Hammer, nombre: "Asistencias M", precio: 57488, descripcion: "Suma servicios adicionales a tu plan", categorias: ASISTENCIA_M },
+  { id: "l", icon: PackageCheck, nombre: "Asistencias L", precio: 93860, descripcion: "Incluye asistencias S y M", categorias: ASISTENCIA_L },
 ];
 
 /** Formatea un número entero (sin dígitos previos) como moneda COP. */
@@ -445,50 +459,37 @@ function CategoriaAsegurable({
 
 // ─── Arma tu plan (paso 2) ────────────────────────────────────────────────────
 
-/** Card seleccionable tipo radio, reutilizada para planes y paquetes de asistencia. */
-function SuscripcionCard({
-  icon: Icon, nombre, precio, tag, selected, onSelect, onInfo,
-}: { icon: LucideIcon; nombre: string; precio: number; tag: string; selected: boolean; onSelect: () => void; onInfo?: () => void }) {
+/** Fila de un nivel de asistencias: nombre + qué aporta a la izquierda, precio (o "Incluido") a la derecha. */
+function AsistenciaRow({ asistencia, selected, onSelect }: { asistencia: Asistencia; selected: boolean; onSelect: () => void }) {
+  const incluida = asistencia.precio === 0;
   return (
     <button
       role="radio"
       aria-checked={selected}
       onClick={onSelect}
-      className="relative rounded-lg flex flex-col items-center text-center gap-2 transition-colors"
+      className="rounded-lg flex items-center justify-between gap-4 text-left transition-colors"
       style={{
         cursor: "pointer",
-        padding: "18px 16px",
+        padding: "14px 18px",
         border: selected ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
         backgroundColor: selected ? "var(--navy-light)" : "#ffffff",
       }}
       onMouseEnter={(e) => { if (!selected) e.currentTarget.style.borderColor = "var(--gray-6)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = selected ? "var(--navy)" : "var(--gray-4)"; }}
     >
-      {selected && (
-        <CircleCheck size={18} strokeWidth={2} className="absolute" style={{ top: 10, right: 10, color: "var(--navy)" }} />
-      )}
-      {onInfo && (
-        <span
-          role="button"
-          aria-label={`Ver qué incluye ${nombre}`}
-          onClick={(e) => { e.stopPropagation(); onInfo(); }}
-          className="absolute flex items-center justify-center rounded-full"
-          style={{ top: 10, left: 10, width: 22, height: 22, color: "var(--gray-8)", cursor: "pointer" }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--navy)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--gray-8)"; }}
-        >
-          <Info size={16} strokeWidth={1.8} />
+      <div className="flex flex-col gap-0.5">
+        <span className="body-bold" style={{ color: "var(--navy)" }}>{asistencia.nombre}</span>
+        <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{asistencia.descripcion}</span>
+      </div>
+      {incluida ? (
+        <span className="tags rounded-full px-3 py-1 shrink-0" style={{ backgroundColor: "var(--navy)", color: "#ffffff" }}>
+          Incluido
+        </span>
+      ) : (
+        <span className="body-bold shrink-0" style={{ color: "var(--gray-10)", whiteSpace: "nowrap" }}>
+          {formatCOPNumber(asistencia.precio)}<span className="body-small-regular">/año</span>
         </span>
       )}
-      <div
-        className="flex items-center justify-center rounded-full"
-        style={{ width: 42, height: 42, backgroundColor: selected ? "#ffffff" : "var(--navy-light)" }}
-      >
-        <Icon size={20} strokeWidth={1.7} style={{ color: "var(--navy)" }} />
-      </div>
-      <span className="body-bold" style={{ color: "var(--navy)" }}>{nombre}</span>
-      <span className="title-tertiary-bold" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(precio)}</span>
-      <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Mes ({tag})</span>
     </button>
   );
 }
@@ -519,7 +520,7 @@ function CoberturaAdicionalRow({ cobertura, activa, onToggle }: { cobertura: Cob
       <div className="flex flex-col items-end gap-2 shrink-0 max-sm:w-full max-sm:flex-row max-sm:items-center max-sm:justify-between">
         <ToggleSwitch checked={activa} onChange={onToggle} />
         <span className="tags rounded-full px-3 py-1" style={{ backgroundColor: activa ? "#ffffff" : "var(--navy-light)", color: "var(--navy)", whiteSpace: "nowrap" }}>
-          + {formatCOPNumber(cobertura.precio)} / Mes
+          + {formatCOPNumber(cobertura.precio)} / año
         </span>
       </div>
     </div>
@@ -571,18 +572,6 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
     if (!el || el.clientWidth === 0) return;
     setPlanSlide(Math.round(el.scrollLeft / (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP)));
   };
-  const asistenciaCarruselRef = useRef<HTMLDivElement>(null);
-  const [asistenciaSlide, setAsistenciaSlide] = useState(() => Math.max(0, ASISTENCIAS.findIndex((a) => a.id === asistenciaId)));
-  const irASlideAsistencia = (i: number) => {
-    const el = asistenciaCarruselRef.current;
-    if (!el) return;
-    el.scrollTo({ left: i * (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP), behavior: "smooth" });
-  };
-  const onScrollAsistencias = () => {
-    const el = asistenciaCarruselRef.current;
-    if (!el || el.clientWidth === 0) return;
-    setAsistenciaSlide(Math.round(el.scrollLeft / (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP)));
-  };
   const adicionalesCount = Object.values(adicionales).filter(Boolean).length;
   useEffect(() => {
     if (mostrarPasoAdicionales) setAdicionalesAbiertas(true);
@@ -593,107 +582,39 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
     setAdicionalesAbiertas(false);
     if (mostrarPasoAdicionales) onContinuarDesdeAdicionales?.();
   };
-  // Vista previa de cualquier plan/asistencia (no solo el seleccionado): así el usuario compara antes de elegir.
+  // Vista previa de cualquier plan (no solo el seleccionado): así el usuario compara antes de elegir.
   const [previewPlanId, setPreviewPlanId] = useState<string | null>(null);
-  const [previewAsistenciaId, setPreviewAsistenciaId] = useState<string | null>(null);
   const previewPlan = previewPlanId ? PLANES.find((p) => p.id === previewPlanId) : null;
-  const previewAsistencia = previewAsistenciaId ? ASISTENCIAS.find((a) => a.id === previewAsistenciaId) : null;
+  // El detalle de servicios de las asistencias arranca plegado: es información de apoyo, no un paso del flujo.
+  const [detalleServiciosAbierto, setDetalleServiciosAbierto] = useState(false);
 
+  /** Detalle completo del plan para el drawer: una cobertura por fila, plegada, con su descripción dentro.
+   * La primera arranca abierta para que se entienda de entrada que cada fila se despliega. */
   const contenidoCoberturasPlan = (p: Plan) => (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
         <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
         <div className="flex flex-col">
-          <span className="body-small-bold" style={{ color: "var(--navy)" }}>Todo lo del plan {p.nombre}</span>
+          <span className="body-small-bold" style={{ color: "var(--navy)" }}>Todo lo del {p.nombre}</span>
           <span className="disclamer" style={{ color: "var(--navy)" }}>{p.coberturas.length} coberturas incluidas</span>
         </div>
       </div>
-      <div className="flex flex-col gap-3">
-        {p.coberturas.map((c) => (
-          <div key={c.titulo} className="flex items-start gap-2">
-            <CircleCheck size={15} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
-            <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
-              <span style={{ fontWeight: 700 }}>{c.titulo}: </span>{c.descripcion}
-            </span>
-          </div>
-        ))}
-      </div>
+      <Accordion
+        defaultOpenIds={p.coberturas.length > 0 ? [p.coberturas[0].titulo] : []}
+        items={p.coberturas.map((c) => ({
+          id: c.titulo,
+          title: c.titulo,
+          content: <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{c.descripcion}</span>,
+        }))}
+      />
     </div>
   );
-
-  const categoriasAsistenciaContenido = (a: Asistencia) => (
-    <div className="flex flex-col gap-3">
-      {a.categorias.map((cat) => (
-        <div key={cat.titulo} className="flex flex-col gap-2">
-          <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
-          <span className="body-small-bold" style={{ color: "var(--gray-10)" }}>{cat.titulo}</span>
-          <div className="flex flex-col gap-1.5">
-            {cat.items.map((item) => (
-              <div key={item} className="flex items-start gap-2">
-                <CircleCheck size={14} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
-                <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{item}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const contenidoCoberturasAsistencia = (a: Asistencia) => (
-    <div className="flex flex-col gap-3">
-      <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>{a.descripcion}</p>
-      {categoriasAsistenciaContenido(a)}
-    </div>
-  );
-
-  /** Detalle de una asistencia para la tarjeta del carrusel: solo lo que suma sobre la asistencia
-   * anterior (mismo patrón que las tarjetas de plan), sin repetir la descripción larga. */
-  const contenidoCoberturasAsistenciaCard = (a: Asistencia) => {
-    const idx = ASISTENCIAS.findIndex((x) => x.id === a.id);
-    const anterior = idx > 0 ? ASISTENCIAS[idx - 1] : null;
-    const nuevas = anterior ? a.categorias.slice(anterior.categorias.length) : a.categorias;
-    const chipTitulo = anterior ? `Todo lo de ${anterior.nombre}` : null;
-    const categoriaPlural = nuevas.length === 1 ? "categoría" : "categorías";
-    const chipSubtitulo = anterior
-      ? `+ ${nuevas.length} ${categoriaPlural} nueva${nuevas.length === 1 ? "" : "s"}`
-      : `${nuevas.length} ${categoriaPlural} incluida${nuevas.length === 1 ? "" : "s"}`;
-    return (
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
-          <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
-          <div className="flex flex-col">
-            {chipTitulo && <span className="body-small-bold" style={{ color: "var(--navy)" }}>{chipTitulo}</span>}
-            <span className="disclamer" style={{ color: "var(--navy)" }}>{chipSubtitulo}</span>
-          </div>
-        </div>
-        <div className="flex flex-col gap-3">
-          {nuevas.map((cat) => (
-            <div key={cat.titulo} className="flex flex-col gap-2">
-              <span className="body-small-bold" style={{ color: "var(--gray-10)" }}>{cat.titulo}</span>
-              <div className="flex flex-col gap-1.5">
-                {cat.items.map((item) => (
-                  <div key={item} className="flex items-start gap-2">
-                    <CircleCheck size={14} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
-                    <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const detallePlanContenido = plan ? contenidoCoberturasPlan(plan) : null;
 
   /** mostrarLinkSaltar: solo en el modal-paso-extra de mobile, para que el usuario sepa que puede seguir sin elegir nada. */
   const coberturasAdicionalesContenido = (mostrarLinkSaltar: boolean) => (
     <div className="flex flex-col gap-3">
       <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>
-        Ya aseguraste lo básico. ¿Te gustaría blindar tu hogar contra todo pronóstico? Activa las coberturas
-        que quieras sumar a tu suscripción.
+        Tu seguro viene listo. Si lo deseas, suma coberturas adicionales según tus necesidades.
       </p>
       {mostrarLinkSaltar && (
         <LinkText size="small" onClick={cerrarAdicionales}>Continuar sin agregar coberturas</LinkText>
@@ -711,14 +632,14 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
     </div>
   );
 
-  /** Detalle de un plan para la tarjeta del carrusel: solo lo que suma sobre el plan anterior (no repite
-   * lo que ya viene incluido), y cada cobertura se corta en el título en negrita (sin ":" ni descripción). */
+  /** Detalle de un plan para la tarjeta: solo lo que suma sobre el plan anterior (no repite lo que ya
+   * viene incluido), y cada cobertura se corta en el título en negrita (sin ":" ni descripción). */
   const contenidoCoberturasPlanCard = (p: Plan) => {
     const idx = PLANES.findIndex((x) => x.id === p.id);
     const anterior = idx > 0 ? PLANES[idx - 1] : null;
     const nuevas = anterior ? p.coberturas.slice(anterior.coberturas.length) : p.coberturas;
-    const chipTitulo = p.id === "premium" ? "Todo lo de Protección" : p.id === "proteccion" ? "Todo lo del plan Basic" : null;
-    const chipSubtitulo = anterior ? `+ ${nuevas.length} coberturas nuevas` : `${nuevas.length} coberturas incluidas`;
+    const chipTitulo = anterior ? `Todo lo del ${anterior.nombre}` : null;
+    const chipSubtitulo = anterior ? `${anterior.coberturas.length} coberturas incluidas` : `${nuevas.length} coberturas incluidas`;
     return (
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
@@ -740,41 +661,41 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
     );
   };
 
-  /** Tarjeta completa de una opción para el carrusel mobile: header con precio + botón de selección, y su detalle debajo. */
-  const planSlideContenido = (p: Plan) => {
+  /** Tarjeta completa de un plan: header con precio y botón de selección, detalle de coberturas debajo.
+   * Misma tarjeta en desktop (grilla) y mobile (carrusel): solo cambia el contenedor que la envuelve. */
+  const planCardContenido = (p: Plan, layout: "grid" | "slide") => {
     const seleccionado = planId === p.id;
     const Icon = PLAN_ICONS[p.id];
-    const sugerido = p.tag === "El más popular";
-    const destacado = p.id === "premium";
+    // El plan sugerido va siempre resaltado, esté o no seleccionado: es la recomendación del cotizador.
+    const destacado = !!p.sugerido;
     return (
       <div
         key={p.id}
-        className="snap-center shrink-0 rounded-xl overflow-hidden"
+        className={`rounded-xl overflow-hidden flex flex-col ${layout === "slide" ? "snap-center shrink-0" : "h-full"}`}
         style={{
-          width: `${CARD_WIDTH_RATIO * 100}%`,
-          marginRight: CARD_GAP,
+          ...(layout === "slide" ? { width: `${CARD_WIDTH_RATIO * 100}%`, marginRight: CARD_GAP } : {}),
           border: destacado ? "2px solid var(--navy)" : seleccionado ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
           boxShadow: destacado ? "0 6px 20px rgba(0,0,0,0.12)" : "none",
         }}
       >
         <div className="relative flex flex-col items-center text-center gap-2" style={{ backgroundColor: destacado ? "var(--navy)" : "var(--navy-light)", padding: "22px 20px" }}>
-          {(sugerido || destacado) && (
+          {destacado && (
             <span
               className="tags rounded-full px-3 py-1 absolute"
-              style={destacado ? { top: 14, left: 14, backgroundColor: "#ffffff", color: "var(--navy)" } : { top: 14, left: 14, backgroundColor: "var(--navy)", color: "#ffffff" }}
+              style={{ top: 14, left: 14, backgroundColor: "#ffffff", color: "var(--navy)" }}
             >
-              {destacado ? "Mejor cobertura" : "Sugerido"}
+              Sugerido
             </span>
           )}
           {seleccionado && (
             <CircleCheck size={20} strokeWidth={2} className="absolute" style={{ top: 14, right: 14, color: destacado ? "#ffffff" : "var(--navy)" }} />
           )}
-          <div className="flex items-center justify-center rounded-full" style={{ width: 48, height: 48, backgroundColor: "#ffffff", marginTop: (sugerido || destacado) ? 22 : 0 }}>
+          <div className="flex items-center justify-center rounded-full" style={{ width: 48, height: 48, backgroundColor: "#ffffff", marginTop: destacado ? 22 : 0 }}>
             <Icon size={22} strokeWidth={1.7} style={{ color: "var(--navy)" }} />
           </div>
           <span className="title-tertiary-bold" style={{ color: destacado ? "#ffffff" : "var(--navy)" }}>{p.nombre}</span>
-          <span className="title-secondary" style={{ color: destacado ? "#ffffff" : "var(--gray-10)" }}>{formatCOPNumber(p.precio)}</span>
-          <span className="body-small-regular" style={{ color: destacado ? "rgba(255,255,255,0.75)" : "var(--gray-9)" }}>Mes ({p.tag})</span>
+          <span className="title-secondary" style={{ color: destacado ? "#ffffff" : "var(--gray-10)" }}>{formatCOPNumber(p.precio)}<span className="body-small-regular">/año</span></span>
+          <span className="body-small-regular" style={{ color: destacado ? "rgba(255,255,255,0.75)" : "var(--gray-9)" }}>{p.tag}</span>
           <AppButton
             variant={destacado ? (seleccionado ? "ghost" : "accent") : (seleccionado ? "secondary" : "primary")}
             bold
@@ -784,38 +705,14 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
             {seleccionado ? (<><CircleCheck size={15} /> Plan seleccionado</>) : "Seleccionar plan"}
           </AppButton>
         </div>
-        <div className="flex flex-col gap-3" style={{ padding: "20px" }}>
+        <div className="flex flex-col gap-3 flex-1" style={{ padding: "20px" }}>
           {contenidoCoberturasPlanCard(p)}
-        </div>
-      </div>
-    );
-  };
-
-  const asistenciaSlideContenido = (a: Asistencia) => {
-    const seleccionada = asistenciaId === a.id;
-    const Icon = a.icon;
-    return (
-      <div
-        key={a.id}
-        className="snap-center shrink-0 rounded-xl overflow-hidden"
-        style={{ width: `${CARD_WIDTH_RATIO * 100}%`, marginRight: CARD_GAP, border: seleccionada ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)" }}
-      >
-        <div className="relative flex flex-col items-center text-center gap-2" style={{ backgroundColor: "var(--navy-light)", padding: "22px 20px" }}>
-          {seleccionada && (
-            <CircleCheck size={20} strokeWidth={2} className="absolute" style={{ top: 14, right: 14, color: "var(--navy)" }} />
-          )}
-          <div className="flex items-center justify-center rounded-full" style={{ width: 48, height: 48, backgroundColor: "#ffffff" }}>
-            <Icon size={22} strokeWidth={1.7} style={{ color: "var(--navy)" }} />
+          {/* Empuja el botón al pie para que las 3 tarjetas de la grilla lo alineen a la misma altura. */}
+          <div className="mt-auto pt-2">
+            <AppButton variant="secondary" fullWidth onClick={() => setPreviewPlanId(p.id)}>
+              Ver todas las coberturas
+            </AppButton>
           </div>
-          <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{a.nombre}</span>
-          <span className="title-secondary" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(a.precio)}</span>
-          <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Mes ({a.id === "basica" ? "Incluida" : "Adicional"})</span>
-          <AppButton variant={seleccionada ? "secondary" : "primary"} bold fullWidth onClick={() => onAsistencia(a.id)}>
-            {seleccionada ? (<><CircleCheck size={15} /> Asistencia seleccionada</>) : "Seleccionar asistencia"}
-          </AppButton>
-        </div>
-        <div className="flex flex-col gap-3" style={{ padding: "20px" }}>
-          {contenidoCoberturasAsistenciaCard(a)}
         </div>
       </div>
     );
@@ -827,19 +724,18 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
   const asistenciaEncabezado = (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 flex-wrap">
-        <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Plan de asistencia por suscripción</h2>
-        <StatusBadge label="Incluida y obligatoria" variant="active" />
+        <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Mejorar asistencias</h2>
+        <StatusBadge label="Asistencias S incluidas" variant="active" />
       </div>
       <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>
-        El seguro cubre los daños grandes, pero esta asistencia resuelve los líos cotidianos y siempre viene
-        incluida en tu póliza: no puedes prescindir de ella, solo elegir qué tan completo quieres que sea tu
-        equipo de rescate (plomeros, cerrajeros, electricistas).
+        Sácale el jugo a tu plan y usa las asistencias en tu día a día. El seguro cubre los daños grandes,
+        pero estas asistencias resuelven los líos cotidianos (plomeros, cerrajeros, electricistas).
       </p>
       <div className="flex items-start gap-2 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 12px" }}>
         <Lock size={15} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0, marginTop: 2 }} />
         <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
-          Sin cláusulas de permanencia: se cobra junto con tu póliza mes a mes y puedes cambiar de paquete
-          cuando quieras.
+          Puedes personalizar tus asistencias y coberturas antes de confirmar. Cualquier cambio actualizará
+          el precio automáticamente.
         </span>
       </div>
       <div className="flex items-center gap-2">
@@ -853,42 +749,26 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Elegir plan — desktop: grid de tarjetas + detalle del plan elegido debajo, como siempre. */}
+      {/* Elegir plan — desktop: cada tarjeta se basta sola (precio, lo que suma sobre el plan anterior y
+          el acceso al detalle completo), sin un bloque de detalle aparte debajo de la grilla. */}
       <div className={`hidden md:flex flex-col gap-4 ${soloEnPlan}`}>
         <div>
-          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige tu suscripción mensual</h2>
+          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Este es tu plan sugerido</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-            Sin cláusulas de permanencia. Pagas mes a mes y puedes cancelar fácil cuando quieras.
+            Personalizándolo a las necesidades de tu hogar.
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-4" role="radiogroup" aria-label="Plan de suscripción">
-          {PLANES.map((p) => (
-            <SuscripcionCard
-              key={p.id}
-              icon={PLAN_ICONS[p.id]}
-              nombre={p.nombre}
-              precio={p.precio}
-              tag={p.tag}
-              selected={planId === p.id}
-              onSelect={() => onPlan(p.id)}
-              onInfo={() => setPreviewPlanId(p.id)}
-            />
-          ))}
+        <div className="grid grid-cols-3 gap-4 items-stretch" role="radiogroup" aria-label="Plan de seguro">
+          {PLANES.map((p) => planCardContenido(p, "grid"))}
         </div>
       </div>
-      {plan && (
-        <div className={`hidden md:flex rounded-lg flex-col gap-3 ${soloEnPlan}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
-          <h3 className="body-bold" style={{ color: "var(--navy)" }}>Plan {plan.nombre}</h3>
-          {detallePlanContenido}
-        </div>
-      )}
 
       {/* Elegir plan — mobile: carrusel deslizable, cada tarjeta trae su propio detalle de coberturas debajo. */}
       <div className={`md:hidden flex flex-col gap-3 ${soloEnPlan}`}>
         <div>
-          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige tu suscripción mensual</h2>
+          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Este es tu plan sugerido</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-            Sin cláusulas de permanencia. Desliza para comparar los planes.
+            Personalizándolo a las necesidades de tu hogar. Desliza para comparar los planes.
           </p>
         </div>
         <div className="flex items-center justify-center gap-1.5">
@@ -909,29 +789,25 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
           className="flex overflow-x-auto snap-x snap-mandatory"
           style={{ scrollbarWidth: "none" }}
           role="radiogroup"
-          aria-label="Plan de suscripción"
+          aria-label="Plan de seguro"
         >
-          {PLANES_CARRUSEL.map((p) => planSlideContenido(p))}
+          {PLANES_CARRUSEL.map((p) => planCardContenido(p, "slide"))}
         </div>
-        {/* Refleja la tarjeta visible en el carrusel (no la seleccionada), para poder ver el detalle de cualquiera. */}
-        <LinkText size="small" onClick={() => setPreviewPlanId(PLANES_CARRUSEL[planSlide]?.id ?? null)}>
-          Ver el paquete completo de {PLANES_CARRUSEL[planSlide]?.nombre}
-        </LinkText>
       </div>
 
       {/* Coberturas adicionales: ya tiene un default válido (ninguna activa), no es obligatoria para avanzar.
           Desktop la conserva siempre visible; mobile la deja detrás de un modal opcional en la pantalla del plan. */}
       <div className={`rounded-lg flex flex-col hidden md:flex ${soloEnPlan}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
-        <h3 className="body-bold" style={{ color: "var(--navy)" }}>Agrega coberturas adicionales</h3>
+        <h3 className="body-bold" style={{ color: "var(--navy)" }}>Incluir coberturas</h3>
         <div style={{ marginTop: 8 }}>{coberturasAdicionalesContenido(false)}</div>
       </div>
       <div className={`md:hidden ${soloEnPlan}`}>
         <AppButton variant="secondary" onClick={() => setAdicionalesAbiertas(true)}>
           <SlidersHorizontal size={15} />
-          Coberturas adicionales{adicionalesCount > 0 ? ` (${adicionalesCount})` : ""}
+          Incluir coberturas{adicionalesCount > 0 ? ` (${adicionalesCount})` : ""}
         </AppButton>
       </div>
-      <Modal open={adicionalesAbiertas} onClose={cerrarAdicionales} title="Coberturas adicionales" width={620}>
+      <Modal open={adicionalesAbiertas} onClose={cerrarAdicionales} title="Incluir coberturas" width={620}>
         <div className="flex flex-col gap-4">
           {coberturasAdicionalesContenido(!!mostrarPasoAdicionales)}
           {/* Al abrirse como paso extra (desde "Continuar"), se necesita una acción explícita para seguir avanzando. */}
@@ -943,72 +819,62 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
         </div>
       </Modal>
 
-      {/* Paquetes de asistencias — desktop: grid + detalle debajo, como siempre. */}
-      <div className={`hidden md:flex flex-col gap-4 ${soloEnAsistencia}`}>
+      {/* Paquetes de asistencias: lista vertical (los 3 niveles se comparan de un vistazo, sin carrusel ni
+          grid) y un único detalle de servicios debajo, plegado, con las categorías del nivel elegido. */}
+      <div className={`flex flex-col gap-4 ${soloEnAsistencia}`}>
         {asistenciaEncabezado}
-        <div className="grid grid-cols-3 gap-4" role="radiogroup" aria-label="Paquete de asistencias">
+        <div className="flex flex-col gap-3" role="radiogroup" aria-label="Paquete de asistencias">
           {ASISTENCIAS.map((a) => (
-            <SuscripcionCard
+            <AsistenciaRow
               key={a.id}
-              icon={a.icon}
-              nombre={a.nombre}
-              precio={a.precio}
-              tag={a.id === "basica" ? "Incluida" : "Adicional"}
+              asistencia={a}
               selected={asistenciaId === a.id}
               onSelect={() => onAsistencia(a.id)}
-              onInfo={() => setPreviewAsistenciaId(a.id)}
             />
           ))}
         </div>
-      </div>
-      <div className={`hidden md:flex rounded-lg flex-col gap-3 ${soloEnAsistencia}`} style={{ border: "1px solid var(--gray-4)", padding: "18px 20px" }}>
-        <div>
-          <h3 className="body-bold" style={{ color: "var(--navy)" }}>Has seleccionado: {asistencia.nombre}</h3>
-          <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>{asistencia.descripcion}</p>
-        </div>
-        {categoriasAsistenciaContenido(asistencia)}
-      </div>
-
-      {/* Paquetes de asistencias — mobile: carrusel deslizable, mismo patrón que el paso "Tu plan". */}
-      <div className={`md:hidden flex flex-col gap-3 ${soloEnAsistencia}`}>
-        {asistenciaEncabezado}
-        <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>
-          Desliza para comparar qué tan completo quieres que sea tu equipo de rescate.
-        </p>
-        <div className="flex items-center justify-center gap-1.5">
-          {ASISTENCIAS.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              aria-label={`Ir a la asistencia ${i + 1}`}
-              onClick={() => irASlideAsistencia(i)}
-              className="rounded-full transition-all"
-              style={{ width: i === asistenciaSlide ? 18 : 6, height: 6, backgroundColor: i === asistenciaSlide ? "var(--navy)" : "var(--gray-4)", cursor: "pointer" }}
+        <div className="flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => setDetalleServiciosAbierto((v) => !v)}
+            className="body-bold inline-flex items-center gap-2 self-start"
+            style={{ cursor: "pointer", background: "transparent", color: "var(--navy)" }}
+          >
+            <ChevronDown
+              size={16}
+              style={{ transform: detalleServiciosAbierto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
             />
-          ))}
+            {detalleServiciosAbierto ? "Ocultar detalle de los servicios" : "Mostrar detalle de los servicios"}
+          </button>
+          {detalleServiciosAbierto && (
+            <div className="rounded-lg" style={{ border: "1px solid var(--gray-4)", padding: "4px 18px" }}>
+              <Accordion
+                // Se reinicia al cambiar de nivel para que el acordeón no quede abierto en una categoría que ya no aplica.
+                key={asistencia.id}
+                defaultOpenIds={asistencia.categorias.length > 0 ? [asistencia.categorias[0].titulo] : []}
+                items={asistencia.categorias.map((cat) => ({
+                  id: cat.titulo,
+                  title: cat.titulo,
+                  content: (
+                    <div className="flex flex-col gap-1.5">
+                      {cat.items.map((item) => (
+                        <div key={item} className="flex items-start gap-2">
+                          <CircleCheck size={14} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
+                          <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ),
+                }))}
+              />
+            </div>
+          )}
         </div>
-        <div
-          ref={asistenciaCarruselRef}
-          onScroll={onScrollAsistencias}
-          className="flex overflow-x-auto snap-x snap-mandatory"
-          style={{ scrollbarWidth: "none" }}
-          role="radiogroup"
-          aria-label="Paquete de asistencias"
-        >
-          {ASISTENCIAS.map((a) => asistenciaSlideContenido(a))}
-        </div>
-        {/* Refleja la tarjeta visible en el carrusel (no la seleccionada), para poder ver el detalle de cualquiera. */}
-        <LinkText size="small" onClick={() => setPreviewAsistenciaId(ASISTENCIAS[asistenciaSlide]?.id ?? null)}>
-          Ver el paquete completo de {ASISTENCIAS[asistenciaSlide]?.nombre}
-        </LinkText>
       </div>
 
-      {/* Vista previa de cualquier plan/asistencia desde el ícono (i) de cada tarjeta, sin necesidad de seleccionarlo. */}
-      <Modal open={!!previewPlan} onClose={() => setPreviewPlanId(null)} title={previewPlan ? `Plan ${previewPlan.nombre}` : ""} width={620}>
+      {/* Detalle completo de cualquier plan, desde el ícono (i) o el botón de cada tarjeta. */}
+      <Modal open={!!previewPlan} onClose={() => setPreviewPlanId(null)} title={previewPlan ? `Todo lo que debes conocer del ${previewPlan.nombre}` : ""} width={620}>
         {previewPlan && contenidoCoberturasPlan(previewPlan)}
-      </Modal>
-      <Modal open={!!previewAsistencia} onClose={() => setPreviewAsistenciaId(null)} title={previewAsistencia?.nombre ?? ""} width={620}>
-        {previewAsistencia && contenidoCoberturasAsistencia(previewAsistencia)}
       </Modal>
 
       {/* Continuar (en mobile lo cubre la barra fija inferior) */}
@@ -1047,7 +913,7 @@ function ConfirmaTuPlan({ plan, adicionalesActivas, asistencia, titular }: Confi
           <Receipt size={32} strokeWidth={1.6} style={{ color: "var(--navy)" }} />
         </div>
         <p className="body-regular max-md:hidden" style={{ color: "var(--gray-10)", maxWidth: 520, margin: 0 }}>
-          Realizarás el pago de una suscripción mensual del plan <span style={{ fontWeight: 700 }}>{plan.nombre}</span> y
+          Realizarás el pago anual del <span style={{ fontWeight: 700 }}>{plan.nombre}</span> y
           el pago está habilitado únicamente con tarjeta de crédito. Tu cobertura estará activa en minutos.
         </p>
         <button
@@ -1060,12 +926,12 @@ function ConfirmaTuPlan({ plan, adicionalesActivas, asistencia, titular }: Confi
         <Modal open={infoAbierta} onClose={() => setInfoAbierta(false)} title="Cómo funciona tu seguro">
           <div className="flex flex-col gap-3">
             <p className="body-regular" style={{ color: "var(--gray-10)", margin: 0 }}>
-              Realizarás el pago de una suscripción mensual del plan <span style={{ fontWeight: 700 }}>{plan.nombre}</span> y
+              Realizarás el pago anual del <span style={{ fontWeight: 700 }}>{plan.nombre}</span> y
               el pago está habilitado únicamente con tarjeta de crédito. Tu cobertura estará activa en minutos.
             </p>
             <p className="body-regular" style={{ color: "var(--gray-10)", margin: 0 }}>
-              Igual que tus apps de streaming, pagas mes a mes y puedes cancelar fácil cuando quieras,
-              sin plazos forzosos ni penalizaciones. Se renueva automáticamente cada mes.
+              Pagas una vez al año y tu póliza queda vigente por 12 meses. Se renueva automáticamente
+              cada año y puedes cancelarla cuando quieras.
             </p>
           </div>
         </Modal>
@@ -1091,12 +957,12 @@ function ConfirmaTuPlan({ plan, adicionalesActivas, asistencia, titular }: Confi
 
       <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
 
-      {/* Suscripción seleccionada */}
+      {/* Plan seleccionado */}
       <div className="flex flex-col gap-5">
-        <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Suscripción seleccionada</h2>
+        <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Plan seleccionado</h2>
 
         <div className="flex flex-col gap-3">
-          <span className="body-bold" style={{ color: "var(--navy)" }}>Plan {plan.nombre}</span>
+          <span className="body-bold" style={{ color: "var(--navy)" }}>{plan.nombre}</span>
           <div className="flex flex-col gap-2">
             {coberturasVisibles.map((c) => (
               <div key={c.titulo} className="flex items-start gap-2">
@@ -1115,15 +981,15 @@ function ConfirmaTuPlan({ plan, adicionalesActivas, asistencia, titular }: Confi
         <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
 
         <div className="flex flex-col gap-2">
-          <span className="body-bold" style={{ color: "var(--navy)" }}>Suscripción</span>
+          <span className="body-bold" style={{ color: "var(--navy)" }}>Vigencia</span>
           <p className="body-small-regular max-md:hidden" style={{ color: "var(--gray-10)", margin: 0 }}>
-            Igual que tus apps de streaming, pagas mes a mes y puedes cancelar fácil cuando quieras,
-            sin plazos forzosos ni penalizaciones.
+            Pagas una vez al año y tu póliza queda vigente por 12 meses, sin penalizaciones si decides
+            no renovarla.
           </p>
           <p className="body-small-regular" style={{ color: "var(--gray-10)", margin: 0 }}>
-            <span style={{ fontWeight: 700 }}>Modalidad:</span> Suscripción mensual
+            <span style={{ fontWeight: 700 }}>Modalidad:</span> Pago anual
           </p>
-          <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>Se renueva automáticamente cada mes.</span>
+          <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>Se renueva automáticamente cada año.</span>
         </div>
 
         <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
@@ -1170,15 +1036,15 @@ function ConfirmaTuPlan({ plan, adicionalesActivas, asistencia, titular }: Confi
 interface PagoExitosoProps {
   plan: Plan;
   asistencia: Asistencia;
-  totalMensual: number;
+  totalAnual: number;
   numeroPoliza: string;
   fechaPago: string;
-  proximoCobro: string;
+  proximaRenovacion: string;
   onFinalizar: () => void;
   onVerSeguros: () => void;
 }
 
-function PagoExitoso({ plan, asistencia, totalMensual, numeroPoliza, fechaPago, proximoCobro, onFinalizar, onVerSeguros }: PagoExitosoProps) {
+function PagoExitoso({ plan, asistencia, totalAnual, numeroPoliza, fechaPago, proximaRenovacion, onFinalizar, onVerSeguros }: PagoExitosoProps) {
   const [comprobanteEnviado, setComprobanteEnviado] = useState(false);
 
   return (
@@ -1193,7 +1059,7 @@ function PagoExitoso({ plan, asistencia, totalMensual, numeroPoliza, fechaPago, 
       <div>
         <h2 className="title-secondary" style={{ color: "var(--navy)" }}>¡Tu seguro ya está activo!</h2>
         <p className="body-regular" style={{ color: "var(--gray-10)", maxWidth: 480, marginTop: 6 }}>
-          Cobramos tu suscripción y tu póliza quedó activa de inmediato. Te enviamos el comprobante y
+          Cobramos tu póliza anual y quedó activa de inmediato. Te enviamos el comprobante y
           la póliza al correo de tu cuenta.
         </p>
       </div>
@@ -1216,8 +1082,8 @@ function PagoExitoso({ plan, asistencia, totalMensual, numeroPoliza, fechaPago, 
             <span className="body-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{fechaPago}</span>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Próximo cobro</span>
-            <span className="body-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{proximoCobro}</span>
+            <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Próxima renovación</span>
+            <span className="body-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{proximaRenovacion}</span>
           </div>
           <div className="flex flex-col gap-1">
             <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Método de pago</span>
@@ -1235,10 +1101,10 @@ function PagoExitoso({ plan, asistencia, totalMensual, numeroPoliza, fechaPago, 
 
         <div className="flex items-center justify-between gap-4">
           <span className="body-bold" style={{ color: "var(--gray-10)" }}>Cobrado hoy:</span>
-          <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{formatCOPNumber(totalMensual)}</span>
+          <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{formatCOPNumber(totalAnual)}</span>
         </div>
         <p className="body-small-regular" style={{ color: "var(--gray-8)", marginTop: 4, marginBottom: 0 }}>
-          Volveremos a cobrar {formatCOPNumber(totalMensual)} el {proximoCobro}, mientras tu suscripción
+          Volveremos a cobrar {formatCOPNumber(totalAnual)} el {proximaRenovacion}, mientras tu póliza
           siga activa.
         </p>
       </div>
@@ -1285,9 +1151,9 @@ export interface PolizaComprada {
   asistenciaPrecio: number;
   asistenciaCategorias: CategoriaAsistencia[];
   adicionales: { label: string; precio: number }[];
-  totalMensual: number;
+  totalAnual: number;
   fechaPago: string;
-  proximoCobro: string;
+  proximaRenovacion: string;
   estado: "activa" | "cancelacion-solicitada" | "cancelada";
   fechaSolicitudCancelacion?: string;
   motivoCancelacion?: string;
@@ -1317,9 +1183,9 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   const [numeroPoliza] = useState(() => "AL-" + Math.floor(100000 + Math.random() * 900000));
   const [fechaCompra] = useState(() => new Date());
   const fechaPagoStr = useMemo(() => formatFechaCorta(fechaCompra), [fechaCompra]);
-  const proximoCobroStr = useMemo(() => {
+  const proximaRenovacionStr = useMemo(() => {
     const d = new Date(fechaCompra);
-    d.setMonth(d.getMonth() + 1);
+    d.setFullYear(d.getFullYear() + 1);
     return formatFechaCorta(d);
   }, [fechaCompra]);
   // Sin inmueble preseleccionado: el usuario debe elegirlo explícitamente para avanzar.
@@ -1327,6 +1193,8 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   const [inmueblesData, setInmueblesData] = useState<Record<string, InmuebleCotizacion>>(INMUEBLES_COTIZACION);
   const [inmuebleOptions, setInmuebleOptions] = useState(INMUEBLE_OPTIONS);
   const cambiarInmueble = (id: string) => {
+    // Un inmueble con póliza activa no se puede volver a asegurar: se bloquea antes de seleccionarlo.
+    if (inmueblesData[id]?.polizaActiva) return;
     setInmueble(id);
     // Elegir un inmueble existente cierra el formulario de "nuevo inmueble" si estaba abierto.
     setAgregandoInmueble(false);
@@ -1364,6 +1232,9 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   const [nuevoDireccion, setNuevoDireccion] = useState("");
   const [nuevoMetrosCuadrados, setNuevoMetrosCuadrados] = useState("");
   const [nuevoCanonArrendamiento, setNuevoCanonArrendamiento] = useState("");
+  const [nuevoTipoInmueble, setNuevoTipoInmueble] = useState("");
+  const [nuevoAnoConstruccion, setNuevoAnoConstruccion] = useState("");
+  const [nuevoZona, setNuevoZona] = useState("");
   const [nuevoAceptaTerminos, setNuevoAceptaTerminos] = useState(false);
   const nuevoValido =
     nuevoTipoDocumento !== "" &&
@@ -1372,6 +1243,9 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     nuevoDireccion.trim() !== "" &&
     Number(nuevoMetrosCuadrados) > 0 &&
     Number(nuevoCanonArrendamiento) > 0 &&
+    nuevoTipoInmueble !== "" &&
+    nuevoAnoConstruccion !== "" &&
+    nuevoZona !== "" &&
     nuevoAceptaTerminos;
 
   const abrirNuevoInmueble = () => {
@@ -1388,6 +1262,9 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     setNuevoDireccion("");
     setNuevoMetrosCuadrados("");
     setNuevoCanonArrendamiento("");
+    setNuevoTipoInmueble("");
+    setNuevoAnoConstruccion("");
+    setNuevoZona("");
     setNuevoAceptaTerminos(false);
   };
 
@@ -1424,6 +1301,9 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
       tipoDocumento: TIPOS_DOCUMENTO.find((t) => t.value === nuevoTipoDocumento)?.label,
       numeroDocumento: nuevoNumeroDocumento.trim(),
       metrosCuadrados: Number(nuevoMetrosCuadrados),
+      tipoInmueble: TIPO_INMUEBLE_OPTIONS.find((t) => t.value === nuevoTipoInmueble)?.label,
+      anoConstruccion: ANOS_CONSTRUCCION_OPTIONS.find((a) => a.value === nuevoAnoConstruccion)?.label,
+      zona: ZONA_OPTIONS.find((z) => z.value === nuevoZona)?.label,
       lat: nuevoLat,
       lng: nuevoLng,
     };
@@ -1441,6 +1321,11 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   const [canonArrendamiento, setCanonArrendamiento] = useState("");
   // Relación del usuario con el inmueble: siempre obligatorio, sin importar el origen del inmueble.
   const [relacionInmueble, setRelacionInmueble] = useState("");
+  // La API de la aseguradora exige tipo de inmueble, años de construcción y metros cuadrados
+  // para tasar el riesgo, aunque el inmueble venga de Alquilando con datos incompletos.
+  const [tipoInmueble, setTipoInmueble] = useState("");
+  const [anoConstruccion, setAnoConstruccion] = useState("");
+  const [metrosCuadradosInmueble, setMetrosCuadradosInmueble] = useState("");
 
   const [electronicosValor, setElectronicosValor] = useState("");
   const [enseresValor, setEnseresValor] = useState("");
@@ -1450,7 +1335,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   const [adicionales, setAdicionales] = useState<Record<string, boolean>>(
     () => Object.fromEntries(COBERTURAS_ADICIONALES.map((c) => [c.id, c.defaultOn])),
   );
-  const [asistenciaId, setAsistenciaId] = useState("basica");
+  const [asistenciaId, setAsistenciaId] = useState("s");
   const toggleAdicional = (id: string, v: boolean) => setAdicionales((prev) => ({ ...prev, [id]: v }));
 
   const datos = inmueble ? inmueblesData[inmueble] : undefined;
@@ -1469,9 +1354,9 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
       asistenciaPrecio: asistencia.precio,
       asistenciaCategorias: asistencia.categorias,
       adicionales: adicionalesActivas.map((c) => ({ label: c.sidebarLabel, precio: c.precio })),
-      totalMensual,
+      totalAnual,
       fechaPago: fechaPagoStr,
-      proximoCobro: proximoCobroStr,
+      proximaRenovacion: proximaRenovacionStr,
       estado: "activa",
     });
     setPaso(3);
@@ -1491,13 +1376,17 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     [electronicosValor, enseresValor],
   );
 
-  const totalMensual = useMemo(
+  const totalAnual = useMemo(
     () => (plan?.precio ?? 0) + asistencia.precio + adicionalesActivas.reduce((sum, c) => sum + c.precio, 0),
     [plan, asistencia, adicionalesActivas],
   );
 
-  // Obligatorio siempre: quién es el usuario respecto al inmueble seleccionado.
-  const detallesCompletos = datos ? relacionInmueble !== "" : false;
+  // Obligatorio siempre: quién es el usuario respecto al inmueble seleccionado. Si el inmueble
+  // viene de Alquilando con datos incompletos, la API además exige tipo, años de construcción y m².
+  const detallesCompletos = datos
+    ? relacionInmueble !== "" &&
+      (datos.datosCompletos || (tipoInmueble !== "" && anoConstruccion !== "" && Number(metrosCuadradosInmueble) > 0))
+    : false;
   const objetosCompletos = Number(electronicosValor) > 0 && Number(enseresValor) > 0;
   const puedeContinuar = detallesCompletos && objetosCompletos;
 
@@ -1523,7 +1412,6 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   // Estado de los modales mobile del paso 1 (en desktop este contenido siempre va inline).
   // "Nuevo inmueble" reusa agregandoInmueble como flag de apertura del modal en mobile.
   const [detalleInmuebleAbierto, setDetalleInmuebleAbierto] = useState(false);
-  const [masDetallesAbiertos, setMasDetallesAbiertos] = useState(false);
 
   // Detalle del resumen, compartido entre el aside de desktop y la hoja desplegable de mobile.
   const resumenDetalle = (
@@ -1576,15 +1464,17 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
 
           <div className="flex flex-col gap-2">
             <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
-            <span className="body-bold" style={{ color: "var(--navy)" }}>Plan de suscripción</span>
+            <span className="body-bold" style={{ color: "var(--navy)" }}>{plan?.sugerido ? "Plan Sugerido" : "Tu plan"}</span>
             {plan ? (
               <>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{plan.nombre} Mensual</span>
+                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{plan.nombre}</span>
                   <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(plan.precio)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>Paquete de asistencias (Incluida)</span>
+                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
+                    {asistencia.nombre}{asistencia.precio === 0 ? " (incluido)" : ""}
+                  </span>
                   <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(asistencia.precio)}</span>
                 </div>
               </>
@@ -1595,19 +1485,18 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
 
           <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
           <div className="flex items-center justify-between gap-4">
-            <span className="body-bold" style={{ color: "var(--gray-10)" }}>Total:</span>
-            <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{formatCOPNumber(totalMensual)}</span>
+            <span className="body-bold" style={{ color: "var(--gray-10)" }}>Total anual (IVA incluido):</span>
+            <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{formatCOPNumber(totalAnual)}</span>
           </div>
-          <p className="disclamer" style={{ color: "var(--gray-8)", margin: 0 }}>IVA incluido.</p>
         </>
       )}
     </>
   );
 
   /** Suffix visual (m²) superpuesto sobre un TextInput, sin tocar el kit component. */
-  const metrosCuadradosInput = (
+  const metrosCuadradosInput = (value: string, onChange: (v: string) => void) => (
     <span className="relative inline-block w-full">
-      <TextInput placeholder="0" value={nuevoMetrosCuadrados} onChange={(v) => setNuevoMetrosCuadrados(v.replace(/\D/g, "").slice(0, 5))} className="w-full" />
+      <TextInput placeholder="0" value={value} onChange={(v) => onChange(v.replace(/\D/g, "").slice(0, 5))} className="w-full" />
       <span
         className="absolute body-small-regular pointer-events-none"
         style={{ right: 12, top: "50%", transform: "translateY(-50%)", color: "var(--gray-8)" }}
@@ -1639,8 +1528,17 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
         <Field label="Dirección" required>
           <TextInput placeholder="Ej: Cra 1 #1-21" value={nuevoDireccion} onChange={setNuevoDireccion} />
         </Field>
+        <Field label="Tipo de inmueble" required>
+          <SelectInput options={TIPO_INMUEBLE_OPTIONS} value={nuevoTipoInmueble} onChange={setNuevoTipoInmueble} placeholder="Seleccione una opción" className="w-full" />
+        </Field>
+        <Field label="Años de construcción" required>
+          <SelectInput options={ANOS_CONSTRUCCION_OPTIONS} value={nuevoAnoConstruccion} onChange={setNuevoAnoConstruccion} placeholder="Seleccione una opción" className="w-full" />
+        </Field>
+        <Field label="Zona" required>
+          <SelectInput options={ZONA_OPTIONS} value={nuevoZona} onChange={setNuevoZona} placeholder="Seleccione una opción" className="w-full" />
+        </Field>
         <Field label="Metros cuadrados de su vivienda" required>
-          {metrosCuadradosInput}
+          {metrosCuadradosInput(nuevoMetrosCuadrados, setNuevoMetrosCuadrados)}
         </Field>
         <Field label="Canon de arrendamiento (incluye administración si aplica)" required>
           <TextInput placeholder="$ 0" value={formatCOP(nuevoCanonArrendamiento)} onChange={(v) => setNuevoCanonArrendamiento(parseDigits(v))} />
@@ -1750,18 +1648,25 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                             key={opt.value}
                             role="radio"
                             aria-checked={selected}
+                            aria-disabled={d.polizaActiva}
+                            disabled={d.polizaActiva}
                             onClick={() => cambiarInmueble(opt.value)}
                             className="relative rounded-lg flex flex-col gap-3 text-left transition-colors"
                             style={{
-                              cursor: "pointer",
+                              cursor: d.polizaActiva ? "not-allowed" : "pointer",
                               padding: "16px 18px",
                               border: selected ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
                               backgroundColor: selected ? "var(--navy-light)" : "#ffffff",
+                              opacity: d.polizaActiva ? 0.6 : 1,
                             }}
-                            onMouseEnter={(e) => { if (!selected) e.currentTarget.style.borderColor = "var(--gray-6)"; }}
+                            onMouseEnter={(e) => { if (!selected && !d.polizaActiva) e.currentTarget.style.borderColor = "var(--gray-6)"; }}
                             onMouseLeave={(e) => { e.currentTarget.style.borderColor = selected ? "var(--navy)" : "var(--gray-4)"; }}
                           >
-                            {selected && (
+                            {d.polizaActiva ? (
+                              <span className="absolute" style={{ top: 14, right: 14 }}>
+                                <StatusBadge label="Póliza activa" variant="active" />
+                              </span>
+                            ) : selected && (
                               <CircleCheck size={18} strokeWidth={2} className="absolute" style={{ top: 14, right: 14, color: "var(--navy)" }} />
                             )}
                             <div className="flex items-center gap-3" style={{ paddingRight: 24 }}>
@@ -1776,6 +1681,11 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                                 <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{d.ciudad}</span>
                               </div>
                             </div>
+                            {d.polizaActiva && (
+                              <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>
+                                Este inmueble ya cuenta con una póliza de seguros.
+                              </span>
+                            )}
                             <hr className="w-full" style={{ borderColor: selected ? "rgba(0,0,0,0.08)" : "var(--gray-3)", margin: 0 }} />
                             <div className="flex items-center gap-6 flex-wrap">
                               <div className="flex flex-col">
@@ -1950,13 +1860,16 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                             key={opt.value}
                             role="radio"
                             aria-checked={selected}
+                            aria-disabled={d.polizaActiva}
+                            disabled={d.polizaActiva}
                             onClick={() => cambiarInmueble(opt.value)}
                             className="relative rounded-lg flex items-center gap-3 text-left transition-colors"
                             style={{
-                              cursor: "pointer",
+                              cursor: d.polizaActiva ? "not-allowed" : "pointer",
                               padding: "12px 14px",
                               border: selected ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
                               backgroundColor: selected ? "var(--navy-light)" : "#ffffff",
+                              opacity: d.polizaActiva ? 0.6 : 1,
                             }}
                           >
                             <div
@@ -1968,8 +1881,15 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                             <div className="flex flex-col min-w-0 flex-1 gap-1">
                               <span className="body-bold truncate" style={{ color: "var(--gray-10)" }}>{d.direccion}</span>
                               <span className="body-small-regular truncate" style={{ color: "var(--gray-9)" }}>{d.ciudad}</span>
+                              {d.polizaActiva && (
+                                <span className="disclamer" style={{ color: "var(--gray-8)" }}>
+                                  Este inmueble ya cuenta con una póliza de seguros.
+                                </span>
+                              )}
                             </div>
-                            {selected && (
+                            {d.polizaActiva ? (
+                              <StatusBadge label="Póliza activa" variant="active" />
+                            ) : selected && (
                               <CircleCheck size={18} strokeWidth={2} className="shrink-0" style={{ color: "var(--navy)" }} />
                             )}
                           </button>
@@ -2141,6 +2061,13 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                           : <StatusBadge label="Requerido" variant="pending" />}
                       </div>
 
+                      {!datos.datosCompletos && (
+                        <Callout variant="info" title="¿Por qué te pedimos esto?">
+                          Necesitamos estos datos para crear tu póliza: la aseguradora los usa para tasar el
+                          riesgo de tu inmueble.
+                        </Callout>
+                      )}
+
                       {/* Obligatorio para todo inmueble, sin importar si viene de Alquilando o fue agregado manualmente */}
                       <div className="grid grid-cols-2 gap-x-6 gap-y-4 max-sm:grid-cols-1">
                         <Field label="¿Quién eres respecto a este inmueble?" required>
@@ -2153,30 +2080,27 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                           />
                         </Field>
                         {!datos.datosCompletos && (
-                          <Field label="Tipo de inmueble">
-                            <TextInput value="Apartamento" disabled className="w-full" />
-                          </Field>
-                        )}
-                      </div>
-
-                      {!datos.datosCompletos && (
-                        <>
-                          {/* Campos opcionales: siempre visibles en desktop, plegados en mobile para acortar el paso */}
-                          <div className="md:hidden">
-                            <LinkText size="small" onClick={() => setMasDetallesAbiertos((v) => !v)}>
-                              {masDetallesAbiertos ? "Ocultar detalles opcionales" : "Agregar más detalles (opcional)"}
-                            </LinkText>
-                          </div>
-                          <div className={`grid grid-cols-2 gap-x-6 gap-y-4 max-sm:grid-cols-1 ${masDetallesAbiertos ? "" : "max-md:hidden"}`}>
-                            <Field label="Zona">
+                          <>
+                            {/* La API de la aseguradora exige estos campos para tasar el riesgo: no vienen en los
+                                datos originales de Alquilando cuando el inmueble está incompleto. */}
+                            <Field label="Tipo de inmueble" required>
+                              <SelectInput options={TIPO_INMUEBLE_OPTIONS} value={tipoInmueble} onChange={setTipoInmueble} placeholder="Seleccione una opción" className="w-full" />
+                            </Field>
+                            <Field label="Años de construcción" required>
+                              <SelectInput options={ANOS_CONSTRUCCION_OPTIONS} value={anoConstruccion} onChange={setAnoConstruccion} placeholder="Seleccione una opción" className="w-full" />
+                            </Field>
+                            <Field label="Metros cuadrados" required>
+                              {metrosCuadradosInput(metrosCuadradosInmueble, setMetrosCuadradosInmueble)}
+                            </Field>
+                            <Field label="Zona" required>
                               <SelectInput options={ZONA_OPTIONS} value={zona} onChange={setZona} className="w-full" />
                             </Field>
                             <Field label="Información adicional del inmueble">
                               <TextInput placeholder="Torre, piso, apto" value={infoAdicional} onChange={setInfoAdicional} className="w-full" />
                             </Field>
-                          </div>
-                        </>
-                      )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2211,10 +2135,10 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
               <PagoExitoso
                 plan={plan!}
                 asistencia={asistencia}
-                totalMensual={totalMensual}
+                totalAnual={totalAnual}
                 numeroPoliza={numeroPoliza}
                 fechaPago={fechaPagoStr}
-                proximoCobro={proximoCobroStr}
+                proximaRenovacion={proximaRenovacionStr}
                 onFinalizar={onFinalizar}
                 onVerSeguros={onBack}
               />
@@ -2368,7 +2292,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
               style={{ backgroundColor: "transparent", border: "none", cursor: "pointer", padding: 0 }}
             >
               <span className="disclamer flex items-center gap-1" style={{ color: "var(--gray-8)" }}>
-                {mStep === 0 ? "Inmueble a asegurar" : mStep === 1 ? "Total asegurado" : "Total mensual"}
+                {mStep === 0 ? "Inmueble a asegurar" : mStep === 1 ? "Total asegurado" : "Total anual"}
                 {resumenAbierto ? <ChevronDown size={13} strokeWidth={2} /> : <ChevronUp size={13} strokeWidth={2} />}
               </span>
               {mStep === 0 ? (
@@ -2377,7 +2301,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                 </span>
               ) : (
                 <span className="title-tertiary-bold flex items-center gap-1.5" style={{ color: "var(--navy)" }}>
-                  {mStep === 1 ? (total > 0 ? "$ " + total.toLocaleString("es-CO") : "$ 0") : formatCOPNumber(totalMensual)}
+                  {mStep === 1 ? (total > 0 ? "$ " + total.toLocaleString("es-CO") : "$ 0") : formatCOPNumber(totalAnual)}
                 </span>
               )}
               {mStep === 0 && faltantesInmueble.length > 0 && (

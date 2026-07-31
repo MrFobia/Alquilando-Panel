@@ -40,7 +40,7 @@ export function Stepper({ steps, current }: Props) {
           const done = i < current;
           const active = i === current;
           return (
-            <div key={step.id} className="flex items-start flex-1 max-w-[130px]">
+            <div key={step.id} className="flex items-start flex-1 max-w-[160px]">
               {i > 0 && (
                 <div
                   className="shrink-0 flex-1"
@@ -69,10 +69,13 @@ export function Stepper({ steps, current }: Props) {
                   {done ? <Check size={15} strokeWidth={2.5} /> : i + 1}
                 </div>
                 <span
-                  className="disclamer text-center truncate w-full"
+                  className="disclamer text-center w-full"
                   style={{
                     color: done || active ? "var(--navy)" : "var(--gray-8)",
                     fontWeight: active ? 600 : 400,
+                    whiteSpace: "normal",
+                    wordBreak: "break-word",
+                    lineHeight: 1.25,
                   }}
                 >
                   {step.label}

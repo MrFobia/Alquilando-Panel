@@ -434,7 +434,7 @@ const NOTIFICACIONES_INICIALES: Notificacion[] = [
     id: 1,
     categoria: "noticias",
     titulo: "Protege lo que más quieres con Seguro de Hogar.",
-    descripcion: "Asegura tus muebles, electrodomésticos y objetos de valor contra daños o robo desde $15.000/mes.",
+    descripcion: "Asegura tus muebles, electrodomésticos y objetos de valor contra daños o robo desde $822.943/año.",
     cta: "Adquirir Seguro de Hogar",
     accion: "cotizar-hogar",
     destacada: true,
@@ -588,7 +588,7 @@ function BannerSeguros({ onVerSeguros, polizas }: { onVerSeguros: () => void; po
           <h2 className="title-secondary" style={{ color: "#ffffff" }}>Vive tranquilo, vive asegurado.</h2>
           <p className="body-regular" style={{ color: "#ffffff", margin: 0, opacity: 0.92 }}>
             Asegura tus muebles, electrodomésticos y objetos de valor contra daños o robo desde solo{" "}
-            <span style={{ fontWeight: 700 }}>$15.000/mes</span>.
+            <span style={{ fontWeight: 700 }}>$822.943/año</span>.
           </p>
           <div>
             <button
@@ -612,7 +612,7 @@ function BannerSeguros({ onVerSeguros, polizas }: { onVerSeguros: () => void; po
     );
   }
 
-  const totalMensual = vigentes.reduce((sum, p) => sum + p.totalMensual, 0);
+  const totalAnual = vigentes.reduce((sum, p) => sum + p.totalAnual, 0);
   const enTramite = vigentes.some((p) => p.estado === "cancelacion-solicitada");
   const principal = vigentes[0];
 
@@ -658,8 +658,8 @@ function BannerSeguros({ onVerSeguros, polizas }: { onVerSeguros: () => void; po
             </span>
           </div>
           <div className="flex flex-col shrink-0" style={{ marginLeft: "auto" }}>
-            <span className="disclamer" style={{ color: "rgba(255,255,255,0.75)" }}>Pagas al mes</span>
-            <span className="title-tertiary-bold" style={{ color: "#ffffff" }}>{formatCOPNumber(totalMensual)}</span>
+            <span className="disclamer" style={{ color: "rgba(255,255,255,0.75)" }}>Pagas al año</span>
+            <span className="title-tertiary-bold" style={{ color: "#ffffff" }}>{formatCOPNumber(totalAnual)}</span>
           </div>
         </div>
 
@@ -765,7 +765,7 @@ const FAQS_SEGUROS = [
   { id: "s2", title: "¿Cómo cancelo mi póliza?", content: "Entra a Mis seguros, selecciona la póliza y elige “Solicitar cancelación”. Un asesor te contactará para completar el proceso; la póliza sigue activa mientras tanto." },
   { id: "s3", title: "¿Qué cubre cada seguro?", content: "Cada tarjeta en “Nuestros seguros” lista las coberturas incluidas. También puedes ver el detalle completo desde “Ver detalle” en tu póliza activa." },
   { id: "s4", title: "¿Cómo reporto un siniestro?", content: "Contáctanos por WhatsApp o llamada desde esta sección y cuéntanos qué pasó. Te guiamos con Seguros Bolívar para iniciar el reclamo." },
-  { id: "s5", title: "¿Cuándo se cobra mi seguro?", content: "El cobro se hace mensualmente en la fecha de “Próximo cobro” que ves en tu póliza, junto con tu canon de arriendo." },
+  { id: "s5", title: "¿Cuándo se cobra mi seguro?", content: "El cobro se hace una vez al año, en la fecha de “Próxima renovación” que ves en tu póliza." },
 ];
 
 function SeccionAyudaSeguros() {
@@ -795,7 +795,7 @@ const SEGUROS: {
     icon: Sofa,
     nombre: "Seguro de Hogar",
     descripcion: "Protege tus muebles, electrodomésticos y objetos de valor contra daños o robo.",
-    precio: "Desde $15.000/mes",
+    precio: "Desde $822.943/año",
     beneficios: ["Cobertura contra robo y daños", "Asistencia de plomería y cerrajería", "Responsabilidad civil familiar"],
     cta: "Cotizar seguro de hogar",
   },
@@ -971,8 +971,8 @@ function PolizaDetalleModal({
               <span className="body-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{poliza.fechaPago}</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Próximo cobro</span>
-              <span className="body-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{poliza.proximoCobro}</span>
+              <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Próxima renovación</span>
+              <span className="body-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{poliza.proximaRenovacion}</span>
             </div>
           </div>
 
@@ -1019,8 +1019,8 @@ function PolizaDetalleModal({
           <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
 
           <div className="flex items-center justify-between gap-4">
-            <span className="body-bold" style={{ color: "var(--gray-10)" }}>Total mensual:</span>
-            <span className="title-tertiary-bold" style={{ color: PURPLE }}>{formatCOPNumber(poliza.totalMensual)}</span>
+            <span className="body-bold" style={{ color: "var(--gray-10)" }}>Total anual:</span>
+            <span className="title-tertiary-bold" style={{ color: PURPLE }}>{formatCOPNumber(poliza.totalAnual)}</span>
           </div>
 
           {poliza.estado === "activa" && (
@@ -1104,9 +1104,9 @@ function MisPolizas({ polizas, onCancelar }: { polizas: PolizaComprada[]; onCanc
                     style={{ height: 34, width: "auto", opacity: cancelada ? 0.5 : 1 }}
                   />
                   <div className="flex flex-col items-end">
-                    <span className="body-bold" style={{ color: cancelada ? "var(--gray-8)" : PURPLE }}>{formatCOPNumber(p.totalMensual)}/mes</span>
+                    <span className="body-bold" style={{ color: cancelada ? "var(--gray-8)" : PURPLE }}>{formatCOPNumber(p.totalAnual)}/año</span>
                     <span className="disclamer" style={{ color: "var(--gray-8)" }}>
-                      {cancelada ? `Solicitada el ${p.fechaSolicitudCancelacion}` : `Próximo cobro: ${p.proximoCobro}`}
+                      {cancelada ? `Solicitada el ${p.fechaSolicitudCancelacion}` : `Próxima renovación: ${p.proximaRenovacion}`}
                     </span>
                   </div>
                 </div>

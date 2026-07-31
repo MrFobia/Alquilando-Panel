@@ -10,10 +10,14 @@ export interface AccordionItemData {
 interface Props {
   items: AccordionItemData[];
   openAll?: boolean;
+  /** Ids que arrancan desplegados. El usuario los puede cerrar: solo define el estado inicial. */
+  defaultOpenIds?: string[];
 }
 
-export function Accordion({ items, openAll = false }: Props) {
-  const [open, setOpen] = useState<Record<string, boolean>>({});
+export function Accordion({ items, openAll = false, defaultOpenIds }: Props) {
+  const [open, setOpen] = useState<Record<string, boolean>>(
+    () => Object.fromEntries((defaultOpenIds ?? []).map((id) => [id, true])),
+  );
   const toggle = (id: string) => setOpen((prev) => ({ ...prev, [id]: !prev[id] }));
 
   return (
