@@ -1,9 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TextInput } from "./kit/TextInput";
 import { SelectInput } from "./kit/SelectInput";
 import { DateInput } from "./kit/DateInput";
 import { ToggleSwitch } from "./kit/ToggleSwitch";
 import { FileDropzone } from "./kit/FileDropzone";
+import { Field } from "./kit/Field";
+import { SubHeading } from "./kit/SubHeading";
+import { SectionCard } from "./kit/SectionCard";
+import { Radio } from "./kit/Radio";
+import type { PersonaRecord } from "../store/AppDataContext";
 
 const TIPO_PERSONA_OPTIONS = ["Persona Natural", "Persona Jurídica"].map((v) => ({ value: v, label: v }));
 const TIPO_DOCUMENTO_NATURAL_OPTIONS = ["Cédula de ciudadanía", "Cédula de extranjería", "Pasaporte"].map((v) => ({ value: v, label: v }));
@@ -21,21 +26,6 @@ function calcEdad(fecha: string): string {
   return años >= 0 ? String(años) : "";
 }
 
-function Field({ label, required, full, children }: { label: string; required?: boolean; full?: boolean; children: React.ReactNode }) {
-  return (
-    <label className={`flex flex-col gap-1.5 ${full ? "col-span-2 max-lg:col-span-1" : ""}`}>
-      <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>
-        {label}{required && <span style={{ color: "var(--destructive)" }}> *</span>}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function SubHeading({ children }: { children: React.ReactNode }) {
-  return <span className="body-bold" style={{ color: "var(--navy)" }}>{children}</span>;
-}
-
 interface Persona {
   tipoPersona: string;
   tipoDocumento: string; numeroDocumento: string; ciudadExpedicion: string; fechaNacimiento: string;
@@ -50,6 +40,14 @@ const PERSONA_VACIA: Persona = {
   primerNombre: "", segundoNombre: "", primerApellido: "", segundoApellido: "",
   razonSocial: "", nombreRepLegal: "",
   telefono: "", celular: "", correo: "", ciudadNacimiento: "", genero: "", direccion: "", preferenciaContacto: "",
+};
+
+const isPersonaValid = (p: Persona) => {
+  const esJuridica = p.tipoPersona === "Persona Jurídica";
+  const base = !!(p.tipoPersona && p.tipoDocumento && p.numeroDocumento && p.ciudadExpedicion &&
+    p.celular && p.correo && p.direccion && p.preferenciaContacto);
+  if (esJuridica) return base && !!(p.razonSocial && p.nombreRepLegal);
+  return base && !!(p.primerNombre && p.primerApellido && p.ciudadNacimiento && p.genero);
 };
 
 function PersonaFields({ value, onChange }: { value: Persona; onChange: (patch: Partial<Persona>) => void }) {
@@ -104,7 +102,7 @@ function PersonaFields({ value, onChange }: { value: Persona; onChange: (patch: 
         <Field label={esJuridica ? "Celular del representante legal" : "Celular"} required><TextInput placeholder="Escriba aquí" value={value.celular} onChange={(v) => onChange({ celular: v })} className="w-full" /></Field>
         <Field label={esJuridica ? "Correo del representante legal" : "Correo electrónico"} required><TextInput placeholder="Escriba aquí" value={value.correo} onChange={(v) => onChange({ correo: v })} className="w-full" /></Field>
         <Field label="Dirección correspondencia" required><TextInput placeholder="Escriba aquí" value={value.direccion} onChange={(v) => onChange({ direccion: v })} className="w-full" /></Field>
-        <Field label="Preferencia de contacto" required full><SelectInput options={PREFERENCIA_CONTACTO_OPTIONS} value={value.preferenciaContacto} onChange={(v) => onChange({ preferenciaContacto: v })} className="max-w-xs" /></Field>
+        <Field label="Preferencia de contacto" required><SelectInput options={PREFERENCIA_CONTACTO_OPTIONS} value={value.preferenciaContacto} onChange={(v) => onChange({ preferenciaContacto: v })} className="w-full" /></Field>
       </div>
 
       {!esJuridica && (
@@ -123,7 +121,27 @@ function PersonaFields({ value, onChange }: { value: Persona; onChange: (patch: 
   );
 }
 
-export function PasoInquilino() {
+export interface InquilinoData {
+  origen: "existente" | "nuevo";
+  existenteId?: string;
+  nombre: string;
+  tipoDocumento: string;
+  numeroDocumento: string;
+  correo: string;
+  telefono: string;
+  direccion: string;
+}
+
+interface Props {
+  onValidityChange?: (valid: boolean) => void;
+  onDataChange?: (data: InquilinoData) => void;
+  existentes?: PersonaRecord[];
+}
+
+export function PasoInquilino({ onValidityChange, onDataChange, existentes = [] }: Props = {}) {
+  const [origen, setOrigen] = useState<"existente" | "nuevo">("nuevo");
+  const [existenteId, setExistenteId] = useState("");
+  const inquilinoExistente = existentes.find((p) => p.id === existenteId);
   const [inquilino, setInquilino] = useState<Persona>(PERSONA_VACIA);
   const updateInquilino = (patch: Partial<Persona>) => setInquilino((p) => ({ ...p, ...patch }));
 
@@ -135,18 +153,58 @@ export function PasoInquilino() {
   const [numeroPoliza, setNumeroPoliza] = useState("");
   const [archivosEstudio, setArchivosEstudio] = useState<File[]>([]);
 
-  return (
-    <section
-      className="rounded-lg flex flex-col gap-6"
-      style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "24px 28px" }}
-    >
-      <span className="subtitle" style={{ color: "var(--navy)" }}>Información del inquilino</span>
-      <hr style={{ borderColor: "var(--gray-5)", margin: 0 }} />
+  const inquilinoValido = origen === "existente" ? !!existenteId : isPersonaValid(inquilino);
+  const valido = inquilinoValido && (!tieneDeudor || isPersonaValid(deudor)) && !!aseguradora;
+  useEffect(() => { onValidityChange?.(valido); }, [valido, onValidityChange]);
 
-      <div className="flex flex-col gap-4">
-        <SubHeading>Datos del inquilino</SubHeading>
-        <PersonaFields value={inquilino} onChange={updateInquilino} />
-      </div>
+  useEffect(() => {
+    onDataChange?.({
+      origen,
+      existenteId: existenteId || undefined,
+      nombre: origen === "existente" ? (inquilinoExistente?.nombre ?? "") : `${inquilino.primerNombre} ${inquilino.primerApellido}`.trim() || inquilino.razonSocial,
+      tipoDocumento: origen === "existente" ? (inquilinoExistente?.tipoDocumento ?? "") : inquilino.tipoDocumento,
+      numeroDocumento: origen === "existente" ? (inquilinoExistente?.numeroDocumento ?? "") : inquilino.numeroDocumento,
+      correo: origen === "existente" ? (inquilinoExistente?.correo ?? "") : inquilino.correo,
+      telefono: origen === "existente" ? (inquilinoExistente?.telefono ?? "") : (inquilino.celular || inquilino.telefono),
+      direccion: origen === "existente" ? (inquilinoExistente?.direccion ?? "") : inquilino.direccion,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [origen, existenteId, inquilino]);
+
+  return (
+    <SectionCard title="Información del inquilino" padding="24px 28px">
+      {existentes.length > 0 && (
+        <div className="flex items-center gap-6">
+          <Radio checked={origen === "existente"} onChange={() => setOrigen("existente")} label="Inquilino existente" />
+          <Radio checked={origen === "nuevo"} onChange={() => setOrigen("nuevo")} label="Inquilino nuevo" />
+        </div>
+      )}
+
+      {origen === "existente" ? (
+        <div className="flex flex-col gap-4">
+          <Field label="Selecciona el inquilino" required>
+            <SelectInput
+              options={existentes.map((p) => ({ value: p.id, label: `${p.nombre} — ${p.numeroDocumento}` }))}
+              value={existenteId}
+              onChange={setExistenteId}
+              className="max-w-md"
+            />
+          </Field>
+          {inquilinoExistente && (
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2 rounded-lg max-lg:grid-cols-1" style={{ backgroundColor: "var(--gray-1)", padding: 16 }}>
+              <span className="body-small-regular" style={{ color: "var(--gray-8)" }}><b>Documento:</b> {inquilinoExistente.tipoDocumento} {inquilinoExistente.numeroDocumento}</span>
+              <span className="body-small-regular" style={{ color: "var(--gray-8)" }}><b>Correo:</b> {inquilinoExistente.correo}</span>
+              <span className="body-small-regular" style={{ color: "var(--gray-8)" }}><b>Teléfono:</b> {inquilinoExistente.telefono}</span>
+              <span className="body-small-regular" style={{ color: "var(--gray-8)" }}><b>Dirección:</b> {inquilinoExistente.direccion}</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <SubHeading>Datos del inquilino</SubHeading>
+          <PersonaFields value={inquilino} onChange={updateInquilino} />
+        </div>
+      )}
 
       <hr style={{ borderColor: "var(--gray-5)", margin: 0 }} />
 
@@ -181,6 +239,6 @@ export function PasoInquilino() {
           />
         </Field>
       </div>
-    </section>
+    </SectionCard>
   );
 }

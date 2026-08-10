@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowLeft, Image as ImageIcon, Star, MapPin, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Image as ImageIcon, Star, MapPin, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { BackButton } from "./kit/BackButton";
 import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
 import { StatusBadge } from "./kit/StatusBadge";
@@ -9,6 +10,8 @@ import { EmptyState } from "./kit/EmptyState";
 import { FileDropzone } from "./kit/FileDropzone";
 import { TextInput } from "./kit/TextInput";
 import { Callout } from "./kit/Callout";
+import { SectionCard } from "./kit/SectionCard";
+import { Textarea } from "./kit/Textarea";
 
 const MIN_FOTOS = 12;
 const DESCRIPCION_INICIAL =
@@ -36,16 +39,6 @@ interface Props {
   onBack: () => void;
 }
 
-function SectionCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <section
-      className={`rounded-lg flex flex-col gap-4 ${className}`}
-      style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: 16 }}
-    >
-      {children}
-    </section>
-  );
-}
 
 function SectionHeader({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
@@ -145,13 +138,7 @@ export function InmuebleDetalle({ inmueble, onBack }: Props) {
 
   return (
     <div className="flex flex-col gap-5">
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 body-bold w-fit"
-        style={{ cursor: "pointer", color: "var(--navy)", background: "transparent" }}
-      >
-        <ArrowLeft size={16} /> Volver
-      </button>
+      <BackButton onClick={onBack} />
 
       <section
         className="rounded-lg flex items-start justify-between gap-4 flex-wrap"
@@ -227,20 +214,7 @@ export function InmuebleDetalle({ inmueble, onBack }: Props) {
 
                   <div className="flex flex-col gap-2">
                     <span className="body-bold" style={{ color: "var(--gray-10)" }}>Descripción</span>
-                    <textarea
-                      value={descripcion}
-                      onChange={(e) => setDescripcion(e.target.value)}
-                      rows={4}
-                      className="body-regular w-full"
-                      style={{
-                        border: "1px solid var(--gray-5)",
-                        borderRadius: "var(--radius-md)",
-                        padding: 12,
-                        color: "var(--gray-10)",
-                        outline: "none",
-                        resize: "vertical",
-                      }}
-                    />
+                    <Textarea value={descripcion} onChange={setDescripcion} rows={4} />
                   </div>
 
                   <div className="flex flex-col gap-2">

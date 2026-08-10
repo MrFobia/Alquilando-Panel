@@ -22,6 +22,8 @@ import type { InmuebleData } from "./components/InmuebleDetalle";
 import { FloatingChat } from "./components/FloatingChat";
 import { Login } from "./components/Login";
 import { PortalInquilino } from "./components/PortalInquilino";
+import { ConfirmExitModal } from "./components/kit/ConfirmExitModal";
+import { AppDataProvider } from "./store/AppDataContext";
 
 type Page = "dashboard" | "styleguide" | "login" | "portal-inquilino";
 
@@ -40,6 +42,14 @@ const SECTION_TITLES: Record<string, string> = {
 };
 
 export default function App() {
+  return (
+    <AppDataProvider>
+      <AppInner />
+    </AppDataProvider>
+  );
+}
+
+function AppInner() {
   const [page, setPage] = useState<Page>("login");
   const [active, setActive] = useState("inicio");
   const [selectedBroker, setSelectedBroker] = useState<BrokerRow | null>(null);
@@ -65,7 +75,15 @@ export default function App() {
   const [pendingInactivate, setPendingInactivate] = useState<BrokerRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  const [exitGuard, setExitGuard] = useState<{ onSave: () => void; onDiscard: () => void } | null>(null);
+  const [pendingNav, setPendingNav] = useState<(() => void) | null>(null);
+
+  const attemptNav = (fn: () => void) => { if (exitGuard) setPendingNav(() => fn); else fn(); };
+
   const goToSection = (id: string) => { setActive(id); setSelectedBroker(null); setSelectedBrokerInterno(null); setSelectedInmueble(null); };
+  const goToSectionGuarded = (id: string) => attemptNav(() => goToSection(id));
+  const goToStyleGuideGuarded = () => attemptNav(() => setPage("styleguide"));
+  const goToLogoutGuarded = () => attemptNav(() => setPage("login"));
 
   const handleApproveBroker = () => {
     if (!selectedBroker) return;
@@ -111,9 +129,9 @@ export default function App() {
     >
       <AppSidebar
         active={active}
-        onSelect={goToSection}
-        onStyleGuide={() => setPage("styleguide")}
-        onLogout={() => setPage("login")}
+        onSelect={goToSectionGuarded}
+        onStyleGuide={goToStyleGuideGuarded}
+        onLogout={goToLogoutGuarded}
       />
       <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
         <div className="px-4 md:px-8 py-6 max-w-[1400px] mx-auto">
@@ -122,11 +140,11 @@ export default function App() {
             selectedInmueble ? (
               <InmuebleDetalle inmueble={selectedInmueble} onBack={() => setSelectedInmueble(null)} />
             ) : (
-              <InmueblesComercializacion onViewInmueble={setSelectedInmueble} />
+              <InmueblesComercializacion onViewInmueble={setSelectedInmueble} onDirtyChange={setExitGuard} />
             )
           )}
           {active === "mesa-ayuda" && <MesaAyuda />}
-          {active === "contratos" && <Contratos />}
+          {active === "contratos" && <Contratos onDirtyChange={setExitGuard} />}
           {active === "inmuebles-administracion" && <InmueblesAdministracion />}
           {active === "inventarios" && <Inventarios />}
           {active === "inquilinos" && <Inquilinos />}
@@ -201,6 +219,12 @@ export default function App() {
       </main>
       {toast && <Toast message={toast} description="El estado se actualizó en la lista de brokers." onClose={() => setToast(null)} />}
       {active === "mesa-ayuda" && <FloatingChat />}
+      <ConfirmExitModal
+        open={!!pendingNav}
+        onCancel={() => setPendingNav(null)}
+        onSaveExit={() => { exitGuard?.onSave(); const fn = pendingNav; setPendingNav(null); setExitGuard(null); fn?.(); }}
+        onDiscard={() => { exitGuard?.onDiscard(); const fn = pendingNav; setPendingNav(null); setExitGuard(null); fn?.(); }}
+      />
     </div>
   );
 }

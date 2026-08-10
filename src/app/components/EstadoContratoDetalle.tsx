@@ -1,6 +1,7 @@
-import { ArrowLeft, DollarSign, Barcode, Download } from "lucide-react";
+import { DollarSign, Barcode, Download } from "lucide-react";
+import { BackButton } from "./kit/BackButton";
 import { AppButton } from "./kit/AppButton";
-import { LinkText } from "./kit/LinkText";
+import { SectionCard } from "./kit/SectionCard";
 import { StatusBadge } from "./kit/StatusBadge";
 import { ProgressBar } from "./kit/ProgressBar";
 import { EmptyState } from "./kit/EmptyState";
@@ -48,34 +49,10 @@ const CUOTAS_COLUMNS = [
   { key: "valor", header: "Valor", align: "right" as const },
 ];
 
-function SectionCard({
-  title, link, headerExtra, children,
-}: { title: string; link?: { label: string; onClick: () => void }; headerExtra?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <section className="rounded-lg flex flex-col gap-4" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "20px 24px" }}>
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <span className="subtitle" style={{ color: "var(--navy)" }}>{title}</span>
-        <div className="flex items-center gap-4">
-          {link && <LinkText icon="chevron" onClick={link.onClick}>{link.label}</LinkText>}
-          {headerExtra}
-        </div>
-      </div>
-      <hr style={{ borderColor: "var(--gray-5)", margin: 0 }} />
-      {children}
-    </section>
-  );
-}
-
 export function EstadoContratoDetalle({ onBack }: Props) {
   return (
     <div className="flex flex-col gap-5">
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 body-bold w-fit"
-        style={{ cursor: "pointer", color: "var(--navy)", background: "transparent" }}
-      >
-        <ArrowLeft size={16} /> Volver
-      </button>
+      <BackButton onClick={onBack} />
 
       <section
         className="rounded-lg flex items-start justify-between gap-4 flex-wrap"
@@ -93,6 +70,7 @@ export function EstadoContratoDetalle({ onBack }: Props) {
         <SectionCard
           title="Estado de cuenta"
           link={{ label: "Ver historial de pagos", onClick: () => {} }}
+          padding="20px 24px"
         >
           <div
             className="rounded-lg flex flex-col gap-4"
@@ -164,7 +142,7 @@ export function EstadoContratoDetalle({ onBack }: Props) {
         </SectionCard>
 
         <div className="flex flex-col gap-5">
-          <SectionCard title="Contrato" link={{ label: "Ver información del contrato", onClick: () => {} }}>
+          <SectionCard title="Contrato" link={{ label: "Ver información del contrato", onClick: () => {} }} padding="20px 24px">
             <div className="flex items-center justify-between gap-4">
               <span className="body-regular" style={{ color: "var(--gray-9)" }}>Estado del contrato</span>
               <StatusBadge label="En ejecucion" variant="active" />
@@ -185,7 +163,7 @@ export function EstadoContratoDetalle({ onBack }: Props) {
             </div>
           </SectionCard>
 
-          <SectionCard title="Solicitudes" link={{ label: "Ver todas", onClick: () => {} }}>
+          <SectionCard title="Solicitudes" link={{ label: "Ver todas", onClick: () => {} }} padding="20px 24px">
             <EmptyState
               title="Todo está en orden. Si tienes algún problema o inquietud, no dudes en abrir una nueva solicitud."
               description="En Alquilando, cuando no pasa nada, también es buena señal."

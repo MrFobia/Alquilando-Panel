@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowLeft, Plus, ImagePlus, Trash2, ListPlus, Image as ImageIcon } from "lucide-react";
+import { Plus, ImagePlus, Trash2, ListPlus, Image as ImageIcon } from "lucide-react";
+import { BackButton } from "./kit/BackButton";
 import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
 import { SelectInput } from "./kit/SelectInput";
@@ -8,6 +9,7 @@ import { FileDropzone } from "./kit/FileDropzone";
 import { StatusBadge } from "./kit/StatusBadge";
 import { CollapsiblePanel } from "./kit/CollapsiblePanel";
 import { Footer } from "./kit/Footer";
+import { Textarea } from "./kit/Textarea";
 import type { NuevoInventario } from "./CrearInventarioModal";
 import { titleCase } from "./CrearInventarioModal";
 
@@ -216,14 +218,7 @@ function AmbientePanel({
               </div>
               <label className="flex flex-col gap-1.5">
                 <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>Notas</span>
-                <textarea
-                  value={spec.notas}
-                  placeholder="Escriba aquí"
-                  rows={2}
-                  onChange={(e) => setSpec((p) => ({ ...p, notas: e.target.value }))}
-                  className="body-regular w-full"
-                  style={{ border: "1px solid var(--gray-5)", borderRadius: "var(--radius-md)", padding: 12, color: "var(--gray-10)", outline: "none", resize: "vertical", backgroundColor: "#ffffff" }}
-                />
+                <Textarea value={spec.notas} placeholder="Escriba aquí" rows={2} onChange={(v) => setSpec((p) => ({ ...p, notas: v }))} />
               </label>
               <div className="flex items-center justify-end gap-3">
                 <LinkText onClick={() => setSpecOpen(false)}>Cancelar</LinkText>
@@ -371,13 +366,7 @@ export function InventarioDetalle({ inventario, onBack }: Props) {
 
   return (
     <div className="flex flex-col gap-5">
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 body-bold w-fit"
-        style={{ cursor: "pointer", color: "var(--navy)", background: "transparent" }}
-      >
-        <ArrowLeft size={16} /> Volver
-      </button>
+      <BackButton onClick={onBack} />
 
       {/* Header */}
       <section
@@ -463,14 +452,7 @@ export function InventarioDetalle({ inventario, onBack }: Props) {
 
         <label className="flex flex-col gap-1.5">
           <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>Nueva nota</span>
-          <textarea
-            value={nuevaNota}
-            placeholder="Escriba aquí"
-            rows={3}
-            onChange={(e) => setNuevaNota(e.target.value)}
-            className="body-regular w-full"
-            style={{ border: "1px solid var(--gray-5)", borderRadius: "var(--radius-md)", padding: 12, color: "var(--gray-10)", outline: "none", resize: "vertical", backgroundColor: "#ffffff" }}
-          />
+          <Textarea value={nuevaNota} placeholder="Escriba aquí" rows={3} onChange={setNuevaNota} />
         </label>
         <div className="flex justify-end">
           <AppButton variant="primary" bold disabled={!nuevaNota.trim()} onClick={agregarNota}>

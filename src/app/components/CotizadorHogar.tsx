@@ -15,6 +15,7 @@ import { LinkText } from "./kit/LinkText";
 import { ToggleSwitch } from "./kit/ToggleSwitch";
 import { Callout } from "./kit/Callout";
 import { Accordion } from "./kit/Accordion";
+import { Field } from "./kit/Field";
 import logoSegurosBolivar from "../../assets/logo-seguros-bolivar.png";
 
 /**
@@ -22,19 +23,6 @@ import logoSegurosBolivar from "../../assets/logo-seguros-bolivar.png";
  * Usa solo tokens (--navy, --navy-light…): dentro del portal renderiza púrpura,
  * sin tocar los colores del panel de inmobiliaria.
  */
-
-/** Campo de formulario con el mismo patrón de labels del panel (CrearContrato). */
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1.5">
-      <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>
-        {label}{required && <span style={{ color: "var(--destructive)" }}> *</span>}
-      </span>
-      {children}
-    </label>
-  );
-}
-
 const PASOS = [
   { id: "configura", label: "Selecciona tu inmueble" },
   { id: "arma", label: "Arma tu plan" },

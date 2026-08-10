@@ -8,9 +8,10 @@ interface Props {
   onClear?: () => void;
   className?: string;
   disabled?: boolean;
+  error?: boolean;
 }
 
-export function TextInput({ placeholder, value, onChange, onEnter, onClear, className = "", disabled = false }: Props) {
+export function TextInput({ placeholder, value, onChange, onEnter, onClear, className = "", disabled = false, error = false }: Props) {
   const clearable = !!onClear && !!value && !disabled;
   return (
     <span className={`relative inline-block ${className}`}>
@@ -23,17 +24,17 @@ export function TextInput({ placeholder, value, onChange, onEnter, onClear, clas
         onKeyDown={(e) => { if (e.key === "Enter") onEnter?.(); }}
         className="body-regular w-full"
         style={{
-          border: "1px solid var(--gray-5)",
+          border: `${error ? "1.5px" : "1px"} solid ${error ? "var(--red-status)" : "var(--gray-5)"}`,
           borderRadius: "var(--radius-md)",
           padding: clearable ? "0 36px 0 12px" : "0 12px",
           height: 40,
           color: disabled ? "var(--gray-7)" : "var(--gray-10)",
-          backgroundColor: disabled ? "var(--gray-2)" : "#ffffff",
+          backgroundColor: disabled ? "var(--gray-2)" : error ? "var(--red-status-light)" : "#ffffff",
           outline: "none",
           cursor: disabled ? "not-allowed" : undefined,
         }}
-        onFocus={(e) => { if (!disabled) e.currentTarget.style.borderColor = "var(--navy)"; }}
-        onBlur={(e) => { e.currentTarget.style.borderColor = "var(--gray-5)"; }}
+        onFocus={(e) => { if (!disabled && !error) e.currentTarget.style.borderColor = "var(--navy)"; }}
+        onBlur={(e) => { e.currentTarget.style.borderColor = error ? "var(--red-status)" : "var(--gray-5)"; }}
       />
       {clearable && (
         <button

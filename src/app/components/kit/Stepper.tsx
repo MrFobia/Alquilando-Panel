@@ -1,18 +1,32 @@
-import { Check } from "lucide-react";
+import { Check, AlertTriangle } from "lucide-react";
 
 export interface StepItem {
   id: string;
   label: string;
 }
 
+export type StepStatus = "complete" | "incomplete";
+
 interface Props {
   steps: StepItem[];
-  /** Index of the step currently in progress. Steps before it render as completed. */
+  /** Index of the step currently in progress. Steps before it render as visited. */
   current: number;
+  /** Per-step completion for steps already visited (index < current). */
+  status?: StepStatus[];
+  /** Furthest step index the user has reached — steps up to here stay clickable in both directions. Defaults to `current`. */
+  maxReached?: number;
+  /** Called when the user clicks an already-visited step (or the current one) to jump there. */
+  onStepClick?: (index: number) => void;
 }
 
-export function Stepper({ steps, current }: Props) {
+export function Stepper({ steps, current, status = [], maxReached = current, onStepClick }: Props) {
   const progressPct = (current / (steps.length - 1)) * 100;
+
+  const colorFor = (i: number) => {
+    if (i === current) return "var(--navy)";
+    if (i < current) return status[i] === "incomplete" ? "var(--orange-status)" : "var(--green-status)";
+    return null;
+  };
 
   return (
     <>
@@ -39,6 +53,9 @@ export function Stepper({ steps, current }: Props) {
         {steps.map((step, i) => {
           const done = i < current;
           const active = i === current;
+          const incomplete = done && status[i] === "incomplete";
+          const color = colorFor(i);
+          const clickable = i <= maxReached && !!onStepClick;
           return (
             <div key={step.id} className="flex items-start flex-1 max-w-[160px]">
               {i > 0 && (
@@ -52,26 +69,32 @@ export function Stepper({ steps, current }: Props) {
                   }}
                 />
               )}
-              <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+              <button
+                type="button"
+                onClick={clickable ? () => onStepClick?.(i) : undefined}
+                disabled={!clickable}
+                className="flex flex-col items-center gap-1.5 flex-1 min-w-0"
+                style={{ background: "transparent", border: "none", padding: 0, cursor: clickable ? "pointer" : "default" }}
+              >
                 <div
                   className="flex items-center justify-center rounded-full shrink-0"
                   style={{
                     width: 28,
                     height: 28,
-                    backgroundColor: done || active ? "var(--navy)" : "#ffffff",
-                    border: `1.5px solid ${done || active ? "var(--navy)" : "var(--gray-6)"}`,
+                    backgroundColor: done || active ? color! : "#ffffff",
+                    border: `1.5px solid ${done || active ? color : "var(--gray-6)"}`,
                     color: done || active ? "#ffffff" : "var(--gray-8)",
                     fontSize: 13,
                     fontWeight: 600,
                     transition: "all 0.3s",
                   }}
                 >
-                  {done ? <Check size={15} strokeWidth={2.5} /> : i + 1}
+                  {done ? (incomplete ? <AlertTriangle size={13} strokeWidth={2.5} /> : <Check size={15} strokeWidth={2.5} />) : i + 1}
                 </div>
                 <span
                   className="disclamer text-center w-full"
                   style={{
-                    color: done || active ? "var(--navy)" : "var(--gray-8)",
+                    color: done || active ? (incomplete ? "var(--orange-status)" : "var(--navy)") : "var(--gray-8)",
                     fontWeight: active ? 600 : 400,
                     whiteSpace: "normal",
                     wordBreak: "break-word",
@@ -80,7 +103,7 @@ export function Stepper({ steps, current }: Props) {
                 >
                   {step.label}
                 </span>
-              </div>
+              </button>
             </div>
           );
         })}

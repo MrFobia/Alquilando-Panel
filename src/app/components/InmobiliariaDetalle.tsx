@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowLeft, ChevronRight, Bell } from "lucide-react";
+import { ChevronRight, Bell } from "lucide-react";
+import { BackButton } from "./kit/BackButton";
 import { PieChart, Pie, Cell } from "recharts";
 import { AppButton } from "./kit/AppButton";
 import { SelectInput } from "./kit/SelectInput";
@@ -78,13 +79,7 @@ export function InmobiliariaDetalle({ inmobiliaria, onBack }: Props) {
 
   return (
     <div className="flex flex-col gap-5">
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 body-bold w-fit"
-        style={{ cursor: "pointer", color: "var(--navy)", background: "transparent" }}
-      >
-        <ArrowLeft size={16} /> Volver
-      </button>
+      <BackButton onClick={onBack} />
 
       {/* Header */}
       <section

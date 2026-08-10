@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowLeft, Mail, Phone, MessageCircle, Eye, FileText } from "lucide-react";
+import { Mail, Phone, MessageCircle, Eye, FileText } from "lucide-react";
+import { BackButton } from "./kit/BackButton";
 import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
 import { StatusBadge } from "./kit/StatusBadge";
@@ -9,22 +10,12 @@ import { DataTable } from "./kit/DataTable";
 import { IconButton } from "./kit/IconButton";
 import { EmptyState } from "./kit/EmptyState";
 import { Footer } from "./kit/Footer";
+import { SectionCard } from "./kit/SectionCard";
 import type { InquilinoRow } from "./Inquilinos";
 
 interface Props {
   inquilino: InquilinoRow;
   onBack: () => void;
-}
-
-function SectionCard({ children }: { children: React.ReactNode }) {
-  return (
-    <section
-      className="rounded-lg flex flex-col gap-4"
-      style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "20px 24px" }}
-    >
-      {children}
-    </section>
-  );
 }
 
 function SectionHeader({ title, right }: { title: string; right?: React.ReactNode }) {
@@ -91,13 +82,7 @@ export function InquilinoDetalle({ inquilino, onBack }: Props) {
 
   return (
     <div className="flex flex-col gap-5">
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 body-bold w-fit"
-        style={{ cursor: "pointer", color: "var(--navy)", background: "transparent" }}
-      >
-        <ArrowLeft size={16} /> Volver
-      </button>
+      <BackButton onClick={onBack} />
 
       {/* ── Encabezado con avatar y contacto rápido ───────────────────── */}
       <section
@@ -125,7 +110,7 @@ export function InquilinoDetalle({ inquilino, onBack }: Props) {
       </section>
 
       {/* ── Información general ────────────────────────────────────────── */}
-      <SectionCard>
+      <SectionCard padding="20px 24px">
         <SectionHeader title="Información general" />
 
         <GroupDivider>Identificación</GroupDivider>
@@ -165,7 +150,7 @@ export function InquilinoDetalle({ inquilino, onBack }: Props) {
       </SectionCard>
 
       {/* ── Actualizar datos de contacto ──────────────────────────────── */}
-      <SectionCard>
+      <SectionCard padding="20px 24px">
         <SectionHeader
           title="Actualizar datos de contacto"
           right={
@@ -195,19 +180,19 @@ export function InquilinoDetalle({ inquilino, onBack }: Props) {
       </SectionCard>
 
       {/* ── Notas del usuario ──────────────────────────────────────────── */}
-      <SectionCard>
+      <SectionCard padding="20px 24px">
         <SectionHeader title="Notas del usuario" />
         <EmptyState title="No hay notas disponibles" description="Aún no se han registrado notas para este inquilino." />
       </SectionCard>
 
       {/* ── Contratos ──────────────────────────────────────────────────── */}
-      <SectionCard>
+      <SectionCard padding="20px 24px">
         <SectionHeader title="Contratos" />
         <DataTable columns={CONTRATO_COLUMNS} rows={contratos} />
       </SectionCard>
 
       {/* ── Documentos del usuario ─────────────────────────────────────── */}
-      <SectionCard>
+      <SectionCard padding="20px 24px">
         <SectionHeader title="Documentos del usuario" />
         <div
           className="flex flex-col items-center gap-2 rounded-lg text-center"

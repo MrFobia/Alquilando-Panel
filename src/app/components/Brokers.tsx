@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Filter, Eye, MessageCircle } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Cell, LabelList } from "recharts";
 import { PageHeader } from "./kit/PageHeader";
 import { AppButton } from "./kit/AppButton";
 import { MetricsRow } from "./kit/MetricsRow";
+import { BrokersComparativaChart } from "./BrokersComparativa";
 import { TabBar } from "./kit/TabBar";
 import { DataTable } from "./kit/DataTable";
 import { StatusBadge } from "./kit/StatusBadge";
@@ -107,6 +109,61 @@ const METRICS = [
   { label: "Inactivos / Rechazados", value: "34" },
 ];
 
+function useContainerWidth() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setWidth(el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return { ref, width };
+}
+
+const ZONA_COLORS: Record<string, string> = {
+  "Bogotá": "var(--navy)",
+  Caribe: "var(--orange-status)",
+};
+
+function contratosPorZona(rows: BrokerRow[]) {
+  const conteo = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.zona) continue;
+    conteo.set(r.zona, (conteo.get(r.zona) ?? 0) + Number(r.contratos ?? 0));
+  }
+  return [...conteo.entries()]
+    .sort(([, a], [, b]) => b - a)
+    .map(([name, value]) => ({ name, value, color: ZONA_COLORS[name] ?? "var(--gray-8)" }));
+}
+
+function ZonaChart({ data }: { data: { name: string; value: number; color: string }[] }) {
+  const { ref, width } = useContainerWidth();
+  return (
+    <section
+      className="rounded-lg flex flex-col"
+      style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "20px 24px" }}
+    >
+      <h3 className="subtitle" style={{ color: "var(--navy)", marginBottom: 16 }}>Contratos de brokers activos por zona</h3>
+      <div ref={ref} style={{ width: "100%" }}>
+        {width > 0 && (
+          <BarChart width={width} height={230} data={data} margin={{ top: 24, right: 10, left: -20, bottom: 0 }}>
+            <XAxis dataKey="name" tick={{ fontSize: 12, fill: "var(--gray-8)", fontFamily: "Roboto" }} axisLine={{ stroke: "var(--gray-5)" }} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "var(--gray-8)", fontFamily: "Roboto" }} axisLine={false} tickLine={false} label={{ value: "Contratos", angle: -90, position: "insideLeft", offset: 25, style: { fontSize: 11, fill: "var(--gray-9)", fontFamily: "Roboto" } }} />
+            <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={64}>
+              {data.map((d) => <Cell key={d.name} fill={d.color} />)}
+              <LabelList dataKey="value" position="top" style={{ fill: "var(--navy)", fontSize: 12, fontFamily: "Roboto", fontWeight: 700 }} />
+            </Bar>
+          </BarChart>
+        )}
+      </div>
+    </section>
+  );
+}
+
 interface Props {
   onViewBroker: (broker: BrokerRow) => void;
   pendingApprove?: BrokerRow | null;
@@ -200,6 +257,11 @@ export function Brokers({ onViewBroker, pendingApprove, pendingInactivate, onPen
       />
 
       <MetricsRow metrics={METRICS} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <BrokersComparativaChart />
+        <ZonaChart data={contratosPorZona(activosRows)} />
+      </div>
 
       <TabBar tabs={TABS} active={tab} onChange={changeTab} />
 

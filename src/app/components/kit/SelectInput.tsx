@@ -11,9 +11,10 @@ interface Props {
   onChange?: (value: string) => void;
   placeholder?: string;
   className?: string;
+  error?: boolean;
 }
 
-export function SelectInput({ options, value = "", onChange, placeholder = "Seleccione", className = "" }: Props) {
+export function SelectInput({ options, value = "", onChange, placeholder = "Seleccione", className = "", error = false }: Props) {
   return (
     <span className={`relative inline-block ${className}`}>
       <select
@@ -21,20 +22,20 @@ export function SelectInput({ options, value = "", onChange, placeholder = "Sele
         onChange={(e) => onChange?.(e.target.value)}
         className="body-regular w-full"
         style={{
-          border: "1px solid var(--gray-5)",
+          border: `${error ? "1.5px" : "1px"} solid ${error ? "var(--red-status)" : "var(--gray-5)"}`,
           borderRadius: "var(--radius-md)",
           padding: "0 36px 0 12px",
           height: 40,
           color: value ? "var(--gray-10)" : "var(--gray-7)",
-          backgroundColor: "#ffffff",
+          backgroundColor: error ? "var(--red-status-light)" : "#ffffff",
           outline: "none",
           cursor: "pointer",
           appearance: "none",
           WebkitAppearance: "none",
           MozAppearance: "none",
         }}
-        onFocus={(e) => { e.currentTarget.style.borderColor = "var(--navy)"; }}
-        onBlur={(e) => { e.currentTarget.style.borderColor = "var(--gray-5)"; }}
+        onFocus={(e) => { if (!error) e.currentTarget.style.borderColor = "var(--navy)"; }}
+        onBlur={(e) => { e.currentTarget.style.borderColor = error ? "var(--red-status)" : "var(--gray-5)"; }}
       >
         <option value="" disabled>{placeholder}</option>
         {options.map((o) => (

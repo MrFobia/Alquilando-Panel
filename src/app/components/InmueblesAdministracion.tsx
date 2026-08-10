@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Filter, Eye } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Cell, LabelList, PieChart, Pie, Tooltip } from "recharts";
 import { PageHeader } from "./kit/PageHeader";
 import { AppButton } from "./kit/AppButton";
+import { MetricsRow } from "./kit/MetricsRow";
 import { DataTable } from "./kit/DataTable";
 import { StatusBadge } from "./kit/StatusBadge";
 import { IconButton } from "./kit/IconButton";
@@ -14,6 +16,110 @@ import { InmuebleDetalle } from "./InmuebleDetalle";
 import type { InmuebleData } from "./InmuebleDetalle";
 
 const PAGE_SIZE = 10;
+
+function useContainerWidth() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setWidth(el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return { ref, width };
+}
+
+const vencimientoData = [
+  { name: "0-30 dias", value: 9, color: "var(--red-status)" },
+  { name: "31–60 días", value: 14, color: "var(--orange-status)" },
+  { name: "61–90 días", value: 22, color: "var(--violeta)" },
+  { name: "+90 días", value: 125, color: "var(--navy)" },
+];
+
+const inmobiliariaData = [
+  { name: "Alquilando sas", value: 92, color: "var(--navy)" },
+  { name: "C&m", value: 58, color: "var(--orange-status)" },
+  { name: "Izban", value: 24, color: "var(--violeta)" },
+  { name: "Alquilando Caribe", value: 13, color: "var(--green-status)" },
+];
+
+const zonasData = [
+  { name: "Norte", value: 61, color: "var(--navy)" },
+  { name: "Occidente", value: 47, color: "var(--orange-status)" },
+  { name: "Norocciden", value: 24, color: "var(--violeta)" },
+  { name: "Bogota", value: 15, color: "#EC4899" },
+  { name: "Centro", value: 8, color: "var(--green-status)" },
+  { name: "Sur", value: 9, color: "#795548" },
+  { name: "Noroccidente", value: 6, color: "var(--red-status)" },
+];
+
+const CHART_CARD_HEIGHT = 320;
+
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section
+      className="rounded-lg flex flex-col"
+      style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "20px 24px", height: CHART_CARD_HEIGHT }}
+    >
+      <h3 className="subtitle" style={{ color: "var(--navy)", marginBottom: 16 }}>{title}</h3>
+      <div className="flex-1 min-h-0 flex flex-col justify-center">{children}</div>
+    </section>
+  );
+}
+
+function VencimientoChart() {
+  const { ref, width } = useContainerWidth();
+  return (
+    <ChartCard title="Vencimiento de contratos">
+      <div ref={ref} style={{ width: "100%" }}>
+        {width > 0 && (
+          <BarChart width={width} height={230} data={vencimientoData} margin={{ top: 24, right: 10, left: -20, bottom: 0 }}>
+            <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--gray-8)", fontFamily: "Roboto" }} axisLine={{ stroke: "var(--gray-5)" }} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "var(--gray-8)", fontFamily: "Roboto" }} axisLine={false} tickLine={false} label={{ value: "Contratos", angle: -90, position: "insideLeft", offset: 25, style: { fontSize: 11, fill: "var(--gray-9)", fontFamily: "Roboto" } }} />
+            <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={64}>
+              {vencimientoData.map((d) => <Cell key={d.name} fill={d.color} />)}
+              <LabelList dataKey="value" position="top" style={{ fill: "var(--navy)", fontSize: 12, fontFamily: "Roboto", fontWeight: 700 }} />
+            </Bar>
+          </BarChart>
+        )}
+      </div>
+    </ChartCard>
+  );
+}
+
+function PieChartCard({ title, data }: { title: string; data: typeof inmobiliariaData }) {
+  const { ref, width } = useContainerWidth();
+  return (
+    <ChartCard title={title}>
+      <div className="flex items-center gap-6">
+        <div ref={ref} style={{ width: 160, flexShrink: 0 }}>
+          {width > 0 && (
+            <PieChart width={160} height={160}>
+              <Pie data={data} cx="50%" cy="50%" outerRadius={68} dataKey="value" isAnimationActive={false}>
+                {data.map((d) => <Cell key={d.name} fill={d.color} />)}
+              </Pie>
+              <Tooltip contentStyle={{ borderRadius: "var(--radius-md)", borderWidth: 1, borderStyle: "solid", borderColor: "var(--gray-4)", backgroundColor: "#ffffff", fontFamily: "Roboto", fontSize: 12 }} />
+            </PieChart>
+          )}
+        </div>
+        <div className="grid grid-cols-1 gap-y-3 flex-1 min-w-0">
+          {data.map((d) => (
+            <div key={d.name} className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="shrink-0 rounded-sm" style={{ width: 12, height: 12, backgroundColor: d.color }} />
+                <span className="body-bold truncate" style={{ color: "var(--navy)" }}>{d.name}</span>
+              </div>
+              <span className="body-regular" style={{ color: "var(--gray-10)" }}>{d.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </ChartCard>
+  );
+}
 
 interface InmuebleRow {
   id: string;
@@ -106,6 +212,42 @@ export function InmueblesAdministracion() {
         title="Inmuebles en administración"
         description="Administra y revisa todos tus inmuebles de manera fácil y rápida."
       />
+
+      <MetricsRow
+        metrics={[
+          { label: "Inmuebles en administración", value: "187" },
+          { label: "Arrendados", value: "170" },
+          { label: "Desocupados", value: "17" },
+          {
+            label: "Tasa de ocupación",
+            breakdown: [
+              { value: "91 %", label: "Ocupado" },
+              { value: "9 %", label: "Vacante" },
+            ],
+          },
+        ]}
+      />
+
+      <MetricsRow
+        metrics={[
+          { label: "Recaudo del mes", value: "94 %", showEye: true },
+          {
+            label: "Cartera en mora",
+            breakdown: [
+              { value: "12", label: "Inmuebles" },
+              { value: "$48,2M", label: "Monto" },
+            ],
+          },
+          { label: "Contratos por vencer (30 días)", value: "9" },
+          { label: "Solicitudes abiertas", value: "23", showEye: true },
+        ]}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-6 gap-5">
+        <div className="lg:col-span-2"><VencimientoChart /></div>
+        <div className="lg:col-span-2"><PieChartCard title="Distribución por inmobiliaria" data={inmobiliariaData} /></div>
+        <div className="lg:col-span-2"><PieChartCard title="Distribución por zona" data={zonasData} /></div>
+      </div>
 
       <section
         className="rounded-lg flex flex-col gap-5"

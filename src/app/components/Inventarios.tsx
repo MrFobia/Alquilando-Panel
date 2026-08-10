@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2, Eye } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Cell, LabelList } from "recharts";
 import { PageHeader } from "./kit/PageHeader";
 import { AppButton } from "./kit/AppButton";
+import { MetricsRow } from "./kit/MetricsRow";
 import { DataTable } from "./kit/DataTable";
 import { IconButton } from "./kit/IconButton";
 import { Pagination } from "./kit/Pagination";
@@ -10,6 +12,21 @@ import { CrearInventarioModal } from "./CrearInventarioModal";
 import type { NuevoInventario } from "./CrearInventarioModal";
 import { InventarioDetalle } from "./InventarioDetalle";
 import { InventarioGuia } from "./InventarioGuia";
+
+function useContainerWidth() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setWidth(el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return { ref, width };
+}
 
 interface InventarioRow {
   codigo: string;
@@ -90,6 +107,49 @@ const COLUMNS = [
   { key: "opciones", header: "Opciones", width: 100 },
 ];
 
+const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+function volumenPorMes(rows: InventarioRow[]) {
+  const conteo = new Map<string, number>();
+  for (const r of rows) {
+    const d = new Date(r.fechaCreacion.replace(" ", "T"));
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    conteo.set(key, (conteo.get(key) ?? 0) + 1);
+  }
+  return [...conteo.entries()]
+    .sort(([a], [b]) => (a > b ? 1 : -1))
+    .slice(-6)
+    .map(([key, value]) => {
+      const [year, month] = key.split("-").map(Number);
+      return { name: `${MESES[month]} ${year}`, value };
+    });
+}
+
+function VolumenChart({ rows }: { rows: InventarioRow[] }) {
+  const { ref, width } = useContainerWidth();
+  const data = volumenPorMes(rows);
+  return (
+    <section
+      className="rounded-lg flex flex-col"
+      style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "20px 24px" }}
+    >
+      <h3 className="subtitle" style={{ color: "var(--navy)", marginBottom: 16 }}>Inventarios creados por mes</h3>
+      <div ref={ref} style={{ width: "100%" }}>
+        {width > 0 && (
+          <BarChart width={width} height={230} data={data} margin={{ top: 24, right: 10, left: -20, bottom: 0 }}>
+            <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--gray-8)", fontFamily: "Roboto" }} axisLine={{ stroke: "var(--gray-5)" }} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "var(--gray-8)", fontFamily: "Roboto" }} axisLine={false} tickLine={false} label={{ value: "Inventarios", angle: -90, position: "insideLeft", offset: 25, style: { fontSize: 11, fill: "var(--gray-9)", fontFamily: "Roboto" } }} />
+            <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={64}>
+              {data.map((d) => <Cell key={d.name} fill="var(--navy)" />)}
+              <LabelList dataKey="value" position="top" style={{ fill: "var(--navy)", fontSize: 12, fontFamily: "Roboto", fontWeight: 700 }} />
+            </Bar>
+          </BarChart>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function Inventarios() {
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState(ALL_ROWS);
@@ -108,6 +168,17 @@ export function Inventarios() {
     ]);
     setSelected(data);
   };
+
+  const sinCodigo = rows.filter((r) => r.codigo === "-").length;
+  const fechas = rows.map((r) => new Date(r.fechaCreacion.replace(" ", "T")).getTime());
+  const maxFecha = new Date(Math.max(...fechas));
+  const creadosMes = rows.filter((r) => {
+    const d = new Date(r.fechaCreacion.replace(" ", "T"));
+    return d.getFullYear() === maxFecha.getFullYear() && d.getMonth() === maxFecha.getMonth();
+  }).length;
+  const minFecha = new Date(Math.min(...fechas));
+  const semanas = Math.max(1, Math.round((maxFecha.getTime() - minFecha.getTime()) / (7 * 24 * 60 * 60 * 1000)));
+  const promedioSemanal = (rows.length / semanas).toFixed(1);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -136,6 +207,17 @@ export function Inventarios() {
       />
 
       <InventarioGuia />
+
+      <MetricsRow
+        metrics={[
+          { label: "Inventarios registrados", value: String(rows.length) },
+          { label: "Sin código de inmueble asignado", value: String(sinCodigo) },
+          { label: "Creados este mes", value: String(creadosMes) },
+          { label: "Promedio semanal", value: promedioSemanal },
+        ]}
+      />
+
+      <VolumenChart rows={rows} />
 
       <section
         className="rounded-lg flex flex-col gap-4"

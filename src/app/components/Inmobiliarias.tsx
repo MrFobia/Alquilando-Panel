@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Filter, Eye } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, LabelList } from "recharts";
 import { PageHeader } from "./kit/PageHeader";
 import { AppButton } from "./kit/AppButton";
+import { MetricsRow } from "./kit/MetricsRow";
 import { DataTable } from "./kit/DataTable";
 import { IconButton } from "./kit/IconButton";
 import { TextInput } from "./kit/TextInput";
@@ -9,6 +11,21 @@ import { SelectInput } from "./kit/SelectInput";
 import { EmptyState } from "./kit/EmptyState";
 import { Footer } from "./kit/Footer";
 import { InmobiliariaDetalle } from "./InmobiliariaDetalle";
+
+function useContainerWidth() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setWidth(el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return { ref, width };
+}
 
 export interface InmobiliariaRow {
   nombre: string;
@@ -45,6 +62,37 @@ const SEARCH_OPTIONS = [
   { value: "correo", label: "Correo" },
 ];
 
+const contratosTotales = ROWS.reduce((sum, r) => sum + Number(r.contratos), 0);
+const finalizadosTotales = ROWS.reduce((sum, r) => sum + Number(r.finalizados), 0);
+const pctFinalizacion = Math.round((finalizadosTotales / contratosTotales) * 100);
+const tasaPromedio = (ROWS.reduce((sum, r) => sum + parseFloat(r.tasa), 0) / ROWS.length).toFixed(1);
+
+function ContratosChart() {
+  const { ref, width } = useContainerWidth();
+  const data = [...ROWS]
+    .sort((a, b) => Number(b.contratos) - Number(a.contratos))
+    .map((r) => ({ name: r.nombre, value: Number(r.contratos) }));
+  return (
+    <section
+      className="rounded-lg flex flex-col"
+      style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "20px 24px" }}
+    >
+      <h3 className="subtitle" style={{ color: "var(--navy)", marginBottom: 16 }}>Contratos por inmobiliaria aliada</h3>
+      <div ref={ref} style={{ width: "100%" }}>
+        {width > 0 && (
+          <BarChart width={width} height={240} data={data} margin={{ top: 24, right: 10, left: -20, bottom: 40 }}>
+            <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--gray-8)", fontFamily: "Roboto" }} axisLine={{ stroke: "var(--gray-5)" }} tickLine={false} angle={-25} textAnchor="end" interval={0} height={60} />
+            <YAxis tick={{ fontSize: 11, fill: "var(--gray-8)", fontFamily: "Roboto" }} axisLine={false} tickLine={false} label={{ value: "Contratos", angle: -90, position: "insideLeft", offset: 25, style: { fontSize: 11, fill: "var(--gray-9)", fontFamily: "Roboto" } }} />
+            <Bar dataKey="value" fill="var(--navy)" radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={56}>
+              <LabelList dataKey="value" position="top" style={{ fill: "var(--navy)", fontSize: 12, fontFamily: "Roboto", fontWeight: 700 }} />
+            </Bar>
+          </BarChart>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function Inmobiliarias() {
   const [selected, setSelected] = useState<InmobiliariaRow | null>(null);
   const [searchBy, setSearchBy] = useState("");
@@ -79,6 +127,17 @@ export function Inmobiliarias() {
         description="Gestiona la red de inmobiliarias aliadas y su desempeño comercial."
         actions={<AppButton variant="primary" bold>Agregar nueva inmobiliaria</AppButton>}
       />
+
+      <MetricsRow
+        metrics={[
+          { label: "Inmobiliarias aliadas", value: String(ROWS.length) },
+          { label: "Contratos gestionados", value: String(contratosTotales) },
+          { label: "Tasa de finalización", value: `${pctFinalizacion} %` },
+          { label: "Comisión promedio", value: `${tasaPromedio} %` },
+        ]}
+      />
+
+      <ContratosChart />
 
       <section
         className="rounded-lg flex flex-col gap-5"

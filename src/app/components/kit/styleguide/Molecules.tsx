@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, MessageCircle, Home, Building2, LayoutGrid, List } from "lucide-react";
+import { Eye, MessageCircle, Home, Building2, LayoutGrid, List, CreditCard, Banknote } from "lucide-react";
 import { Stepper } from "../Stepper";
 import { DocumentCard } from "../DocumentCard";
 import { FileDropzone } from "../FileDropzone";
@@ -18,6 +18,21 @@ import { IconButton } from "../IconButton";
 import { SegmentedControl } from "../SegmentedControl";
 import { MonthRangePicker } from "../MonthRangePicker";
 import { StatCard } from "../StatCard";
+import { CurrencyInput } from "../CurrencyInput";
+import { DateInput } from "../DateInput";
+import { CollapsiblePanel } from "../CollapsiblePanel";
+import { PaymentOptionCard } from "../PaymentOptionCard";
+import { QuantityStepper } from "../QuantityStepper";
+import { Skeleton } from "../Skeleton";
+import { BackButton } from "../BackButton";
+import { Field } from "../Field";
+import { SubHeading } from "../SubHeading";
+import { SectionCard } from "../SectionCard";
+import { Checkbox } from "../Checkbox";
+import { Radio } from "../Radio";
+import { Textarea } from "../Textarea";
+import { TagInput } from "../TagInput";
+import { ConfirmExitModal } from "../ConfirmExitModal";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="title-tertiary-bold mb-6 pb-2 border-b" style={{ color: "var(--navy)", borderColor: "var(--gray-5)" }}>{children}</h3>;
@@ -92,6 +107,46 @@ function ViewToggleDemo() {
   );
 }
 
+function QuantityStepperDemo() {
+  const [value, setValue] = useState(2);
+  return <QuantityStepper value={value} onChange={setValue} min={1} max={10} />;
+}
+
+function CheckboxDemo() {
+  const [checked, setChecked] = useState(true);
+  return <Checkbox checked={checked} onChange={setChecked} label="Duplex" />;
+}
+
+function RadioDemo() {
+  const [value, setValue] = useState<"existente" | "nuevo">("existente");
+  return (
+    <div className="flex items-center gap-6">
+      <Radio checked={value === "existente"} onChange={() => setValue("existente")} label="Propietario existente" />
+      <Radio checked={value === "nuevo"} onChange={() => setValue("nuevo")} label="Propietario nuevo" />
+    </div>
+  );
+}
+
+function TextareaDemo() {
+  const [value, setValue] = useState("Sala independiente, salón comedor, …");
+  return <Textarea value={value} onChange={setValue} rows={3} />;
+}
+
+function TagInputDemo() {
+  const [tags, setTags] = useState(["Sala independiente", "Salón comedor"]);
+  return <TagInput value={tags} onChange={setTags} placeholder="Escribe y separa con coma…" />;
+}
+
+function ConfirmExitModalDemo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <AppButton variant="secondary" bold onClick={() => setOpen(true)}>Simular salida de un wizard</AppButton>
+      <ConfirmExitModal open={open} onCancel={() => setOpen(false)} onSaveExit={() => setOpen(false)} onDiscard={() => setOpen(false)} />
+    </>
+  );
+}
+
 export function Molecules() {
   return (
     <div className="space-y-16">
@@ -152,6 +207,62 @@ export function Molecules() {
         </Block>
         <Block title="Selector de rango de meses (MonthRangePicker)">
           <MonthRangePicker />
+        </Block>
+        <Block title="Campo de moneda (CurrencyInput)">
+          <div className="grid grid-cols-2 gap-4 max-w-xl">
+            <div>
+              <p className="tags mb-1" style={{ color: "var(--gray-9)" }}>Normal</p>
+              <CurrencyInput placeholder="Canon mensual" className="w-full" />
+            </div>
+            <div>
+              <p className="tags mb-1" style={{ color: "var(--gray-9)" }}>Con valor</p>
+              <CurrencyInput value="1456900" onChange={() => {}} className="w-full" />
+            </div>
+          </div>
+        </Block>
+        <Block title="Campo de fecha (DateInput)">
+          <div className="grid grid-cols-2 gap-4 max-w-xl">
+            <div>
+              <p className="tags mb-1" style={{ color: "var(--gray-9)" }}>Normal</p>
+              <DateInput className="w-full" />
+            </div>
+            <div>
+              <p className="tags mb-1" style={{ color: "var(--gray-9)" }}>Con valor</p>
+              <DateInput value="2026-08-05" onChange={() => {}} className="w-full" />
+            </div>
+          </div>
+        </Block>
+        <Block title="Contador de cantidad (QuantityStepper)">
+          <QuantityStepperDemo />
+        </Block>
+        <Block title="Campo con etiqueta (Field)">
+          <div className="grid grid-cols-2 gap-4 max-w-xl">
+            <Field label="Número de documento" required>
+              <TextInput placeholder="Escriba aquí" className="w-full" />
+            </Field>
+            <Field label="Correo electrónico" required error>
+              <TextInput placeholder="Escriba aquí" className="w-full" error />
+            </Field>
+          </div>
+        </Block>
+        <Block title="Casilla de verificación (Checkbox)">
+          <CheckboxDemo />
+        </Block>
+        <Block title="Opción de radio (Radio)">
+          <RadioDemo />
+        </Block>
+        <Block title="Área de texto (Textarea)">
+          <div className="max-w-xl">
+            <TextareaDemo />
+          </div>
+        </Block>
+        <Block title="Entrada de etiquetas (TagInput)">
+          <div className="max-w-xl">
+            <TagInputDemo />
+          </div>
+          <p className="body-small-regular mt-2" style={{ color: "var(--gray-9)" }}>
+            Escribe texto y presiona coma o Enter para convertirlo en etiqueta.
+          </p>
         </Block>
       </div>
 
@@ -288,6 +399,91 @@ export function Molecules() {
         <p className="body-small-regular mt-4" style={{ color: "var(--gray-9)" }}>
           El tooltip se renderiza en un portal (<span className="tags" style={{ color: "var(--gray-8)" }}>createPortal</span>) para no recortarse dentro de contenedores con scroll, como las tablas.
         </p>
+      </div>
+
+      {/* Section card */}
+      <div>
+        <SectionTitle>Tarjeta de sección (SectionCard)</SectionTitle>
+        <div className="flex flex-col gap-4 max-w-2xl">
+          <SectionCard title="Datos generales">
+            <SubHeading>Distribución</SubHeading>
+            <p className="body-regular" style={{ color: "var(--gray-9)" }}>Con título: encabezado + separador incluidos.</p>
+          </SectionCard>
+          <SectionCard>
+            <p className="body-regular" style={{ color: "var(--gray-9)" }}>Sin título: solo el contenedor con borde y padding.</p>
+          </SectionCard>
+        </div>
+        <p className="body-small-regular mt-4" style={{ color: "var(--gray-9)" }}>
+          Acepta <span className="tags" style={{ color: "var(--gray-8)" }}>link</span> y <span className="tags" style={{ color: "var(--gray-8)" }}>headerExtra</span> en el encabezado, y <span className="tags" style={{ color: "var(--gray-8)" }}>padding</span> personalizado.
+        </p>
+      </div>
+
+      {/* Confirm exit modal */}
+      <div>
+        <SectionTitle>Confirmación de salida (ConfirmExitModal)</SectionTitle>
+        <ConfirmExitModalDemo />
+        <p className="body-small-regular mt-4" style={{ color: "var(--gray-9)" }}>
+          Se muestra al intentar salir de un wizard sin finalizar (botón Volver o navegación a otra sección). Ofrece Guardar y salir, Eliminar o Cancelar.
+        </p>
+      </div>
+
+      {/* Collapsible panel */}
+      <div>
+        <SectionTitle>Panel colapsable (CollapsiblePanel)</SectionTitle>
+        <div className="max-w-2xl flex flex-col gap-4">
+          <CollapsiblePanel title="Características del edificio" defaultOpen>
+            <p className="body-regular" style={{ color: "var(--gray-9)" }}>Contenido expandido: materiales, parqueaderos, seguridad, zonas comunes.</p>
+          </CollapsiblePanel>
+          <CollapsiblePanel title="Documentos adicionales">
+            <p className="body-regular" style={{ color: "var(--gray-9)" }}>Contenido colapsado por defecto.</p>
+          </CollapsiblePanel>
+        </div>
+      </div>
+
+      {/* Payment option card */}
+      <div>
+        <SectionTitle>Tarjeta de opción de pago (PaymentOptionCard)</SectionTitle>
+        <div className="grid grid-cols-2 gap-4 max-w-2xl">
+          <PaymentOptionCard
+            icon={CreditCard}
+            title="Pago con tarjeta"
+            description="Paga el canon mensual con tarjeta débito o crédito."
+            actionLabel="Seleccionar"
+            onAction={() => {}}
+          />
+          <PaymentOptionCard
+            icon={Banknote}
+            title="Pago con PSE"
+            description="Transferencia directa desde tu banco."
+            actionLabel="Seleccionar"
+            actionVariant="primary"
+            onAction={() => {}}
+            badge={<span className="tags" style={{ color: "var(--green-status)" }}>Recomendado</span>}
+          />
+        </div>
+      </div>
+
+      {/* Back button */}
+      <div>
+        <SectionTitle>Botón de volver (BackButton)</SectionTitle>
+        <div className="flex gap-6 flex-wrap items-center">
+          <BackButton onClick={() => {}} />
+          <BackButton onClick={() => {}}>Volver a Brokers</BackButton>
+        </div>
+        <p className="body-small-regular mt-4" style={{ color: "var(--gray-9)" }}>
+          Usado como navegación superior en todas las páginas de detalle y en los wizards de creación.
+        </p>
+      </div>
+
+      {/* Skeleton */}
+      <div>
+        <SectionTitle>Estado de carga (Skeleton)</SectionTitle>
+        <div className="flex flex-col gap-3 max-w-md">
+          <Skeleton width={180} height={20} />
+          <Skeleton height={14} />
+          <Skeleton height={14} width="80%" />
+          <Skeleton height={80} radius="var(--radius-lg)" />
+        </div>
       </div>
     </div>
   );

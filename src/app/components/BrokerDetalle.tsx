@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowLeft, MessageCircle, CheckCircle2, Eye } from "lucide-react";
+import { MessageCircle, CheckCircle2, Eye } from "lucide-react";
+import { BackButton } from "./kit/BackButton";
 import { IconButton } from "./kit/IconButton";
 import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
@@ -12,6 +13,7 @@ import { FileDropzone } from "./kit/FileDropzone";
 import { ProgressBar } from "./kit/ProgressBar";
 import { Footer } from "./kit/Footer";
 import { MetricsRow } from "./kit/MetricsRow";
+import { SectionCard } from "./kit/SectionCard";
 import { DataTable } from "./kit/DataTable";
 import { TabBar } from "./kit/TabBar";
 import { Modal } from "./kit/Modal";
@@ -108,17 +110,6 @@ interface Props {
   desempenoInterno?: { contratosMes: string; contratosAno: string; cumplimiento: number };
 }
 
-function SectionCard({ children, padding = 24, className = "" }: { children: React.ReactNode; padding?: number; className?: string }) {
-  return (
-    <section
-      className={`rounded-lg flex flex-col gap-4 ${className}`}
-      style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding }}
-    >
-      {children}
-    </section>
-  );
-}
-
 function SectionHeader({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -198,13 +189,7 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
 
   return (
     <div className="flex flex-col gap-5">
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 body-bold w-fit"
-        style={{ cursor: "pointer", color: "var(--navy)", background: "transparent" }}
-      >
-        <ArrowLeft size={16} /> Volver a Brokers
-      </button>
+      <BackButton onClick={onBack}>Volver a Brokers</BackButton>
 
       <section
         className="rounded-lg flex items-start justify-between gap-4 flex-wrap"
@@ -266,7 +251,7 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
             onChange={setBrokerTab}
           />
 
-          <SectionCard>
+          <SectionCard padding={24}>
             <SectionHeader
               title={BROKER_TAB_TITLES[brokerTab]}
               right={brokerTab === "perfil" ? <LinkText icon="chevron">Editar</LinkText> : undefined}
@@ -388,7 +373,7 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
           </SectionCard>
         </>
       ) : (
-        <SectionCard>
+        <SectionCard padding={24}>
           <SectionHeader title="Datos del Postulante" right={<LinkText icon="chevron">Editar</LinkText>} />
           <hr style={{ borderColor: "var(--gray-5)", margin: 0 }} />
 
@@ -451,7 +436,7 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
       {!isActiveBroker && (
       <>
       {/* ── Paso 2: Documentos ─────────────────────────────────────────── */}
-      <SectionCard>
+      <SectionCard padding={24}>
         <SectionHeader
           title="Documentos cargados en la postulación"
           right={
@@ -497,7 +482,7 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
       </SectionCard>
 
       {/* ── Paso 3: Antecedentes ───────────────────────────────────────── */}
-      <SectionCard>
+      <SectionCard padding={24}>
         <SectionHeader
           title="Validación de Antecedentes"
           right={
@@ -539,7 +524,7 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
 
       {/* ── Pasos 4 y 5 ────────────────────────────────────────────────── */}
       <div className="flex gap-6 flex-wrap items-stretch">
-        <SectionCard className="flex-1 min-w-[300px]">
+        <SectionCard padding={24} className="flex-1 min-w-[300px]">
           <SectionHeader
             title="Formalización de Vinculación"
             right={
@@ -573,7 +558,7 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
           </div>
         </SectionCard>
 
-        <SectionCard className="flex-1 min-w-[300px]">
+        <SectionCard padding={24} className="flex-1 min-w-[300px]">
           <SectionHeader
             title="Tutoriales y Capacitación"
             right={

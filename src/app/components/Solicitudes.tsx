@@ -11,6 +11,8 @@ import { SelectInput } from "./kit/SelectInput";
 import { EmptyState } from "./kit/EmptyState";
 import { Footer } from "./kit/Footer";
 import { SolicitudDetalle } from "./SolicitudDetalle";
+import { CrearSolicitudModal } from "./CrearSolicitudModal";
+import type { NuevaSolicitudData } from "./CrearSolicitudModal";
 
 export interface Solicitud {
   titulo: string;
@@ -55,7 +57,7 @@ function Meta({ icon: Icon, label, value }: { icon: typeof MapPin; label: string
   );
 }
 
-const ACTIVAS: Solicitud[] = [
+const ACTIVAS_SEED: Solicitud[] = [
   { titulo: "Negociación #81929", codigo: "3988", fecha: "2026-06-19 19:27:13", direccion: "Kr 100 23h 22 in 17 ap 301", estado: "Inicio" },
   { titulo: "Inm 3988 - generación de códigos de barras #81929", codigo: "3988", fecha: "2026-06-19 19:27:13", direccion: "Kr 100 23h 22 in 17 ap 301", estado: "Inicio" },
   { titulo: "Inm 3997 generación código de barras #81927", codigo: "3997", fecha: "2026-06-19 18:16:05", direccion: "Pie de la popa ed. plaza 22 apt. 208 cra...", estado: "Inicio" },
@@ -87,19 +89,7 @@ const VENCIDAS: Solicitud[] = [
   { titulo: "2688 prueba de vencidas facturación 44387", codigo: "2688", fecha: "2025-07-16 09:31:23", direccion: "Cl 103 a # 17-36 ap 506", estado: "Cierre final eu" },
 ];
 
-const DATA_TOTALS = { activas: 296, cerradas: 10044, vencidas: 3 };
-
-const DATA: Record<string, { rows: Solicitud[]; total: number }> = {
-  activas: { rows: ACTIVAS, total: DATA_TOTALS.activas },
-  cerradas: { rows: CERRADAS, total: DATA_TOTALS.cerradas },
-  vencidas: { rows: VENCIDAS, total: DATA_TOTALS.vencidas },
-};
-
-const TABS = [
-  { id: "activas", label: "Solicitudes activas", count: DATA_TOTALS.activas },
-  { id: "cerradas", label: "Solicitudes cerradas", count: DATA_TOTALS.cerradas },
-  { id: "vencidas", label: "Solicitudes vencidas", count: DATA_TOTALS.vencidas },
-];
+const DATA_TOTALS_SEED = { activas: 296, cerradas: 10044, vencidas: 3 };
 
 const COLUMNS = [
   { key: "titulo", header: "Solicitud" },
@@ -111,16 +101,25 @@ const COLUMNS = [
 ];
 
 const REPORTE = [
-  { label: "Administraciones", value: "40" },
-  { label: "Desocupaciones", value: "14" },
-  { label: "Facturación", value: "23" },
-  { label: "Jurídico", value: "34" },
-  { label: "Reparaciones", value: "93" },
-  { label: "Servicio al cliente", value: "61" },
-  { label: "Servicios públicos", value: "7" },
-  { label: "Sin categoría", value: "—" },
-  { label: "No resueltos", value: "272", color: "var(--red-status)" },
+  { label: "Administraciones", value: "10" },
+  { label: "Desocupaciones", value: "29" },
+  { label: "Facturación Tesorería", value: "13" },
+  { label: "Jurídico", value: "75" },
+  { label: "Mantenimiento Reparaciones", value: "0" },
+  { label: "Servicios Cliente", value: "96" },
+  { label: "Servicios Públicos", value: "4" },
+  { label: "Servicios Propiedad", value: "69" },
+  { label: "Tech Alquilando", value: "0" },
+  { label: "Inventarios", value: "0" },
+  { label: "Fidelización", value: "14" },
+  { label: "Productos Servicios", value: "1" },
+  { label: "Comercial", value: "0" },
+  { label: "Aseguradoras", value: "0" },
+  { label: "Contratos", value: "0" },
+  { label: "Mesa Ayuda IT", value: "1" },
+  { label: "Sin Categoría", value: "29" },
   { label: "Resueltos", value: "0", color: "var(--green-status)" },
+  { label: "No Resueltos", value: "341", color: "var(--red-status)" },
 ];
 
 const PAGE_SIZE = 10;
@@ -139,10 +138,35 @@ export function Solicitudes() {
   const [searchBy, setSearchBy] = useState("");
   const [query, setQuery] = useState("");
   const [applied, setApplied] = useState<{ by: string; q: string } | null>(null);
+  const [activasRows, setActivasRows] = useState<Solicitud[]>(ACTIVAS_SEED);
+  const [creandoSolicitud, setCreandoSolicitud] = useState(false);
 
   if (selected) {
     return <SolicitudDetalle solicitud={selected} onBack={() => setSelected(null)} />;
   }
+
+  const handleSolicitudCreada = (data: NuevaSolicitudData) => {
+    const nueva: Solicitud = {
+      titulo: data.titulo,
+      codigo: data.codigoSimi,
+      fecha: new Date().toISOString().slice(0, 19).replace("T", " "),
+      direccion: "—",
+      estado: "Inicio",
+    };
+    setActivasRows((prev) => [nueva, ...prev]);
+  };
+
+  const DATA_TOTALS = { ...DATA_TOTALS_SEED, activas: DATA_TOTALS_SEED.activas + (activasRows.length - ACTIVAS_SEED.length) };
+  const DATA: Record<string, { rows: Solicitud[]; total: number }> = {
+    activas: { rows: activasRows, total: DATA_TOTALS.activas },
+    cerradas: { rows: CERRADAS, total: DATA_TOTALS.cerradas },
+    vencidas: { rows: VENCIDAS, total: DATA_TOTALS.vencidas },
+  };
+  const TABS = [
+    { id: "activas", label: "Solicitudes activas", count: DATA_TOTALS.activas },
+    { id: "cerradas", label: "Solicitudes cerradas", count: DATA_TOTALS.cerradas },
+    { id: "vencidas", label: "Solicitudes vencidas", count: DATA_TOTALS.vencidas },
+  ];
 
   const doSearch = () => { setApplied({ by: searchBy, q: query }); setPage(1); };
   const clearSearch = () => { setQuery(""); setApplied(null); setPage(1); };
@@ -177,7 +201,7 @@ export function Solicitudes() {
         actions={
           <>
             <AppButton variant="secondary" bold><FileBarChart size={15} /> Reportes</AppButton>
-            <AppButton variant="primary" bold><Plus size={15} /> Crear solicitud</AppButton>
+            <AppButton variant="primary" bold onClick={() => setCreandoSolicitud(true)}><Plus size={15} /> Crear solicitud</AppButton>
           </>
         }
       />
@@ -274,6 +298,12 @@ export function Solicitudes() {
       </section>
 
       <Footer />
+
+      <CrearSolicitudModal
+        open={creandoSolicitud}
+        onClose={() => setCreandoSolicitud(false)}
+        onCreated={handleSolicitudCreada}
+      />
     </div>
   );
 }

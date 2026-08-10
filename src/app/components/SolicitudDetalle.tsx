@@ -1,27 +1,16 @@
-import { ArrowLeft, Eye, ExternalLink } from "lucide-react";
+import { Eye, ExternalLink } from "lucide-react";
+import { BackButton } from "./kit/BackButton";
 import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
 import { IconButton } from "./kit/IconButton";
 import { Footer } from "./kit/Footer";
+import { SectionCard } from "./kit/SectionCard";
 import { EstadoBadge } from "./Solicitudes";
 import type { Solicitud } from "./Solicitudes";
 
 interface Props {
   solicitud: Solicitud;
   onBack: () => void;
-}
-
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section
-      className="rounded-lg flex flex-col gap-4"
-      style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "20px 24px" }}
-    >
-      <span className="subtitle" style={{ color: "var(--navy)" }}>{title}</span>
-      <hr style={{ borderColor: "var(--gray-5)", margin: 0 }} />
-      {children}
-    </section>
-  );
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
@@ -62,13 +51,7 @@ export function SolicitudDetalle({ solicitud, onBack }: Props) {
 
   return (
     <div className="flex flex-col gap-5">
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-2 body-bold w-fit"
-        style={{ cursor: "pointer", color: "var(--navy)", background: "transparent" }}
-      >
-        <ArrowLeft size={16} /> Volver
-      </button>
+      <BackButton onClick={onBack} />
 
       {/* Header */}
       <section
@@ -88,7 +71,7 @@ export function SolicitudDetalle({ solicitud, onBack }: Props) {
       <div className="flex gap-5 items-start max-lg:flex-col">
         {/* Columna izquierda */}
         <div className="flex flex-col gap-5 flex-1 min-w-0 max-lg:w-full">
-          <SectionCard title="Datos de la solicitud">
+          <SectionCard title="Datos de la solicitud" padding="20px 24px">
             <Row label="Estado de la solicitud" value={<EstadoBadge estado={solicitud.estado} />} />
             <Row label="Código Simi" value={solicitud.codigo} />
             <Row label="Número de contrato Alquilando" value={<LinkValue>6188</LinkValue>} />
@@ -117,7 +100,7 @@ export function SolicitudDetalle({ solicitud, onBack }: Props) {
             </div>
           </SectionCard>
 
-          <SectionCard title="Arrendatario">
+          <SectionCard title="Arrendatario" padding="20px 24px">
             <Row label="Nombre" value={<LinkValue>Ruth Prieto</LinkValue>} />
             <Row label="Teléfono" value="3202751416" />
           </SectionCard>
@@ -125,7 +108,7 @@ export function SolicitudDetalle({ solicitud, onBack }: Props) {
 
         {/* Columna derecha */}
         <div className="flex flex-col gap-5 flex-1 min-w-0 max-lg:w-full">
-          <SectionCard title="Datos de la operación">
+          <SectionCard title="Datos de la operación" padding="20px 24px">
             <Row label="Número de ticket" value={ticket} />
             <Row label="Prioridad" value={<PrioridadBadge nivel="Alta" />} />
             <Row label="Fecha de creación del ticket" value={solicitud.fecha} />
@@ -134,13 +117,13 @@ export function SolicitudDetalle({ solicitud, onBack }: Props) {
             <Row label="Encargado en Alquilando" value="Lorena Ramírez" />
           </SectionCard>
 
-          <SectionCard title="Responsable de ejecución">
+          <SectionCard title="Responsable de ejecución" padding="20px 24px">
             <Row label="Contratista" value="—" />
             <Row label="Responsable" value="Lorena Ramírez" />
             <div><LinkText icon="chevron">Informe inicial</LinkText></div>
           </SectionCard>
 
-          <SectionCard title="Propietario">
+          <SectionCard title="Propietario" padding="20px 24px">
             <Row label="Nombre" value={<LinkValue>Jenny Quiroz</LinkValue>} />
             <Row label="Teléfono" value="61466996895" />
           </SectionCard>

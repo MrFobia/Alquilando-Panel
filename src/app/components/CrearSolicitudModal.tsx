@@ -6,9 +6,18 @@ import { LinkText } from "./kit/LinkText";
 import { SelectInput } from "./kit/SelectInput";
 import { FileDropzone } from "./kit/FileDropzone";
 
+export interface NuevaSolicitudData {
+  titulo: string;
+  codigoSimi: string;
+  tipo: string;
+  prioridad: string;
+  descripcion: string;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
+  onCreated?: (data: NuevaSolicitudData) => void;
 }
 
 const TIPO_OPTIONS = [
@@ -45,7 +54,7 @@ function TextField({ value, onChange, placeholder }: { value: string; onChange: 
   );
 }
 
-export function CrearSolicitudModal({ open, onClose }: Props) {
+export function CrearSolicitudModal({ open, onClose, onCreated }: Props) {
   const [codigo, setCodigo] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [titulo, setTitulo] = useState("");
@@ -55,12 +64,13 @@ export function CrearSolicitudModal({ open, onClose }: Props) {
   const [descripcion, setDescripcion] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [exito, setExito] = useState(false);
+  const [radicado, setRadicado] = useState("");
 
   const valido = codigo.trim() && titulo.trim() && tipo && prioridad && descripcion.trim();
 
   const reset = () => {
     setCodigo(""); setBuscando(false); setTitulo(""); setTipo(""); setPrioridad("");
-    setArchivos([]); setDescripcion(""); setEnviando(false); setExito(false);
+    setArchivos([]); setDescripcion(""); setEnviando(false); setExito(false); setRadicado("");
   };
 
   const close = () => { reset(); onClose(); };
@@ -74,7 +84,12 @@ export function CrearSolicitudModal({ open, onClose }: Props) {
   const crear = () => {
     if (!valido) return;
     setEnviando(true);
-    setTimeout(() => { setEnviando(false); setExito(true); }, 1100);
+    setTimeout(() => {
+      setEnviando(false);
+      setRadicado(String(Math.floor(80000 + Math.random() * 9999)));
+      setExito(true);
+      onCreated?.({ titulo: titulo.trim(), codigoSimi: codigo.trim(), tipo, prioridad, descripcion: descripcion.trim() });
+    }, 1100);
   };
 
   return (
@@ -95,7 +110,7 @@ export function CrearSolicitudModal({ open, onClose }: Props) {
             style={{ backgroundColor: "var(--gray-1)", padding: "12px 16px" }}
           >
             <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>Número de radicado</span>
-            <span className="body-bold" style={{ color: "var(--gray-10)" }}>#{Math.floor(80000 + Math.random() * 9999)}</span>
+            <span className="body-bold" style={{ color: "var(--gray-10)" }}>#{radicado}</span>
           </div>
           <AppButton variant="primary" bold fullWidth onClick={close}>Entendido</AppButton>
         </div>

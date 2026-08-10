@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Filter, Eye, MessageCircle } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Cell, LabelList } from "recharts";
 import { PageHeader } from "./kit/PageHeader";
 import { AppButton } from "./kit/AppButton";
 import { MetricsRow } from "./kit/MetricsRow";
+import { BrokersComparativaChart } from "./BrokersComparativa";
 import { DataTable } from "./kit/DataTable";
 import { StatusBadge } from "./kit/StatusBadge";
 import { IconButton } from "./kit/IconButton";
@@ -75,6 +77,58 @@ const METRICS = [
   { label: "Cumplimiento promedio", value: "63%" },
 ];
 
+function useContainerWidth() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setWidth(el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return { ref, width };
+}
+
+function cumplimientoPorZona(rows: BrokerInternoRow[]) {
+  const acc = new Map<string, { sum: number; count: number }>();
+  for (const r of rows) {
+    const cur = acc.get(r.zona) ?? { sum: 0, count: 0 };
+    acc.set(r.zona, { sum: cur.sum + r.cumplimiento, count: cur.count + 1 });
+  }
+  return [...acc.entries()]
+    .map(([name, { sum, count }]) => ({ name, value: Math.round(sum / count) }))
+    .sort((a, b) => b.value - a.value)
+    .map((d) => ({ ...d, color: d.value >= 70 ? "var(--green-status)" : d.value >= 50 ? "var(--orange-status)" : "var(--red-status)" }));
+}
+
+function CumplimientoChart({ rows }: { rows: BrokerInternoRow[] }) {
+  const { ref, width } = useContainerWidth();
+  const data = cumplimientoPorZona(rows);
+  return (
+    <section
+      className="rounded-lg flex flex-col"
+      style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "20px 24px" }}
+    >
+      <h3 className="subtitle" style={{ color: "var(--navy)", marginBottom: 16 }}>Cumplimiento de meta promedio por zona</h3>
+      <div ref={ref} style={{ width: "100%" }}>
+        {width > 0 && (
+          <BarChart width={width} height={230} data={data} margin={{ top: 24, right: 10, left: -20, bottom: 0 }}>
+            <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--gray-8)", fontFamily: "Roboto" }} axisLine={{ stroke: "var(--gray-5)" }} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "var(--gray-8)", fontFamily: "Roboto" }} axisLine={false} tickLine={false} domain={[0, 100]} />
+            <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={64}>
+              {data.map((d) => <Cell key={d.name} fill={d.color} />)}
+              <LabelList dataKey="value" position="top" formatter={(v: number) => `${v}%`} style={{ fill: "var(--navy)", fontSize: 12, fontFamily: "Roboto", fontWeight: 700 }} />
+            </Bar>
+          </BarChart>
+        )}
+      </div>
+    </section>
+  );
+}
+
 interface Props {
   rows: BrokerInternoRow[];
   onViewBroker: (broker: BrokerInternoRow) => void;
@@ -126,6 +180,11 @@ export function BrokersInternos({ rows, onViewBroker }: Props) {
       />
 
       <MetricsRow metrics={METRICS} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <BrokersComparativaChart />
+        <CumplimientoChart rows={rows} />
+      </div>
 
       <section
         className="rounded-lg flex flex-col gap-5"
