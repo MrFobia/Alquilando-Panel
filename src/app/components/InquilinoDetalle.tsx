@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, Phone, MessageCircle, Eye, FileText } from "lucide-react";
+import { Mail, Phone, MessageCircle, Eye, FileText, ShieldCheck } from "lucide-react";
 import { BackButton } from "./kit/BackButton";
 import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
@@ -94,6 +94,15 @@ export function InquilinoDetalle({ inquilino, onBack }: Props) {
             <h1 className="title-primary-bold" style={{ color: "var(--navy)" }}>{inquilino.nombre}</h1>
             <div className="flex items-center gap-3 flex-wrap">
               <StatusBadge label="En ejecución" variant="active" />
+              {inquilino.polizaHogar && (
+                <span
+                  className="inline-flex items-center gap-1.5 tags-bold rounded-full"
+                  style={{ backgroundColor: "var(--navy-light)", color: "var(--navy)", padding: "3px 10px" }}
+                  title={`Póliza hogar activa — ${inquilino.polizaHogar.plan} · ${inquilino.polizaHogar.asistencia}`}
+                >
+                  <ShieldCheck size={12} /> Póliza hogar · {inquilino.polizaHogar.plan.replace("Plan ", "")}
+                </span>
+              )}
               <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>
                 {inquilino.inmobiliaria}
               </span>
@@ -148,6 +157,25 @@ export function InquilinoDetalle({ inquilino, onBack }: Props) {
           <InfoField label="Tipo de cliente" value="Inquilino" />
         </div>
       </SectionCard>
+
+      {/* ── Seguro de Hogar ──────────────────────────────────────────────
+          Toda la info de la póliza en la ficha de la persona: para esto entra
+          el equipo desde el listado de "Seguros" (ver SegurosAdmin.tsx). */}
+      {inquilino.polizaHogar && (
+        <SectionCard padding="20px 24px">
+          <SectionHeader
+            title="Seguro de Hogar"
+            right={<StatusBadge label={inquilino.polizaHogar.plan} variant="active" />}
+          />
+          <div className="grid grid-cols-4 gap-x-6 gap-y-5 max-lg:grid-cols-2">
+            <InfoField label="Número de póliza" value={inquilino.polizaHogar.numeroPoliza} />
+            <InfoField label="Plan" value={inquilino.polizaHogar.plan} />
+            <InfoField label="Asistencia" value={inquilino.polizaHogar.asistencia} />
+            <InfoField label="Vigente desde" value={inquilino.polizaHogar.desde} />
+            <InfoField label="Inmueble asegurado" value={inquilino.polizaHogar.inmueble} />
+          </div>
+        </SectionCard>
+      )}
 
       {/* ── Actualizar datos de contacto ──────────────────────────────── */}
       <SectionCard padding="20px 24px">

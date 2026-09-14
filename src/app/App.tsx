@@ -6,8 +6,9 @@ import { InmueblesComercializacion } from "./components/InmueblesComercializacio
 import { MesaAyuda } from "./components/MesaAyuda";
 import { Contratos } from "./components/Contratos";
 import { InmueblesAdministracion } from "./components/InmueblesAdministracion";
-import { Brokers } from "./components/Brokers";
+import { Brokers, BROKERS_ACTIVOS_ROWS } from "./components/Brokers";
 import { Inventarios } from "./components/Inventarios";
+import { SegurosAdmin } from "./components/SegurosAdmin";
 import { Inquilinos } from "./components/Inquilinos";
 import { Propietarios } from "./components/Propietarios";
 import { Solicitudes } from "./components/Solicitudes";
@@ -24,6 +25,9 @@ import { Login } from "./components/Login";
 import { PortalInquilino } from "./components/PortalInquilino";
 import { ConfirmExitModal } from "./components/kit/ConfirmExitModal";
 import { AppDataProvider } from "./store/AppDataContext";
+import { SessionProvider, type PerfilInmobiliaria } from "./store/SessionContext";
+import type { UserRole } from "./components/Login";
+import { CorreoConfirmacionPoliza } from "./components/CorreoConfirmacionPoliza";
 
 type Page = "dashboard" | "styleguide" | "login" | "portal-inquilino";
 
@@ -32,6 +36,7 @@ const SECTION_TITLES: Record<string, string> = {
   "inmuebles-comercializacion": "Inmuebles — En comercialización",
   contratos: "Contratos",
   inventarios: "Inventarios",
+  seguros: "Seguros",
   inquilinos: "Inquilinos",
   propietarios: "Propietarios",
   solicitudes: "Solicitudes",
@@ -42,6 +47,12 @@ const SECTION_TITLES: Record<string, string> = {
 };
 
 export default function App() {
+  // Vista previa del correo de confirmación: pantalla suelta, fuera de sesión/login,
+  // para poder abrirla en una pestaña nueva (target="_blank") desde PagoExitoso sin
+  // depender del estado de React de la pestaña original. Ver CorreoConfirmacionPoliza.tsx.
+  if (new URLSearchParams(window.location.search).get("vista") === "correo-confirmacion") {
+    return <CorreoConfirmacionPoliza />;
+  }
   return (
     <AppDataProvider>
       <AppInner />
@@ -51,14 +62,28 @@ export default function App() {
 
 function AppInner() {
   const [page, setPage] = useState<Page>("login");
+  const [role, setRole] = useState<UserRole | null>(null);
+  const [perfil, setPerfil] = useState<PerfilInmobiliaria | null>(null);
   const [active, setActive] = useState("inicio");
   const [selectedBroker, setSelectedBroker] = useState<BrokerRow | null>(null);
   const [selectedBrokerInterno, setSelectedBrokerInterno] = useState<BrokerInternoRow | null>(null);
   const [brokersInternosRows, setBrokersInternosRows] = useState<BrokerInternoRow[]>(BROKERS_INTERNOS_ROWS);
+  const [brokersActivosRows, setBrokersActivosRows] = useState<BrokerRow[]>(BROKERS_ACTIVOS_ROWS);
 
   const currentBrokerInterno = selectedBrokerInterno
     ? brokersInternosRows.find((r) => r.id === selectedBrokerInterno.id) ?? selectedBrokerInterno
     : null;
+
+  const currentBrokerActivo = selectedBroker && selectedBroker.estadoBroker === "activo"
+    ? brokersActivosRows.find((r) => r.id === selectedBroker.id) ?? selectedBroker
+    : selectedBroker;
+
+  const handleChangeMetaMensualExterno = (metaMensual: number) => {
+    if (!selectedBroker) return;
+    setBrokersActivosRows((prev) =>
+      prev.map((r) => (r.id === selectedBroker.id ? { ...r, metaMensual } : r)),
+    );
+  };
 
   const handleChangeEstadoInterno = (estado: EstadoInterno, meta?: { desde?: string; hasta?: string }) => {
     if (!currentBrokerInterno) return;
@@ -68,6 +93,13 @@ function AppInner() {
           ? { ...r, estado, estadoDesde: meta?.desde, estadoHasta: meta?.hasta }
           : r,
       ),
+    );
+  };
+
+  const handleChangeMetaMensual = (metaMensual: number) => {
+    if (!currentBrokerInterno) return;
+    setBrokersInternosRows((prev) =>
+      prev.map((r) => (r.id === currentBrokerInterno.id ? { ...r, metaMensual } : r)),
     );
   };
   const [selectedInmueble, setSelectedInmueble] = useState<InmuebleData | null>(null);
@@ -80,7 +112,16 @@ function AppInner() {
 
   const attemptNav = (fn: () => void) => { if (exitGuard) setPendingNav(() => fn); else fn(); };
 
-  const goToSection = (id: string) => { setActive(id); setSelectedBroker(null); setSelectedBrokerInterno(null); setSelectedInmueble(null); };
+  // Cuando se entra a Propietarios/Inquilinos desde el listado de "Seguros", abre directo
+  // la ficha de esa persona en vez del listado. Se limpia en cualquier navegación normal
+  // del sidebar para no reabrir la ficha equivocada si el usuario entra por su cuenta.
+  const [personaSeguro, setPersonaSeguro] = useState<{ tipo: "propietario" | "inquilino"; cedula: string } | null>(null);
+  const irAFichaDesdeSeguros = (persona: { tipo: "propietario" | "inquilino"; cedula: string }) => {
+    setPersonaSeguro(persona);
+    setActive(persona.tipo === "propietario" ? "propietarios" : "inquilinos");
+  };
+
+  const goToSection = (id: string) => { setActive(id); setSelectedBroker(null); setSelectedBrokerInterno(null); setSelectedInmueble(null); setPersonaSeguro(null); };
   const goToSectionGuarded = (id: string) => attemptNav(() => goToSection(id));
   const goToStyleGuideGuarded = () => attemptNav(() => setPage("styleguide"));
   const goToLogoutGuarded = () => attemptNav(() => setPage("login"));
@@ -106,8 +147,10 @@ function AppInner() {
   if (page === "login") {
     return (
       <Login
-        onLogin={(role) => {
-          if (role === "inquilino") {
+        onLogin={(nuevoRole, nuevoPerfil) => {
+          setRole(nuevoRole);
+          setPerfil(nuevoPerfil);
+          if (nuevoRole === "inquilino") {
             setPage("portal-inquilino");
           } else {
             setPage("dashboard");
@@ -123,6 +166,7 @@ function AppInner() {
   }
 
   return (
+    <SessionProvider value={{ role, perfil }}>
     <div
       className="flex min-h-screen"
       style={{ backgroundColor: "var(--gray-1)", fontFamily: "Roboto, sans-serif" }}
@@ -147,8 +191,9 @@ function AppInner() {
           {active === "contratos" && <Contratos onDirtyChange={setExitGuard} />}
           {active === "inmuebles-administracion" && <InmueblesAdministracion />}
           {active === "inventarios" && <Inventarios />}
-          {active === "inquilinos" && <Inquilinos />}
-          {active === "propietarios" && <Propietarios />}
+          {active === "seguros" && <SegurosAdmin onVerPersona={irAFichaDesdeSeguros} />}
+          {active === "inquilinos" && <Inquilinos initialCedula={personaSeguro?.tipo === "inquilino" ? personaSeguro.cedula : undefined} />}
+          {active === "propietarios" && <Propietarios initialCedula={personaSeguro?.tipo === "propietario" ? personaSeguro.cedula : undefined} />}
           {active === "solicitudes" && <Solicitudes />}
           {active === "inmobiliarias" && <Inmobiliarias />}
           {active === "brokers-internos" && (
@@ -168,8 +213,9 @@ function AppInner() {
                 desempenoInterno={{
                   contratosMes: currentBrokerInterno.contratosMes,
                   contratosAno: currentBrokerInterno.contratosAno,
-                  cumplimiento: currentBrokerInterno.cumplimiento,
+                  metaMensual: currentBrokerInterno.metaMensual,
                 }}
+                onChangeMetaMensual={handleChangeMetaMensual}
               />
             ) : (
               <BrokersInternos rows={brokersInternosRows} onViewBroker={setSelectedBrokerInterno} />
@@ -180,14 +226,22 @@ function AppInner() {
               <InmuebleDetalle inmueble={selectedInmueble} onBack={() => setSelectedInmueble(null)} />
             ) : selectedBroker ? (
               <BrokerDetalle
-                broker={selectedBroker}
+                broker={currentBrokerActivo!}
                 onBack={() => setSelectedBroker(null)}
                 onApprove={handleApproveBroker}
                 onInactivate={handleInactivateBroker}
                 onViewInmueble={setSelectedInmueble}
+                desempenoInterno={
+                  currentBrokerActivo?.estadoBroker === "activo"
+                    ? { contratosMes: currentBrokerActivo.contratos ?? "0", metaMensual: currentBrokerActivo.metaMensual ?? 0 }
+                    : undefined
+                }
+                onChangeMetaMensual={handleChangeMetaMensualExterno}
               />
             ) : (
               <Brokers
+                activosRows={brokersActivosRows}
+                setActivosRows={setBrokersActivosRows}
                 onViewBroker={setSelectedBroker}
                 pendingApprove={pendingApprove}
                 pendingInactivate={pendingInactivate}
@@ -195,7 +249,7 @@ function AppInner() {
               />
             )
           )}
-          {!["inicio", "inmuebles-comercializacion", "inmuebles-administracion", "mesa-ayuda", "contratos", "brokers-internos", "brokers-externos", "inventarios", "inquilinos", "propietarios", "solicitudes", "inmobiliarias"].includes(active) && (
+          {!["inicio", "inmuebles-comercializacion", "inmuebles-administracion", "mesa-ayuda", "contratos", "brokers-internos", "brokers-externos", "inventarios", "seguros", "inquilinos", "propietarios", "solicitudes", "inmobiliarias"].includes(active) && (
             <div className="flex flex-col gap-5">
               <section
                 className="rounded-lg"
@@ -226,5 +280,6 @@ function AppInner() {
         onDiscard={() => { exitGuard?.onDiscard(); const fn = pendingNav; setPendingNav(null); setExitGuard(null); fn?.(); }}
       />
     </div>
+    </SessionProvider>
   );
 }

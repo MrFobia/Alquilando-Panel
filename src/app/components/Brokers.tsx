@@ -14,6 +14,8 @@ import { SelectInput } from "./kit/SelectInput";
 import { Pagination } from "./kit/Pagination";
 import { EmptyState } from "./kit/EmptyState";
 import { Footer } from "./kit/Footer";
+import { ProgressBar } from "./kit/ProgressBar";
+import { calcularCumplimiento } from "./BrokersInternos";
 
 const PAGE_SIZE = 10;
 
@@ -29,6 +31,9 @@ export interface BrokerRow {
   estadoBroker?: EstadoBroker;
   zona?: string;
   contratos?: string;
+  /** Meta de contratos del mes (solo aplica a brokers activos). El cumplimiento (%) se
+   * calcula a partir de esto con calcularCumplimiento() — no es un número suelto. */
+  metaMensual?: number;
 }
 
 const SOLICITUDES_ROWS: BrokerRow[] = [
@@ -40,12 +45,12 @@ const SOLICITUDES_ROWS: BrokerRow[] = [
   { id: "1.234.567.890", nombre: "Carlos Andrés Benitez", estadoSolicitud: "validacion", asesor: "Angie / Bogotá", fecha: "09 May 2026" },
 ];
 
-const ACTIVOS_ROWS: BrokerRow[] = [
-  { id: "1.020.456.789", nombre: "María Fernanda López", asesor: "Angie / Bogotá", zona: "Bogotá", contratos: "12", fecha: "03 Feb 2026", estadoBroker: "activo" },
-  { id: "79.845.123", nombre: "Jorge Iván Castillo", asesor: "Ruby / Caribe", zona: "Caribe", contratos: "8", fecha: "21 Ene 2026", estadoBroker: "activo" },
-  { id: "1.018.234.567", nombre: "Paola Andrea Martínez", asesor: "Angie / Bogotá", zona: "Bogotá", contratos: "5", fecha: "15 Dic 2025", estadoBroker: "activo" },
-  { id: "52.789.456", nombre: "Camilo Restrepo", asesor: "Ruby / Caribe", zona: "Caribe", contratos: "17", fecha: "02 Nov 2025", estadoBroker: "activo" },
-  { id: "1.033.678.912", nombre: "Sandra Milena Torres", asesor: "Angie / Bogotá", zona: "Bogotá", contratos: "3", fecha: "28 Oct 2025", estadoBroker: "activo" },
+export const BROKERS_ACTIVOS_ROWS: BrokerRow[] = [
+  { id: "1.020.456.789", nombre: "María Fernanda López", asesor: "Angie / Bogotá", zona: "Bogotá", contratos: "12", metaMensual: 10, fecha: "03 Feb 2026", estadoBroker: "activo" },
+  { id: "79.845.123", nombre: "Jorge Iván Castillo", asesor: "Ruby / Caribe", zona: "Caribe", contratos: "8", metaMensual: 10, fecha: "21 Ene 2026", estadoBroker: "activo" },
+  { id: "1.018.234.567", nombre: "Paola Andrea Martínez", asesor: "Angie / Bogotá", zona: "Bogotá", contratos: "5", metaMensual: 8, fecha: "15 Dic 2025", estadoBroker: "activo" },
+  { id: "52.789.456", nombre: "Camilo Restrepo", asesor: "Ruby / Caribe", zona: "Caribe", contratos: "17", metaMensual: 15, fecha: "02 Nov 2025", estadoBroker: "activo" },
+  { id: "1.033.678.912", nombre: "Sandra Milena Torres", asesor: "Angie / Bogotá", zona: "Bogotá", contratos: "3", metaMensual: 8, fecha: "28 Oct 2025", estadoBroker: "activo" },
 ];
 
 const RECHAZADOS_ROWS: BrokerRow[] = [
@@ -81,6 +86,8 @@ const ACTIVOS_COLUMNS = [
   { key: "nombre", header: "Nombre" },
   { key: "zona", header: "Zona", width: 100 },
   { key: "contratos", header: "Contratos", width: 95 },
+  { key: "metaMensual", header: "Meta del mes", width: 100 },
+  { key: "cumplimiento", header: "Cumplimiento meta", width: 170 },
   { key: "asesor", header: "Asesor", width: 150 },
   { key: "fecha", header: "Fecha alta", width: 110 },
   { key: "acciones", header: "Acciones", width: 90 },
@@ -102,12 +109,19 @@ const SEARCH_OPTIONS = [
   { value: "zona", label: "Zona" },
 ];
 
-const METRICS = [
-  { label: "Solicitudes mes (Mes actual)", value: "18" },
-  { label: "Brokers activos", value: "842" },
-  { label: "Contratos (Mes actual)", value: "156" },
-  { label: "Inactivos / Rechazados", value: "34" },
-];
+/** Cumplimiento promedio se calcula sobre los activos reales (no un número fijo), así
+ * refleja cualquier cambio de meta hecho desde la ficha de un broker. */
+function metricasBrokersExternos(activosRows: BrokerRow[]) {
+  const cumplimientoPromedio = activosRows.length
+    ? Math.round(activosRows.reduce((sum, r) => sum + calcularCumplimiento(r.contratos ?? "0", r.metaMensual ?? 0), 0) / activosRows.length)
+    : 0;
+  return [
+    { label: "Solicitudes mes (Mes actual)", value: "18" },
+    { label: "Brokers activos", value: String(activosRows.length) },
+    { label: "Contratos (Mes actual)", value: String(activosRows.reduce((sum, r) => sum + Number(r.contratos ?? 0), 0)) },
+    { label: "Cumplimiento promedio", value: `${cumplimientoPromedio}%` },
+  ];
+}
 
 function useContainerWidth() {
   const ref = useRef<HTMLDivElement>(null);
@@ -169,16 +183,19 @@ interface Props {
   pendingApprove?: BrokerRow | null;
   pendingInactivate?: BrokerRow | null;
   onPendingHandled?: () => void;
+  /** Activos vive en App.tsx (no local): así la meta que se edita en la ficha del broker
+   * (BrokerDetalle.tsx) se refleja aquí sin perderse al entrar/salir del detalle. */
+  activosRows: BrokerRow[];
+  setActivosRows: React.Dispatch<React.SetStateAction<BrokerRow[]>>;
 }
 
-export function Brokers({ onViewBroker, pendingApprove, pendingInactivate, onPendingHandled }: Props) {
+export function Brokers({ onViewBroker, pendingApprove, pendingInactivate, onPendingHandled, activosRows, setActivosRows }: Props) {
   const [tab, setTab] = useState("solicitudes");
   const [page, setPage] = useState(1);
   const [searchBy, setSearchBy] = useState("");
   const [query, setQuery] = useState("");
   const [applied, setApplied] = useState<{ by: string; q: string } | null>(null);
   const [solicitudesRows, setSolicitudesRows] = useState(SOLICITUDES_ROWS);
-  const [activosRows, setActivosRows] = useState(ACTIVOS_ROWS);
   const [rechazadosRows, setRechazadosRows] = useState(RECHAZADOS_ROWS);
 
   const changeTab = (id: string) => { setTab(id); setPage(1); setQuery(""); setApplied(null); };
@@ -232,6 +249,7 @@ export function Brokers({ onViewBroker, pendingApprove, pendingInactivate, onPen
 
   const tableRows = pageRows.map((r) => ({
     ...r,
+    cumplimiento: tab === "activos" ? <ProgressBar value={calcularCumplimiento(r.contratos ?? "0", r.metaMensual ?? 0)} /> : null,
     acciones: (
       <div className="flex items-center gap-1">
         <IconButton icon={MessageCircle} title="Contactar por WhatsApp" />
@@ -256,7 +274,7 @@ export function Brokers({ onViewBroker, pendingApprove, pendingInactivate, onPen
         actions={<AppButton variant="primary" bold>Agregar Broker</AppButton>}
       />
 
-      <MetricsRow metrics={METRICS} />
+      <MetricsRow metrics={metricasBrokersExternos(activosRows)} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <BrokersComparativaChart />

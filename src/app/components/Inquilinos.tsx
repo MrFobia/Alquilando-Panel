@@ -14,6 +14,7 @@ import { EmptyState } from "./kit/EmptyState";
 import { Footer } from "./kit/Footer";
 import { InquilinoDetalle } from "./InquilinoDetalle";
 import { useAppData } from "../store/AppDataContext";
+import type { PolizaHogarInfo } from "./SegurosAdmin";
 
 function useContainerWidth() {
   const ref = useRef<HTMLDivElement>(null);
@@ -42,10 +43,14 @@ export interface InquilinoRow {
   zona: string;
   score: number;
   tipo: "natural" | "corporativo";
+  /** Seguro de Hogar activo: se muestra en la ficha y en el listado de "Seguros" de la
+   * inmobiliaria maestra (ver SegurosAdmin.tsx). */
+  polizaHogar?: PolizaHogarInfo;
 }
 
-const ROWS: InquilinoRow[] = [
-  { cedula: "1032423930", nombre: "Nelson Diaz", inmobiliaria: "Alquilando Caribe", direccion: "Cr 3 # 44 A - 401 Norte 401 - Brr Cabrera", correo: "nelsondiaz_88@hotmail.com", telefono: "3138193904", estado: "ejecucion", edad: 29, zona: "Caribe", score: 710, tipo: "natural" },
+/** Exportado para que Propietarios/Inquilinos y SegurosAdmin usen la misma lista, sin duplicar mocks. */
+export const INQUILINOS_ROWS: InquilinoRow[] = [
+  { cedula: "1032423930", nombre: "Nelson Diaz", inmobiliaria: "Alquilando Caribe", direccion: "Cr 3 # 44 A - 401 Norte 401 - Brr Cabrera", correo: "nelsondiaz_88@hotmail.com", telefono: "3138193904", estado: "ejecucion", edad: 29, zona: "Caribe", score: 710, tipo: "natural", polizaHogar: { numeroPoliza: "AL-778354", plan: "Plan Clásico", asistencia: "Asistencias S", inmueble: "Carrera 23 # 45 - 34 sur", desde: "14 Sept. 2026" } },
   { cedula: "42001731", nombre: "Maria Lopez", inmobiliaria: "Alquilando Sas", direccion: "Cl 81 # 109 - 10 Ap 203 - Brr Bolivia", correo: "angelicapantoja1309@gmail.com", telefono: "3044677006", estado: "ejecucion", edad: 34, zona: "Occidente", score: 640, tipo: "natural" },
   { cedula: "1057570810", nombre: "Ibeth Leal", inmobiliaria: "Alquilando", direccion: "Kr 6 51 21 Ap 405", correo: "ibeth.leal07@gmail.com", telefono: "3508653006", estado: "ejecucion", edad: 41, zona: "Centro", score: 820, tipo: "natural" },
   { cedula: "—", nombre: "Michael Arias", inmobiliaria: "Alquilando Sas", direccion: "Cl 44 13 45 Lc 1", correo: "michaelsarias2019@gmail.com", telefono: "3152743645", estado: "ejecucion", edad: 26, zona: "Centro", score: 590, tipo: "natural" },
@@ -57,7 +62,7 @@ const ROWS: InquilinoRow[] = [
   { cedula: "—", nombre: "Gladis Malpica", inmobiliaria: "Alquilando Sas", direccion: "Calle 37 # 13-26 Local Central", correo: "nayibemalcipa@gmail.com", telefono: "3144590644", estado: "ejecucion", edad: 49, zona: "Centro", score: 750, tipo: "corporativo" },
   { cedula: "79854120", nombre: "Carlos Rincon", inmobiliaria: "Alquilando Sas", direccion: "Cr 15 # 93 - 47 Ap 502 - Brr Chico", correo: "carlosrincon@gmail.com", telefono: "3001234567", estado: "finalizado", edad: 36, zona: "Norte", score: 690, tipo: "natural" },
   { cedula: "52789456", nombre: "Paola Martinez", inmobiliaria: "Alquilando Caribe", direccion: "Cl 127 # 7 - 30 Casa 12", correo: "paomartinez@gmail.com", telefono: "3009876543", estado: "mora", edad: 33, zona: "Sur", score: 540, tipo: "natural" },
-  { cedula: "1015478932", nombre: "Andres Vargas", inmobiliaria: "Alquilando", direccion: "Av 19 # 104 - 22 Ap 802", correo: "andresvargas@gmail.com", telefono: "3015558899", estado: "ejecucion", edad: 40, zona: "Norte", score: 800, tipo: "natural" },
+  { cedula: "1015478932", nombre: "Andres Vargas", inmobiliaria: "Alquilando", direccion: "Av 19 # 104 - 22 Ap 802", correo: "andresvargas@gmail.com", telefono: "3015558899", estado: "ejecucion", edad: 40, zona: "Norte", score: 800, tipo: "natural", polizaHogar: { numeroPoliza: "AL-119042", plan: "Plan Básico", asistencia: "Asistencias S", inmueble: "Av 19 # 104 - 22 Ap 802", desde: "15 Ago. 2026" } },
 ];
 
 const ESTADO_BADGE = {
@@ -88,16 +93,16 @@ const SEARCH_OPTIONS = [
 const PAGE_SIZE = 10;
 const TOTAL = 1552;
 
-// Proporciones tomadas de la muestra (ROWS) y escaladas al total real de inquilinos.
-const activos = Math.round((TOTAL * ROWS.filter((r) => r.estado === "ejecucion").length) / ROWS.length);
-const enMora = Math.round((TOTAL * ROWS.filter((r) => r.estado === "mora").length) / ROWS.length);
+// Proporciones tomadas de la muestra (INQUILINOS_ROWS) y escaladas al total real de inquilinos.
+const activos = Math.round((TOTAL * INQUILINOS_ROWS.filter((r) => r.estado === "ejecucion").length) / INQUILINOS_ROWS.length);
+const enMora = Math.round((TOTAL * INQUILINOS_ROWS.filter((r) => r.estado === "mora").length) / INQUILINOS_ROWS.length);
 const pctMora = Math.round((enMora / TOTAL) * 100);
 
-const corporativos = ROWS.filter((r) => r.tipo === "corporativo").length;
-const pctCorporativo = Math.round((corporativos / ROWS.length) * 100);
+const corporativos = INQUILINOS_ROWS.filter((r) => r.tipo === "corporativo").length;
+const pctCorporativo = Math.round((corporativos / INQUILINOS_ROWS.length) * 100);
 
-const scorePromedio = Math.round(ROWS.reduce((sum, r) => sum + r.score, 0) / ROWS.length);
-const edadPromedio = Math.round(ROWS.reduce((sum, r) => sum + r.edad, 0) / ROWS.length);
+const scorePromedio = Math.round(INQUILINOS_ROWS.reduce((sum, r) => sum + r.score, 0) / INQUILINOS_ROWS.length);
+const edadPromedio = Math.round(INQUILINOS_ROWS.reduce((sum, r) => sum + r.edad, 0) / INQUILINOS_ROWS.length);
 
 const ZONA_COLORS: Record<string, string> = {
   Norte: "var(--navy)",
@@ -120,7 +125,7 @@ function agruparProporcional<T>(rows: T[], key: (r: T) => string, total: number,
     }));
 }
 
-const zonaTop = agruparProporcional(ROWS, (r) => r.zona, TOTAL, ZONA_COLORS)[0];
+const zonaTop = agruparProporcional(INQUILINOS_ROWS, (r) => r.zona, TOTAL, ZONA_COLORS)[0];
 const pctZonaTop = Math.round((zonaTop.value / TOTAL) * 100);
 
 const SCORE_BUCKETS: { name: string; test: (s: number) => boolean; color: string }[] = [
@@ -202,12 +207,15 @@ function ScoreChart({ data }: { data: { name: string; value: number; color: stri
   );
 }
 
-export function Inquilinos() {
+export function Inquilinos({ initialCedula }: { initialCedula?: string } = {}) {
   const [page, setPage] = useState(1);
   const [searchBy, setSearchBy] = useState("");
   const [query, setQuery] = useState("");
   const [applied, setApplied] = useState<{ by: string; q: string } | null>(null);
-  const [selected, setSelected] = useState<InquilinoRow | null>(null);
+  // Llega desde el listado de "Seguros": abre directo la ficha de ese inquilino.
+  const [selected, setSelected] = useState<InquilinoRow | null>(
+    () => (initialCedula ? INQUILINOS_ROWS.find((r) => r.cedula === initialCedula) ?? null : null),
+  );
   const { inquilinos } = useAppData();
 
   if (selected) {
@@ -231,7 +239,7 @@ export function Inquilinos() {
     tipo: "natural",
   }));
 
-  const allRows = [...nuevosRows, ...ROWS];
+  const allRows = [...nuevosRows, ...INQUILINOS_ROWS];
 
   const filtered = allRows.filter((r) => {
     if (!applied || !applied.q.trim()) return true;
@@ -290,8 +298,8 @@ export function Inquilinos() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <ZonaChart data={agruparProporcional(ROWS, (r) => r.zona, TOTAL, ZONA_COLORS)} />
-        <ScoreChart data={distribucionScore(ROWS, TOTAL)} />
+        <ZonaChart data={agruparProporcional(INQUILINOS_ROWS, (r) => r.zona, TOTAL, ZONA_COLORS)} />
+        <ScoreChart data={distribucionScore(INQUILINOS_ROWS, TOTAL)} />
       </div>
 
       <section

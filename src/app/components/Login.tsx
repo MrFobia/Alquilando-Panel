@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff, UserRound, CircleCheck, Lock, ChevronRight } from "lucide-react";
 import { AlquilandoLogo } from "./kit/AlquilandoLogo";
 import loginHero from "../../assets/login-hero.jpg";
+import type { PerfilInmobiliaria } from "../store/SessionContext";
 
 const PURPLE = "#6d28d9";
 const PURPLE_DARK = "#5b21b6";
@@ -10,9 +11,10 @@ const PURPLE_BG = "#f5f3ff";
 export type UserRole = "inmobiliaria" | "inquilino";
 
 /** Usuarios demo: inmobiliaria entra al panel de administración, inquilino a su portal. */
-const USUARIOS: { match: string[]; role: UserRole }[] = [
-  { match: ["inmobiliariamaestra@alquilando.com"], role: "inmobiliaria" },
-  { match: ["inquilino@alquilando.com", "1032423876"], role: "inquilino" },
+const USUARIOS: { match: string[]; role: UserRole; perfil: PerfilInmobiliaria | null }[] = [
+  { match: ["inmobiliariamaestra@alquilando.com"], role: "inmobiliaria", perfil: "maestra" },
+  { match: ["inmobiliariaaliada@alquilando.com"], role: "inmobiliaria", perfil: "aliada" },
+  { match: ["inquilino@alquilando.com", "1032423876"], role: "inquilino", perfil: null },
 ];
 
 const BENEFICIOS = [
@@ -33,7 +35,7 @@ const BENEFICIOS_CHIPS = [
 ];
 
 interface Props {
-  onLogin: (role: UserRole) => void;
+  onLogin: (role: UserRole, perfil: PerfilInmobiliaria | null) => void;
 }
 
 export function Login({ onLogin }: Props) {
@@ -52,7 +54,7 @@ export function Login({ onLogin }: Props) {
       return;
     }
     setError(null);
-    onLogin(found.role);
+    onLogin(found.role, found.perfil);
   };
 
   const inputStyle: React.CSSProperties = {

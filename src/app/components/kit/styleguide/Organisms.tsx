@@ -13,6 +13,9 @@ import { Modal } from "../Modal";
 import { Toast } from "../Toast";
 import { HelpBlocks } from "../HelpBlocks";
 import { Eye, MessageCircle } from "lucide-react";
+import { HabitoPagoCard } from "../HabitoPagoCard";
+import { TabBar } from "../TabBar";
+import { generarHistorialPagos, clasificarPago, type PagoHistorico } from "../../../data/habitoPago";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="title-tertiary-bold mb-6 pb-2 border-b" style={{ color: "var(--navy)", borderColor: "var(--gray-5)" }}>{children}</h3>;
@@ -109,6 +112,56 @@ const HELP_BLOCKS_DEMO = [
   { type: "link" as const, label: "Ver publicación completa", href: "https://example.com" },
 ];
 
+const HABITO_DEMO = generarHistorialPagos({ seed: "styleguide-habito", canon: 1_250_000, perfil: "medio" });
+
+/** Mismo histórico, con dos periodos que el backend no resolvió. */
+const HABITO_INCOMPLETO: PagoHistorico[] = HABITO_DEMO.map((p, i) =>
+  i === 3 || i === 7
+    ? { ...p, fechaPago: null, valor: 0, diasDiferencia: 0, estado: "sin-dato" as const }
+    : p,
+);
+
+/** Contrato recién iniciado: hay periodo facturado pero ningún pago cerrado. */
+const HABITO_SIN_HISTORIAL: PagoHistorico[] = [
+  {
+    periodo: "2026-08",
+    fechaLimite: "2026-08-05",
+    fechaPago: null,
+    valor: 1_250_000,
+    diasDiferencia: 0,
+    estado: clasificarPago(0, false),
+  },
+];
+
+const HABITO_ESTADOS = [
+  { id: "datos", label: "Con historial" },
+  { id: "incompleto", label: "Datos incompletos" },
+  { id: "vacio", label: "Sin historial" },
+  { id: "carga", label: "Carga" },
+  { id: "error", label: "Error" },
+];
+
+function HabitoPagoDemo() {
+  const [estado, setEstado] = useState("datos");
+  return (
+    <div className="flex flex-col gap-4">
+      <TabBar tabs={HABITO_ESTADOS} active={estado} onChange={setEstado} />
+      {estado === "datos" && <HabitoPagoCard pagos={HABITO_DEMO} numeroContrato="4367" />}
+      {estado === "incompleto" && <HabitoPagoCard pagos={HABITO_INCOMPLETO} numeroContrato="4367" periodosSinDato={2} />}
+      {estado === "vacio" && <HabitoPagoCard pagos={HABITO_SIN_HISTORIAL} numeroContrato="4367" />}
+      {estado === "carga" && <HabitoPagoCard pagos={[]} numeroContrato="4367" loading />}
+      {estado === "error" && (
+        <HabitoPagoCard
+          pagos={[]}
+          numeroContrato="4367"
+          error="El servicio de recaudo no respondió. Intenta de nuevo en unos minutos."
+          onReintentar={() => {}}
+        />
+      )}
+    </div>
+  );
+}
+
 export function Organisms() {
   return (
     <div className="space-y-16">
@@ -149,6 +202,17 @@ export function Organisms() {
       </div>
 
       <div><SectionTitle>Gráfica de contratos (ContractsChart)</SectionTitle><ContractsChart /></div>
+
+      <div>
+        <SectionTitle>Widget de recaudo — Hábito de pago (HabitoPagoCard)</SectionTitle>
+        <HabitoPagoDemo />
+        <p className="tags mt-3" style={{ color: "var(--gray-8)" }}>
+          Exclusivo de la inmobiliaria maestra (<code>useEsInmobiliariaMaestra()</code>). Se abre desde el link
+          <em> Ver hábito de pago</em> de la tarjeta <em>Estado de cuenta</em>, en la interna del contrato en
+          administración (Contratos → En administración → Ver resumen). Contrato de datos en{" "}
+          <code>guidelines/habito-de-pago.md</code>.
+        </p>
+      </div>
 
       <div>
         <SectionTitle>Ventana modal (Modal)</SectionTitle>

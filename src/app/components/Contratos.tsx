@@ -275,7 +275,7 @@ export function Contratos({ onDirtyChange }: Props = {}) {
   const [bogota, setBogota] = useState(true);
   const [caribe, setCaribe] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [viewingEstado, setViewingEstado] = useState(false);
+  const [viewingEstado, setViewingEstado] = useState<ContratoRow | null>(null);
   const [loading, setLoading] = useState(true);
   const { contratos: elaboracionRows, addContrato } = useAppData();
 
@@ -313,7 +313,12 @@ export function Contratos({ onDirtyChange }: Props = {}) {
   }
 
   if (viewingEstado) {
-    return <EstadoContratoDetalle onBack={() => setViewingEstado(false)} />;
+    return (
+      <EstadoContratoDetalle
+        onBack={() => setViewingEstado(null)}
+        numeroContrato={viewingEstado.contrato !== "-" ? viewingEstado.contrato : undefined}
+      />
+    );
   }
 
   const changeTab = (id: string) => { setTab(id); setPage(1); setQuery(""); setApplied(null); setSearchBy(""); setFilters(EMPTY_FILTERS); };
@@ -401,7 +406,7 @@ export function Contratos({ onDirtyChange }: Props = {}) {
           estado: <StatusBadge label={badge.label} variant={badge.variant} />,
           opciones: tab === "elaboracion"
             ? <IconButton icon={Pencil} title="Continuar edición" onClick={() => setCreating(true)} />
-            : <IconButton icon={Eye} title="Ver resumen" onClick={() => setViewingEstado(true)} />,
+            : <IconButton icon={Eye} title="Ver resumen" onClick={() => setViewingEstado(r)} />,
         };
       });
 

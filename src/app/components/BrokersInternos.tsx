@@ -25,21 +25,31 @@ export interface BrokerInternoRow {
   zona: string;
   contratosMes: string;
   contratosAno: string;
-  cumplimiento: number;
+  /** Meta de contratos del mes que fija la inmobiliaria maestra para este broker.
+   * El cumplimiento (%) se calcula a partir de esto, no es un número suelto — ver
+   * calcularCumplimiento(). Editable desde la ficha del broker (BrokerDetalle.tsx). */
+  metaMensual: number;
   estado: EstadoInterno;
   estadoDesde?: string;
   estadoHasta?: string;
 }
 
+/** % de la meta mensual que ya se cumplió. Redondeado; no se limita a 100 aquí — ProgressBar
+ * ya recorta la barra visualmente si alguien supera su meta. */
+export function calcularCumplimiento(contratosMes: string, metaMensual: number): number {
+  if (!metaMensual || metaMensual <= 0) return 0;
+  return Math.round((Number(contratosMes) / metaMensual) * 100);
+}
+
 export const BROKERS_INTERNOS_ROWS: BrokerInternoRow[] = [
-  { id: "1.020.789.456", nombre: "Angie Carolina Duarte", zona: "Bogotá", contratosMes: "9", contratosAno: "64", cumplimiento: 90, estado: "activo" },
-  { id: "45.678.912", nombre: "Ruby Esperanza Meza", zona: "Caribe", contratosMes: "7", contratosAno: "58", cumplimiento: 78, estado: "activo" },
-  { id: "1.014.567.890", nombre: "Julián Esteban Rueda", zona: "Bogotá", contratosMes: "5", contratosAno: "41", cumplimiento: 62, estado: "activo" },
-  { id: "52.345.678", nombre: "Marcela Quintero Páez", zona: "Occidente", contratosMes: "8", contratosAno: "55", cumplimiento: 84, estado: "activo" },
-  { id: "1.032.456.789", nombre: "David Santiago Herrera", zona: "Norte", contratosMes: "3", contratosAno: "29", cumplimiento: 45, estado: "vacaciones" },
-  { id: "79.912.345", nombre: "Lina María Cabrera", zona: "Bogotá", contratosMes: "6", contratosAno: "47", cumplimiento: 71, estado: "activo" },
-  { id: "1.045.234.567", nombre: "Óscar Iván Salazar", zona: "Caribe", contratosMes: "0", contratosAno: "18", cumplimiento: 12, estado: "inactivo" },
-  { id: "1.010.987.654", nombre: "Tatiana Reyes Amador", zona: "Sur", contratosMes: "4", contratosAno: "36", cumplimiento: 58, estado: "activo" },
+  { id: "1.020.789.456", nombre: "Angie Carolina Duarte", zona: "Bogotá", contratosMes: "9", contratosAno: "64", metaMensual: 10, estado: "activo" },
+  { id: "45.678.912", nombre: "Ruby Esperanza Meza", zona: "Caribe", contratosMes: "7", contratosAno: "58", metaMensual: 9, estado: "activo" },
+  { id: "1.014.567.890", nombre: "Julián Esteban Rueda", zona: "Bogotá", contratosMes: "5", contratosAno: "41", metaMensual: 8, estado: "activo" },
+  { id: "52.345.678", nombre: "Marcela Quintero Páez", zona: "Occidente", contratosMes: "8", contratosAno: "55", metaMensual: 9, estado: "activo" },
+  { id: "1.032.456.789", nombre: "David Santiago Herrera", zona: "Norte", contratosMes: "3", contratosAno: "29", metaMensual: 7, estado: "vacaciones" },
+  { id: "79.912.345", nombre: "Lina María Cabrera", zona: "Bogotá", contratosMes: "6", contratosAno: "47", metaMensual: 8, estado: "activo" },
+  { id: "1.045.234.567", nombre: "Óscar Iván Salazar", zona: "Caribe", contratosMes: "0", contratosAno: "18", metaMensual: 8, estado: "inactivo" },
+  { id: "1.010.987.654", nombre: "Tatiana Reyes Amador", zona: "Sur", contratosMes: "4", contratosAno: "36", metaMensual: 7, estado: "activo" },
 ];
 
 export const ESTADO_INTERNO_BADGE: Record<EstadoInterno, { label: string; variant: "active" | "pending" | "violet" | "rejected" | "neutral" }> = {
@@ -59,6 +69,7 @@ const COLUMNS = [
   { key: "zona", header: "Zona", width: 100 },
   { key: "contratosMes", header: "Contratos mes", width: 115 },
   { key: "contratosAno", header: "Contratos año", width: 115 },
+  { key: "metaMensual", header: "Meta del mes", width: 100 },
   { key: "cumplimiento", header: "Cumplimiento meta", width: 180 },
   { key: "estado", header: "Estado", width: 115 },
   { key: "acciones", header: "Acciones", width: 90 },
@@ -70,12 +81,21 @@ const SEARCH_OPTIONS = [
   { value: "zona", label: "Zona" },
 ];
 
-const METRICS = [
-  { label: "Brokers internos", value: "8" },
-  { label: "Contratos (Mes actual)", value: "42" },
-  { label: "Contratos (Año actual)", value: "348" },
-  { label: "Cumplimiento promedio", value: "63%" },
-];
+/** Se calcula sobre los rows reales (no un número fijo), así refleja cualquier
+ * cambio de meta que se haga desde la ficha de un broker. */
+function metricasBrokers(rows: BrokerInternoRow[]) {
+  const contratosMesTotal = rows.reduce((sum, r) => sum + Number(r.contratosMes), 0);
+  const contratosAnoTotal = rows.reduce((sum, r) => sum + Number(r.contratosAno), 0);
+  const cumplimientoPromedio = rows.length
+    ? Math.round(rows.reduce((sum, r) => sum + calcularCumplimiento(r.contratosMes, r.metaMensual), 0) / rows.length)
+    : 0;
+  return [
+    { label: "Brokers internos", value: String(rows.length) },
+    { label: "Contratos (Mes actual)", value: String(contratosMesTotal) },
+    { label: "Contratos (Año actual)", value: String(contratosAnoTotal) },
+    { label: "Cumplimiento promedio", value: `${cumplimientoPromedio}%` },
+  ];
+}
 
 function useContainerWidth() {
   const ref = useRef<HTMLDivElement>(null);
@@ -96,7 +116,7 @@ function cumplimientoPorZona(rows: BrokerInternoRow[]) {
   const acc = new Map<string, { sum: number; count: number }>();
   for (const r of rows) {
     const cur = acc.get(r.zona) ?? { sum: 0, count: 0 };
-    acc.set(r.zona, { sum: cur.sum + r.cumplimiento, count: cur.count + 1 });
+    acc.set(r.zona, { sum: cur.sum + calcularCumplimiento(r.contratosMes, r.metaMensual), count: cur.count + 1 });
   }
   return [...acc.entries()]
     .map(([name, { sum, count }]) => ({ name, value: Math.round(sum / count) }))
@@ -160,7 +180,7 @@ export function BrokersInternos({ rows, onViewBroker }: Props) {
     const badge = ESTADO_INTERNO_BADGE[r.estado];
     return {
       ...r,
-      cumplimiento: <ProgressBar value={r.cumplimiento} />,
+      cumplimiento: <ProgressBar value={calcularCumplimiento(r.contratosMes, r.metaMensual)} />,
       estado: <StatusBadge label={badge.label} variant={badge.variant} />,
       acciones: (
         <div className="flex items-center gap-1">
@@ -179,7 +199,7 @@ export function BrokersInternos({ rows, onViewBroker }: Props) {
         actions={<AppButton variant="primary" bold>Agregar Broker</AppButton>}
       />
 
-      <MetricsRow metrics={METRICS} />
+      <MetricsRow metrics={metricasBrokers(rows)} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <BrokersComparativaChart />

@@ -6,6 +6,7 @@ import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
 import { StatusBadge } from "./kit/StatusBadge";
 import { SelectInput } from "./kit/SelectInput";
+import { TextInput } from "./kit/TextInput";
 import { Stepper } from "./kit/Stepper";
 import { InfoField } from "./kit/InfoField";
 import { DocumentCard } from "./kit/DocumentCard";
@@ -18,7 +19,7 @@ import { DataTable } from "./kit/DataTable";
 import { TabBar } from "./kit/TabBar";
 import { Modal } from "./kit/Modal";
 import { DateInput } from "./kit/DateInput";
-import { ESTADO_INTERNO_BADGE, ESTADOS_AUSENCIA } from "./BrokersInternos";
+import { ESTADO_INTERNO_BADGE, ESTADOS_AUSENCIA, calcularCumplimiento } from "./BrokersInternos";
 import type { EstadoInterno } from "./BrokersInternos";
 
 function formatFecha(iso?: string) {
@@ -107,7 +108,8 @@ interface Props {
   estadoInternoDesde?: string;
   estadoInternoHasta?: string;
   onChangeEstadoInterno?: (estado: EstadoInterno, meta?: { desde?: string; hasta?: string }) => void;
-  desempenoInterno?: { contratosMes: string; contratosAno: string; cumplimiento: number };
+  desempenoInterno?: { contratosMes: string; contratosAno?: string; metaMensual: number };
+  onChangeMetaMensual?: (metaMensual: number) => void;
 }
 
 function SectionHeader({ title, right }: { title: string; right?: React.ReactNode }) {
@@ -128,7 +130,7 @@ function Gated({ blocked, children }: { blocked: boolean; children: React.ReactN
   );
 }
 
-export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewInmueble, estadoInterno, estadoInternoDesde, estadoInternoHasta, onChangeEstadoInterno, desempenoInterno }: Props) {
+export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewInmueble, estadoInterno, estadoInternoDesde, estadoInternoHasta, onChangeEstadoInterno, desempenoInterno, onChangeMetaMensual }: Props) {
   const isActiveBroker = broker.estadoBroker === "activo";
 
   // Step 0 (Registrado) is completed on arrival; `current` is the step being worked on.
@@ -226,8 +228,9 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
         <MetricsRow
           metrics={[
             { label: "Contratos mes", value: desempenoInterno.contratosMes },
-            { label: "Contratos año", value: desempenoInterno.contratosAno },
-            { label: "Cumplimiento meta", value: `${desempenoInterno.cumplimiento}%` },
+            { label: "Meta del mes", value: String(desempenoInterno.metaMensual) },
+            ...(desempenoInterno.contratosAno ? [{ label: "Contratos año", value: desempenoInterno.contratosAno }] : []),
+            { label: "Cumplimiento meta", value: `${calcularCumplimiento(desempenoInterno.contratosMes, desempenoInterno.metaMensual)}%` },
           ]}
         />
       )}
@@ -261,6 +264,18 @@ export function BrokerDetalle({ broker, onBack, onApprove, onInactivate, onViewI
           {brokerTab === "perfil" && (
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-4 gap-x-6 gap-y-5 max-lg:grid-cols-2">
+                {desempenoInterno && (
+                  <InfoField
+                    label="Meta mensual (contratos)"
+                    value={
+                      <TextInput
+                        value={String(desempenoInterno.metaMensual)}
+                        onChange={(v) => onChangeMetaMensual?.(Number(v.replace(/\D/g, "")) || 0)}
+                        className="w-full max-w-[120px]"
+                      />
+                    }
+                  />
+                )}
                 {estadoInterno && (
                   <InfoField
                     label="Estado del broker"

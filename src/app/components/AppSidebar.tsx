@@ -5,7 +5,7 @@ import { AppButton } from "./kit/AppButton";
 import {
   Home, Building2, FileText, ClipboardList, User, Users,
   Inbox, Handshake, Briefcase, LifeBuoy, ChevronDown, ChevronRight,
-  ChevronLeft, Menu, X, LogOut, UserCircle, Palette,
+  ChevronLeft, Menu, X, LogOut, UserCircle, Palette, Shield,
 } from "lucide-react";
 
 const NAV = [
@@ -21,6 +21,7 @@ const NAV = [
   },
   { id: "contratos", label: "Contratos", icon: FileText },
   { id: "inventarios", label: "Inventarios", icon: ClipboardList },
+  { id: "seguros", label: "Seguros", icon: Shield },
   { id: "inquilinos", label: "Inquilinos", icon: User },
   { id: "propietarios", label: "Propietarios", icon: Users },
   { id: "solicitudes", label: "Solicitudes", icon: Inbox },

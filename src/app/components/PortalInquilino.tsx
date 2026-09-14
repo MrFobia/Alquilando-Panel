@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Home, CreditCard, FileText, Inbox, LifeBuoy, LogOut, Construction, Shield,
   Bell, AlertCircle, ChevronRight, X, CircleDollarSign, Barcode, MessageCircle,
   Phone, MessageSquareText, CarFront, PawPrint, Sofa, CircleCheck, ShieldCheck,
   ArrowLeft, ShieldOff, PhoneCall, ChevronDown, ChevronUp, Download,
+  Wrench, Users, ArrowRight, Lock,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AlquilandoLogo } from "./kit/AlquilandoLogo";
@@ -21,7 +22,8 @@ import { DataTable } from "./kit/DataTable";
 import { Pagination } from "./kit/Pagination";
 import { MonthRangePicker } from "./kit/MonthRangePicker";
 import { IconButton } from "./kit/IconButton";
-import segurosBanner from "../../assets/seguros-banner.png";
+import familiaHogarImg from "../../assets/seguro-hogar-familia.png";
+import familiaSofaImg from "../../assets/seguro-hogar-sofa.png";
 import logoSegurosBolivar from "../../assets/logo-seguros-bolivar.png";
 import { CotizadorHogar, formatCOPNumber, formatFechaCorta } from "./CotizadorHogar";
 import type { PolizaComprada } from "./CotizadorHogar";
@@ -398,7 +400,7 @@ function InicioMobile({ inmueble, onInmueble, polizas, onVerSeguros }: InicioMob
       {/* Saludo compacto + selector de inmueble */}
       <div className="flex flex-col gap-2.5">
         <div>
-          <h1 className="title-secondary" style={{ color: PURPLE }}>¡Hola, Nelson! 👋</h1>
+          <h1 className="title-secondary" style={{ color: PURPLE }}>¡Hola, Nelson!</h1>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
             Esto es lo que pasa hoy con tu arriendo.
           </p>
@@ -434,16 +436,10 @@ const NOTIFICACIONES_INICIALES: Notificacion[] = [
     id: 1,
     categoria: "noticias",
     titulo: "Protege lo que más quieres con Seguro de Hogar.",
-    descripcion: "Asegura tus muebles, electrodomésticos y objetos de valor contra daños o robo desde $822.943/año.",
+    descripcion: "Asegura tus muebles, electrodomésticos y objetos de valor contra daños o robo. Pagas por mes o por año, como prefieras.",
     cta: "Adquirir Seguro de Hogar",
     accion: "cotizar-hogar",
     destacada: true,
-  },
-  {
-    id: 2,
-    categoria: "noticias",
-    titulo: "Cuida a tu peludo como se merece.",
-    descripcion: "Nuevo Seguro de Mascotas: cubre gastos veterinarios, vacunas y daños a terceros. ¡Tu mejor amigo protegido!",
   },
   {
     id: 3,
@@ -578,36 +574,119 @@ function Notificaciones({ onCotizarHogar, items, setItems, hideTitle }: {
 
 // ─── Banner de seguros ───────────────────────────────────────────────────────
 
+/**
+ * Variantes de copy para el banner del home. Cambia cada semana (calculado por
+ * fecha, sin backend) para que no se vuelva invisible por repetición — pedido
+ * en la reunión de estrategia de marketing del 11-sep-2026.
+ */
+const BANNERS_HOGAR: { titulo: string; texto: string; cta: string }[] = [
+  { titulo: "Vive tranquilo, vive asegurado.", texto: "Asegura tus muebles, electrodomésticos y objetos de valor contra daños o robo. Eliges el plan y pagas por mes o por año.", cta: "Empezar ahora" },
+  { titulo: "Tu hogar merece estar protegido.", texto: "El arriendo cubre el inmueble, no lo que hay adentro. Configura tu Seguro de Hogar en minutos.", cta: "Proteger mi hogar" },
+  { titulo: "No esperes a que pase algo.", texto: "Robo, daños eléctricos, agua o incendio: tu Seguro de Hogar te respalda. Cancelas cuando quieras.", cta: "Ver mi plan" },
+];
+
+function bannerDeLaSemana() {
+  const inicioAnio = new Date(new Date().getFullYear(), 0, 1);
+  const dias = Math.floor((Date.now() - inicioAnio.getTime()) / 86400000);
+  const semana = Math.floor(dias / 7);
+  return BANNERS_HOGAR[semana % BANNERS_HOGAR.length];
+}
+
+/**
+ * Piezas de diseño compartidas entre los 3 lugares donde promocionamos el
+ * Seguro de Hogar (pop-up, banner del home y hero de la sección Seguros):
+ * misma identidad visual — badge, íconos en círculo por tono semántico,
+ * ilustración con halo, CTA con flecha circular — para que se sientan como
+ * una sola campaña y no tres banners inconsistentes.
+ */
+const TONOS_BENEFICIO = {
+  purple: { bg: PURPLE_LIGHT, fg: PURPLE },
+  green: { bg: "var(--green-status-light)", fg: "var(--green-status)" },
+  orange: { bg: "var(--orange-status-light)", fg: "var(--orange-status)" },
+} as const;
+
+function BadgeSeguroHogar() {
+  return (
+    <span
+      className="tags-bold inline-flex items-center gap-1.5 rounded-full w-fit"
+      style={{ backgroundColor: PURPLE_LIGHT, color: PURPLE_DARK, padding: "5px 12px", letterSpacing: 0.5 }}
+    >
+      <Home size={12} strokeWidth={2.4} /> SEGURO DE HOGAR
+    </span>
+  );
+}
+
+function BeneficioCirculo({ icon: Icon, tono, compact, children }: { icon: LucideIcon; tono: keyof typeof TONOS_BENEFICIO; compact?: boolean; children: React.ReactNode }) {
+  const t = TONOS_BENEFICIO[tono];
+  const size = compact ? 30 : 34;
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="flex items-center justify-center rounded-full shrink-0" style={{ width: size, height: size, backgroundColor: t.bg }}>
+        <Icon size={compact ? 14 : 16} strokeWidth={2} style={{ color: t.fg }} />
+      </div>
+      <span className={compact ? "body-small-bold" : "body-regular"} style={{ color: "var(--gray-10)", fontWeight: compact ? 700 : 500 }}>
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function LineaConfianza() {
+  return (
+    <span className="disclamer inline-flex items-center gap-1.5" style={{ color: "var(--gray-8)" }}>
+      <Lock size={11} /> 100% seguro y sin compromiso
+    </span>
+  );
+}
+
+/** Ilustración con halo lavanda detrás y, opcionalmente, una nota flotante estilo sticker. */
+/**
+ * La imagen ya trae, dibujados, el halo lavanda, las chispas y el globo
+ * "Tu tranquilidad también vive aquí" — por eso este wrapper solo la pinta,
+ * sin agregarle una segunda capa de decoración encima.
+ */
+function IlustracionSeguroHogar({ size = 220, hiddenBelow = "sm" }: { size?: number; hiddenBelow?: "sm" | "md" }) {
+  return (
+    <div className={`relative shrink-0 ${hiddenBelow === "md" ? "max-md:hidden" : "max-sm:hidden"}`} style={{ width: size }}>
+      <img
+        src={familiaHogarImg}
+        alt="Familia leyendo un cuento en su sala, protegida por su Seguro de Hogar. Un globo de texto dice: Tu tranquilidad también vive aquí."
+        style={{ width: "100%", height: "auto", display: "block" }}
+      />
+    </div>
+  );
+}
+
 function BannerSeguros({ onVerSeguros, polizas }: { onVerSeguros: () => void; polizas: PolizaComprada[] }) {
   const vigentes = polizas.filter((p) => p.estado !== "cancelada");
 
   if (vigentes.length === 0) {
+    const banner = bannerDeLaSemana();
     return (
-      <section className="rounded-lg flex items-center gap-6 overflow-hidden p-5 md:px-7 md:py-6" style={{ backgroundColor: PURPLE }}>
-        <div className="flex-1 flex flex-col gap-3">
-          <h2 className="title-secondary" style={{ color: "#ffffff" }}>Vive tranquilo, vive asegurado.</h2>
-          <p className="body-regular" style={{ color: "#ffffff", margin: 0, opacity: 0.92 }}>
-            Asegura tus muebles, electrodomésticos y objetos de valor contra daños o robo desde solo{" "}
-            <span style={{ fontWeight: 700 }}>$822.943/año</span>.
+      <section
+        className="relative rounded-lg flex items-center gap-6 overflow-hidden p-6 md:px-8 md:py-7"
+        style={{
+          background: `linear-gradient(135deg, #ffffff 0%, ${PURPLE_LIGHT} 145%)`,
+          border: "1px solid var(--gray-4)",
+          boxShadow: "0 14px 34px -22px rgba(91,33,182,0.35)",
+        }}
+      >
+        <div className="flex-1 flex flex-col gap-3.5 min-w-0" style={{ zIndex: 1 }}>
+          <BadgeSeguroHogar />
+          <h2 className="title-primary-bold" style={{ color: PURPLE, margin: 0, lineHeight: 1.15 }}>{banner.titulo}</h2>
+          <p className="body-regular" style={{ color: "var(--gray-9)", margin: 0, maxWidth: 440 }}>
+            {banner.texto}
           </p>
-          <div>
-            <button
-              onClick={onVerSeguros}
-              className="body-bold flex items-center gap-1.5 rounded-lg transition-colors"
-              style={{ cursor: "pointer", height: 42, padding: "0 18px", backgroundColor: "#ffffff", color: PURPLE, border: "none", marginTop: 6 }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = PURPLE_LIGHT; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#ffffff"; }}
-            >
-              Empezar ahora <ChevronRight size={16} />
-            </button>
+          <div className="flex items-center gap-5 flex-wrap" style={{ marginTop: 2 }}>
+            <BeneficioCirculo icon={ShieldCheck} tono="purple" compact>Robo y daños</BeneficioCirculo>
+            <BeneficioCirculo icon={Wrench} tono="green" compact>Plomería y cerrajería</BeneficioCirculo>
+          </div>
+          <div className="flex items-center gap-4 flex-wrap" style={{ marginTop: 6 }}>
+            <AppButton onClick={onVerSeguros} bold>{banner.cta} <ArrowRight size={15} /></AppButton>
+            <LineaConfianza />
           </div>
         </div>
-        <img
-          src={segurosBanner}
-          alt="Familia con su mascota en el parque, protegida por su seguro"
-          className="rounded-lg shrink-0 max-sm:hidden"
-          style={{ width: 170, height: "auto", objectFit: "cover" }}
-        />
+        <IlustracionSeguroHogar size={220} />
       </section>
     );
   }
@@ -761,7 +840,7 @@ function SeccionAyuda() {
 }
 
 const FAQS_SEGUROS = [
-  { id: "s1", title: "¿Cómo contrato un seguro?", content: "Elige el seguro que te interesa en “Nuestros seguros”, completa la cotización y confirma tu pago. La póliza queda activa de inmediato y la ves en “Mis seguros contratados”." },
+  { id: "s1", title: "¿Cómo contrato un seguro?", content: "Elige el seguro que te interesa en “Nuestros seguros”, completa la cotización y confirma tu pago. La póliza queda activa de inmediato y la ves en “Mis seguros suscritos”." },
   { id: "s2", title: "¿Cómo cancelo mi póliza?", content: "Entra a Mis seguros, selecciona la póliza y elige “Solicitar cancelación”. Un asesor te contactará para completar el proceso; la póliza sigue activa mientras tanto." },
   { id: "s3", title: "¿Qué cubre cada seguro?", content: "Cada tarjeta en “Nuestros seguros” lista las coberturas incluidas. También puedes ver el detalle completo desde “Ver detalle” en tu póliza activa." },
   { id: "s4", title: "¿Cómo reporto un siniestro?", content: "Contáctanos por WhatsApp o llamada desde esta sección y cuéntanos qué pasó. Te guiamos con Seguros Bolívar para iniciar el reclamo." },
@@ -787,33 +866,38 @@ const SEGUROS: {
   icon: LucideIcon;
   nombre: string;
   descripcion: string;
-  precio: string;
+  nota: string;
   beneficios: string[];
   cta: string;
+  /** false = producto "próximamente": tarjeta deshabilitada, sin CTA. */
+  disponible: boolean;
 }[] = [
   {
     icon: Sofa,
     nombre: "Seguro de Hogar",
     descripcion: "Protege tus muebles, electrodomésticos y objetos de valor contra daños o robo.",
-    precio: "Desde $822.943/año",
+    nota: "Suscripción mensual, cancela cuando quieras.",
     beneficios: ["Cobertura contra robo y daños", "Asistencia de plomería y cerrajería", "Responsabilidad civil familiar"],
     cta: "Cotizar seguro de hogar",
+    disponible: true,
   },
   {
     icon: CarFront,
     nombre: "SOAT",
     descripcion: "Compra o renueva tu SOAT en línea. Es fácil, rápido y llega directo a tu correo.",
-    precio: "Tarifa oficial",
+    nota: "Próximamente",
     beneficios: ["Emisión 100% en línea", "Llega a tu correo en minutos", "Evita multas y sanciones"],
     cta: "Comprar SOAT aquí",
+    disponible: false,
   },
   {
     icon: PawPrint,
     nombre: "Seguro de Mascotas",
     descripcion: "Cubre gastos veterinarios, vacunas y daños a terceros. ¡Tu mejor amigo protegido!",
-    precio: "Desde $18.000/mes",
+    nota: "Próximamente",
     beneficios: ["Consultas y urgencias veterinarias", "Vacunas anuales incluidas", "Daños a terceros cubiertos"],
     cta: "Cotizar seguro de mascotas",
+    disponible: false,
   },
 ];
 
@@ -849,9 +933,10 @@ function CancelarPolizaPanel({
         <div>
           <h3 className="body-bold" style={{ color: PURPLE, fontSize: 17 }}>Solicitud de cancelación enviada</h3>
           <p className="body-small-regular" style={{ color: "var(--gray-10)", marginTop: 6, maxWidth: 400 }}>
-            Un asesor te contactará en las próximas 24 horas hábiles para continuar con la cancelación de tu
+            Enviamos tu solicitud a Seguros Bolívar para gestionarla. Un asesor te contactará en las
+            próximas 24 horas hábiles para continuar con la cancelación de tu
             póliza <span style={{ fontWeight: 700 }}>{poliza.numeroPoliza}</span>. Tu cobertura sigue activa
-            mientras tanto.
+            mientras tanto. Dejamos copia a Servicio al Cliente de Alquilando para hacerle seguimiento.
           </p>
         </div>
         <AppButton variant="primary" bold onClick={onCerrar}>Entendido</AppButton>
@@ -1018,9 +1103,25 @@ function PolizaDetalleModal({
 
           <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
 
+          <div className="flex flex-col gap-2">
+            <span className="body-bold" style={{ color: PURPLE }}>¿Cómo usar tu póliza?</span>
+            <p className="body-small-regular" style={{ color: "var(--gray-10)", margin: 0 }}>
+              Si necesitas reportar un siniestro, pedir una asistencia (plomería, electricidad,
+              cerrajería) o hacer una novedad o cancelación de tu póliza, comunícate directamente
+              con Seguros Bolívar — <span style={{ fontWeight: 700 }}>atención disponible 24/7</span>.
+            </p>
+            <p className="body-small-regular" style={{ color: "var(--gray-9)", margin: 0 }}>
+              Línea Seguros Bolívar: {/* TODO: confirmar número/canal oficial con Bolívar */}
+              <span style={{ fontWeight: 700 }}>[pendiente confirmar con Bolívar]</span>. También puedes escribirle
+              a Servicio al Cliente de Alquilando si necesitas ayuda para hacer el contacto.
+            </p>
+          </div>
+
+          <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
+
           <div className="flex items-center justify-between gap-4">
-            <span className="body-bold" style={{ color: "var(--gray-10)" }}>Total anual:</span>
-            <span className="title-tertiary-bold" style={{ color: PURPLE }}>{formatCOPNumber(poliza.totalAnual)}</span>
+            <span className="body-bold" style={{ color: "var(--gray-10)" }}>{poliza.periodo === "mes" ? "Total mensual:" : "Total anual:"}</span>
+            <span className="title-tertiary-bold" style={{ color: PURPLE }}>{formatCOPNumber(poliza.periodo === "mes" ? Math.round(poliza.totalAnual / 12) : poliza.totalAnual)}</span>
           </div>
 
           {poliza.estado === "activa" && (
@@ -1054,7 +1155,7 @@ function MisPolizas({ polizas, onCancelar }: { polizas: PolizaComprada[]; onCanc
     <section className="rounded-lg flex flex-col gap-4" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "22px 24px" }}>
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="title-tertiary-bold" style={{ color: PURPLE }}>Mis seguros contratados</h2>
+          <h2 className="title-tertiary-bold" style={{ color: PURPLE }}>Mis seguros suscritos</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
             {activas === 1 ? "Tienes 1 póliza activa" : `Tienes ${activas} pólizas activas`}
             {enTramite > 0 && ` · ${enTramite} en trámite de cancelación`}
@@ -1104,7 +1205,7 @@ function MisPolizas({ polizas, onCancelar }: { polizas: PolizaComprada[]; onCanc
                     style={{ height: 34, width: "auto", opacity: cancelada ? 0.5 : 1 }}
                   />
                   <div className="flex flex-col items-end">
-                    <span className="body-bold" style={{ color: cancelada ? "var(--gray-8)" : PURPLE }}>{formatCOPNumber(p.totalAnual)}/año</span>
+                    <span className="body-bold" style={{ color: cancelada ? "var(--gray-8)" : PURPLE }}>{formatCOPNumber(p.periodo === "mes" ? Math.round(p.totalAnual / 12) : p.totalAnual)}{p.periodo === "mes" ? "/mes" : "/año"}</span>
                     <span className="disclamer" style={{ color: "var(--gray-8)" }}>
                       {cancelada ? `Solicitada el ${p.fechaSolicitudCancelacion}` : `Próxima renovación: ${p.proximaRenovacion}`}
                     </span>
@@ -1133,20 +1234,45 @@ function SeccionSeguros({
 }) {
   return (
     <div className="flex flex-col gap-5">
-      <section className="rounded-lg flex items-center gap-8 p-5 md:px-8 md:py-7" style={{ backgroundColor: PURPLE }}>
-        <div className="flex-1">
-          <h2 className="title-secondary" style={{ color: "#ffffff" }}>Vive tranquilo, vive asegurado.</h2>
-          <p className="body-regular" style={{ color: "#ffffff", marginTop: 6, opacity: 0.92, maxWidth: 640 }}>
+      <section
+        className="relative rounded-lg flex items-center p-6 md:pl-9 md:py-8 overflow-hidden"
+        style={{
+          background: `linear-gradient(135deg, #ffffff 0%, ${PURPLE_LIGHT} 150%)`,
+          border: "1px solid var(--gray-4)",
+          boxShadow: "0 16px 38px -22px rgba(91,33,182,0.35)",
+          minHeight: 340,
+        }}
+      >
+        <div className="flex flex-col gap-3" style={{ zIndex: 1, maxWidth: 420 }}>
+          <BadgeSeguroHogar />
+          <h2 className="title-primary-bold" style={{ color: PURPLE, margin: 0, lineHeight: 1.15 }}>Vive tranquilo, vive asegurado.</h2>
+          <p className="body-regular" style={{ color: "var(--gray-9)", margin: 0 }}>
             Seguros en alianza con las principales aseguradoras del país. Contrata en línea, sin papeleo,
             y gestiona todo desde tu portal de Alquilando.
           </p>
+          <div className="flex items-center gap-5 flex-wrap" style={{ marginTop: 4 }}>
+            <BeneficioCirculo icon={ShieldCheck} tono="purple" compact>Robo y daños</BeneficioCirculo>
+            <BeneficioCirculo icon={Wrench} tono="green" compact>Asistencias 24/7</BeneficioCirculo>
+            <BeneficioCirculo icon={Users} tono="orange" compact>Resp. civil familiar</BeneficioCirculo>
+          </div>
+          <div style={{ marginTop: 4 }}><LineaConfianza /></div>
         </div>
-        <img
-          src={segurosBanner}
-          alt="Familia con su mascota en el parque, protegida por su seguro"
-          className="rounded-lg shrink-0 max-md:hidden"
-          style={{ width: 150, height: "auto", objectFit: "cover" }}
-        />
+
+        {/* Panel de imagen a todo el alto/ancho de su mitad del banner (object-fit: cover),
+            no un ícono flotando sobre fondo blanco. Un degradado a la izquierda la funde
+            con el fondo del banner en vez de cortarla en seco. */}
+        <div className="absolute inset-y-0 right-0 max-md:hidden" style={{ width: "56%" }}>
+          <img
+            src={familiaSofaImg}
+            alt="Familia leyendo un cuento en el sofá de su sala, protegida por su Seguro de Hogar"
+            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "62% 45%", display: "block" }}
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0"
+            style={{ background: `linear-gradient(90deg, #ffffff 0%, rgba(255,255,255,0.55) 12%, rgba(255,255,255,0) 32%)` }}
+          />
+        </div>
       </section>
 
       <MisPolizas polizas={polizas} onCancelar={onCancelarPoliza} />
@@ -1158,11 +1284,16 @@ function SeccionSeguros({
       </div>
 
       <div className="grid grid-cols-3 gap-5 max-lg:grid-cols-1">
-        {SEGUROS.map(({ icon: Icon, nombre, descripcion, precio, beneficios, cta }) => (
+        {SEGUROS.map(({ icon: Icon, nombre, descripcion, nota, beneficios, cta, disponible }) => (
           <section
             key={nombre}
             className="rounded-lg flex flex-col gap-4"
-            style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "24px" }}
+            style={{
+              backgroundColor: "#ffffff",
+              border: "1px solid var(--gray-4)",
+              padding: "24px",
+              opacity: disponible ? 1 : 0.6,
+            }}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center justify-center rounded-full" style={{ width: 48, height: 48, backgroundColor: PURPLE_LIGHT }}>
@@ -1171,8 +1302,11 @@ function SeccionSeguros({
               <img src={logoSegurosBolivar} alt="Seguros Bolívar" style={{ height: 26, width: "auto" }} />
             </div>
             <div className="flex flex-col gap-1">
-              <h3 className="title-tertiary-bold" style={{ color: "var(--gray-10)" }}>{nombre}</h3>
-              <span className="body-small-bold" style={{ color: PURPLE }}>{precio}</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="title-tertiary-bold" style={{ color: "var(--gray-10)" }}>{nombre}</h3>
+                {!disponible && <StatusBadge label="Próximamente" variant="pending" />}
+              </div>
+              {disponible && <span className="body-small-bold" style={{ color: PURPLE }}>{nota}</span>}
             </div>
             <p className="body-small-regular" style={{ color: "var(--gray-9)", margin: 0 }}>{descripcion}</p>
             <ul className="flex flex-col gap-2 flex-1" style={{ listStyle: "none", margin: 0, padding: 0 }}>
@@ -1187,9 +1321,10 @@ function SeccionSeguros({
               variant="primary"
               bold
               fullWidth
-              onClick={nombre === "Seguro de Hogar" ? onCotizarHogar : undefined}
+              disabled={!disponible}
+              onClick={disponible && nombre === "Seguro de Hogar" ? onCotizarHogar : undefined}
             >
-              {cta}
+              {disponible ? cta : "Próximamente"}
             </AppButton>
           </section>
         ))}
@@ -1206,6 +1341,130 @@ interface Props {
   onLogout: () => void;
 }
 
+/**
+ * Invitación a asegurar el hogar, al entrar al portal.
+ *
+ * Aparece cada vez que se entra al portal (cada login), salvo que el usuario
+ * haya marcado "no volver a mostrar" (persiste en localStorage) o que ya
+ * tenga una póliza de hogar vigente: a quien ya compró no se le vuelve a
+ * ofrecer. Sin cifras — el precio depende del plan y del inmueble, y se arma
+ * en el cotizador.
+ */
+/** Clave de localStorage para "no volver a mostrar" — persiste entre sesiones. */
+const PROMO_HOGAR_DISMISS_KEY = "alquilando_promo_hogar_dismissed";
+/** Si es true, el pop-up no ofrece "no volver a mostrar" y reaparece siempre. Definido por marketing. */
+const POPUP_HOGAR_OBLIGATORIO = false;
+
+const BENEFICIOS_PROMO_HOGAR: { icon: LucideIcon; tono: keyof typeof TONOS_BENEFICIO; texto: string }[] = [
+  { icon: ShieldCheck, tono: "purple", texto: "Cobertura contra robo y daños" },
+  { icon: Wrench, tono: "green", texto: "Asistencia de plomería y cerrajería" },
+  { icon: Users, tono: "orange", texto: "Responsabilidad civil familiar" },
+  { icon: CreditCard, tono: "purple", texto: "Pagas por mes o por año, como prefieras" },
+];
+
+/**
+ * Este pop-up NO usa el kit/Modal genérico: su encabezado (badge + título)
+ * vive dentro del layout de dos columnas, no en la barra de título estándar
+ * que Modal siempre agrega — por eso arma su propio overlay, con el mismo
+ * comportamiento (click afuera cierra, Escape cierra) que Modal ya da.
+ */
+function PromoHogarModal({ open, onClose, onCotizar }: { open: boolean; onClose: () => void; onCotizar: () => void }) {
+  const [noVolverAMostrar, setNoVolverAMostrar] = useState(false);
+
+  const cerrar = () => {
+    if (!POPUP_HOGAR_OBLIGATORIO && noVolverAMostrar) {
+      try { localStorage.setItem(PROMO_HOGAR_DISMISS_KEY, "1"); } catch { /* modo privado */ }
+    }
+    onClose();
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") cerrar(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, noVolverAMostrar]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ backgroundColor: "rgba(34,20,64,0.55)", padding: 20 }}
+      onClick={cerrar}
+    >
+      <div
+        className="relative rounded-2xl overflow-hidden w-full"
+        style={{ maxWidth: 1040, maxHeight: "92vh", backgroundColor: "#ffffff", boxShadow: "0 30px 70px -20px rgba(76,29,149,0.45)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={cerrar}
+          aria-label="Cerrar"
+          className="absolute flex items-center justify-center rounded-full"
+          style={{ top: 16, right: 16, width: 34, height: 34, cursor: "pointer", zIndex: 3, backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", color: "var(--gray-8)" }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--gray-2)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#ffffff"; }}
+        >
+          <X size={17} />
+        </button>
+
+        <div className="overflow-y-auto flex flex-col" style={{ maxHeight: "92vh", background: `linear-gradient(160deg, #ffffff 0%, ${PURPLE_LIGHT} 160%)` }}>
+          <div className="grid md:grid-cols-[0.85fr_1.15fr]">
+            {/* Columna de texto */}
+            <div className="flex flex-col gap-4" style={{ padding: "36px 34px 8px" }}>
+              <BadgeSeguroHogar />
+              <h2 className="title-primary-bold" style={{ color: "var(--gray-10)", margin: 0, lineHeight: 1.18 }}>
+                Protege lo que hay dentro de{" "}
+                <span style={{ color: PURPLE, textDecorationLine: "underline", textDecorationColor: PURPLE_LIGHT, textDecorationThickness: 6, textUnderlineOffset: 3 }}>
+                  tu casa
+                </span>
+              </h2>
+              <p className="body-regular" style={{ color: "var(--gray-9)", margin: 0 }}>
+                El arriendo cubre el inmueble, no lo que hay adentro. Con el Seguro de Hogar quedan
+                protegidos tus muebles, electrodomésticos y objetos de valor.
+              </p>
+
+              <div className="flex flex-col gap-3">
+                {BENEFICIOS_PROMO_HOGAR.map(({ icon, tono, texto }) => (
+                  <BeneficioCirculo key={texto} icon={icon} tono={tono}>{texto}</BeneficioCirculo>
+                ))}
+              </div>
+
+              <span className="body-small-bold" style={{ color: PURPLE, marginTop: 2 }}>Hogares más tranquilos</span>
+
+              <div className="flex flex-col-reverse sm:flex-row gap-2" style={{ marginTop: 4 }}>
+                <AppButton variant="secondary" onClick={cerrar}>Ahora no</AppButton>
+                <AppButton onClick={onCotizar} bold>Cotizar mi seguro <ArrowRight size={15} /></AppButton>
+              </div>
+            </div>
+
+            {/* Columna de ilustración: centrada, con poco padding para que la imagen llene el espacio */}
+            <div className="flex items-center justify-center max-md:hidden" style={{ padding: "20px 20px 20px 0" }}>
+              <IlustracionSeguroHogar size={520} hiddenBelow="md" />
+            </div>
+          </div>
+
+          {/* Fila inferior: ocupa todo el ancho de la tarjeta, no solo la columna de texto */}
+          <div className="flex items-center justify-between flex-wrap gap-3" style={{ padding: "12px 34px 28px" }}>
+            <label className="flex items-center gap-2" style={{ cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={noVolverAMostrar}
+                onChange={(e) => setNoVolverAMostrar(e.target.checked)}
+                style={{ cursor: "pointer" }}
+              />
+              <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>No volver a mostrar</span>
+            </label>
+            <LineaConfianza />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PortalInquilino({ onLogout }: Props) {
   const [active, setActiveRaw] = useState("inicio");
   const [inmueble, setInmueble] = useState("carrera-23");
@@ -1214,7 +1473,23 @@ export function PortalInquilino({ onLogout }: Props) {
   // Notificaciones viven aquí: en mobile se abren desde la campana del header.
   const [notifItems, setNotifItems] = useState(NOTIFICACIONES_INICIALES);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [promoHogar, setPromoHogar] = useState(false);
   const seccion = TITULOS[active];
+
+  /* La invitación al seguro de hogar salta cada vez que se entra al portal,
+   * y nunca a quien ya tiene una póliza de hogar vigente ni a quien marcó
+   * "no volver a mostrar" (persistido en localStorage). Si marketing decide
+   * volverlo obligatorio, POPUP_HOGAR_OBLIGATORIO ignora ese descarte. */
+  useEffect(() => {
+    const yaTiene = polizas.some((p) => p.estado !== "cancelada");
+    let descartadaPermanente = false;
+    if (!POPUP_HOGAR_OBLIGATORIO) {
+      try { descartadaPermanente = localStorage.getItem(PROMO_HOGAR_DISMISS_KEY) === "1"; } catch { /* modo privado */ }
+    }
+    if (yaTiene || descartadaPermanente) return;
+    const t = setTimeout(() => setPromoHogar(true), 900);
+    return () => clearTimeout(t);
+  }, []);
 
   /** No cancela de inmediato: un asesor debe contactar y completar la cancelación. */
   const solicitarCancelacion = (id: string, motivo: string) => {
@@ -1466,6 +1741,12 @@ export function PortalInquilino({ onLogout }: Props) {
           <Footer />
         </div>
       </main>
+
+      <PromoHogarModal
+        open={promoHogar}
+        onClose={() => setPromoHogar(false)}
+        onCotizar={() => { setPromoHogar(false); setActiveRaw("seguros"); setCotizandoHogar(true); }}
+      />
     </div>
   );
 }

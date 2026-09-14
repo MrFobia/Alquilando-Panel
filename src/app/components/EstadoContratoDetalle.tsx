@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DollarSign, Barcode, Download } from "lucide-react";
 import { BackButton } from "./kit/BackButton";
 import { AppButton } from "./kit/AppButton";
@@ -9,9 +10,16 @@ import { InfoField } from "./kit/InfoField";
 import { DataTable } from "./kit/DataTable";
 import { PaymentOptionCard } from "./kit/PaymentOptionCard";
 import { Footer } from "./kit/Footer";
+import { HabitoPagoCard } from "./kit/HabitoPagoCard";
+import { generarHistorialPagos } from "../data/habitoPago";
+import { useEsInmobiliariaMaestra } from "../store/SessionContext";
 
 interface Props {
   onBack: () => void;
+  /** Contrato en administración del que se consulta el estado */
+  numeroContrato?: string;
+  /** Marca los contratos con cartera vencida para el histórico de demo */
+  enMora?: boolean;
 }
 
 const CONTRATO = {
@@ -49,7 +57,46 @@ const CUOTAS_COLUMNS = [
   { key: "valor", header: "Valor", align: "right" as const },
 ];
 
-export function EstadoContratoDetalle({ onBack }: Props) {
+export function EstadoContratoDetalle({ onBack, numeroContrato, enMora = false }: Props) {
+  const esMaestra = useEsInmobiliariaMaestra();
+  const [verHabito, setVerHabito] = useState(false);
+
+  const contrato = numeroContrato ?? CUENTA.numeroContrato;
+
+  // El hábito de pago sale del histórico de recaudo del propio contrato.
+  const pagos = generarHistorialPagos({
+    seed: `contrato-${contrato}`,
+    canon: 1_250_000,
+    perfil: enMora ? "malo" : undefined,
+    ultimoPendiente: true,
+  });
+
+  // Vista de hábito de pago: se abre desde el link de "Estado de cuenta" y es
+  // exclusiva de la inmobiliaria maestra.
+  if (verHabito && esMaestra) {
+    return (
+      <div className="flex flex-col gap-5">
+        <BackButton onClick={() => setVerHabito(false)} />
+
+        <section
+          className="rounded-lg flex items-start justify-between gap-4 flex-wrap"
+          style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "20px 24px" }}
+        >
+          <div>
+            <h1 className="title-primary-bold" style={{ color: "var(--navy)" }}>Hábito de pago</h1>
+            <p className="body-bold" style={{ color: "var(--gray-10)", marginTop: 4 }}>
+              Revisa si el inquilino paga oportunamente, cuándo suele pagar y cuál ha sido su promedio.
+            </p>
+          </div>
+        </section>
+
+        <HabitoPagoCard pagos={pagos} numeroContrato={contrato} title="Resumen del comportamiento de pago" />
+
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <BackButton onClick={onBack} />
@@ -69,7 +116,7 @@ export function EstadoContratoDetalle({ onBack }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         <SectionCard
           title="Estado de cuenta"
-          link={{ label: "Ver historial de pagos", onClick: () => {} }}
+          link={esMaestra ? { label: "Ver hábito de pago", onClick: () => setVerHabito(true) } : undefined}
           padding="20px 24px"
         >
           <div
@@ -93,7 +140,7 @@ export function EstadoContratoDetalle({ onBack }: Props) {
           </div>
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-            <InfoField label="Número de contrato" value={CUENTA.numeroContrato} />
+            <InfoField label="Número de contrato" value={contrato} />
             <InfoField label="Canon de arrendamiento" value={CUENTA.canon} />
             <InfoField label="Saldo" value={CUENTA.saldo} />
             <InfoField label="Otros" value={CUENTA.otros} />

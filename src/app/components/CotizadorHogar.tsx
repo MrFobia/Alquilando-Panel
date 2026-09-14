@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, createContext, useContext} from "react";
 import {
   ArrowLeft, CircleCheck, Tv, Sofa, ShieldCheck, Home, Plus, ChevronUp, ChevronDown,
   Flame, Lock, Wrench, Hammer, PackageCheck, Award,
-  Receipt, Mail, CalendarClock, CreditCard, Download, FileText, Info, SlidersHorizontal, Trash2,
+  Receipt, Mail, CalendarClock, CreditCard, FileText, Info, SlidersHorizontal, Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Stepper } from "./kit/Stepper";
@@ -17,6 +17,7 @@ import { Callout } from "./kit/Callout";
 import { Accordion } from "./kit/Accordion";
 import { Field } from "./kit/Field";
 import logoSegurosBolivar from "../../assets/logo-seguros-bolivar.png";
+import { CORREO_PREVIEW_KEY } from "./CorreoConfirmacionPoliza";
 
 /**
  * Cotizador del seguro de hogar del portal del inquilino.
@@ -63,11 +64,15 @@ interface InmuebleCotizacion {
 const INMUEBLES_COTIZACION: Record<string, InmuebleCotizacion> = {
   "carrera-23": { estrato: "3", canon: "$1.400.000", ciudad: "Bogotá", direccion: "Carrera 23 # 45 - 34 sur", coordenadas: "4,593874 - -74,129384", datosCompletos: false, lat: 4.593874, lng: -74.129384 },
   "calle-80": { estrato: "4", canon: "$2.150.000", ciudad: "Bogotá", direccion: "Calle 80 # 12 - 08, apto 502", coordenadas: "4,668350 - -74,056420", datosCompletos: true, lat: 4.668350, lng: -74.056420, polizaActiva: true },
+  // Con datosCompletos: true y sin polizaActiva, este es el único seleccionable donde no
+  // aparece "Completa los datos del inmueble": solo queda por llenar la relación con el inmueble.
+  "cra-15-93": { estrato: "5", canon: "$3.200.000", ciudad: "Bogotá", direccion: "Cra 15 # 93 - 47, apto 301", coordenadas: "4,676690 - -74,048540", datosCompletos: true, lat: 4.676690, lng: -74.048540 },
 };
 
 const INMUEBLE_OPTIONS = [
   { value: "carrera-23", label: "Carrera 23 # 45 - 34 sur" },
   { value: "calle-80", label: "Calle 80 # 12 - 08, apto 502" },
+  { value: "cra-15-93", label: "Cra 15 # 93 - 47, apto 301" },
 ];
 
 const ZONA_OPTIONS = [
@@ -129,30 +134,36 @@ export interface Cobertura {
   descripcion: string;
 }
 
+/**
+ * Nombres, orden y agrupación por plan tomados de la página real de Seguros
+ * Bolívar (digital.experienciasbolivar.segurosbolivar.com/seguro-hogar), 5 básicas
+ * + 4 que suma Clásico + 5 que suma Premium. Bolívar no publica descripciones ni
+ * precios de coberturas adicionales por separado — esas quedan como texto propio
+ * hasta que Bolívar las confirme (ver memoria del proyecto).
+ */
 const COBERTURAS_BASICO: Cobertura[] = [
-  { titulo: "Daños por incendio o daños por agua internos", descripcion: "Cubre daños que se originen por incendios, explosiones y agua al interior del inmueble (Ej. tubos rotos)." },
-  { titulo: "Daños por agua origen exterior", descripcion: "Cubre daños causados a la vivienda por lluvias, huracanes, vientos fuertes o granizadas." },
-  { titulo: "Robo con violencia", descripcion: "Cubre la pérdida de objetos asegurados o daños a la vivienda ocasionados por robos violentos dentro del hogar." },
   { titulo: "Daños eléctricos y errores de montaje", descripcion: "Tus contenidos eléctricos están protegidos frente a caídas de energía, cortos circuitos, malas conexiones o bajonazos de luz." },
+  { titulo: "Daños por agua", descripcion: "Cubre daños ocasionados por fugas, filtraciones o rupturas de tuberías dentro de tu hogar." },
+  { titulo: "Daños por incendio", descripcion: "Cubre pérdidas materiales causadas por incendio o explosión en tu vivienda." },
   { titulo: "Daños y pérdidas por disturbios sociales", descripcion: "Protegemos tu hogar ante alteraciones del orden público, huelgas o disturbios." },
-  { titulo: "Daños accidentales a la estructura", descripcion: "Cubre accidentes que dañen tu hogar como caída de aviones, choque de autos o caída de árboles." },
+  { titulo: "Robo con violencia", descripcion: "Cubre la pérdida de objetos asegurados o daños a la vivienda ocasionados por robos violentos dentro del hogar." },
 ];
 
 const COBERTURAS_CLASICO: Cobertura[] = [
   ...COBERTURAS_BASICO,
-  { titulo: "Daños por desastres naturales", descripcion: "Cubre daños ocasionados por maremotos, tsunamis, erupción de volcanes, temblores y/o terremotos." },
-  { titulo: "Amparo por invalidez o fallecimiento", descripcion: "Tú y tus beneficiarios estarán protegidos si tienen algún tipo de lesión o enfermedad que les cause invalidez o la muerte, al igual que la empleada doméstica estará protegida ante accidentes dentro del hogar." },
-  { titulo: "Seguridad digital básica", descripcion: "Protege tus cuentas y dispositivos con monitoreo básico ante fraudes digitales y suplantación de identidad." },
+  { titulo: "Daños por sismo", descripcion: "Cubre daños ocasionados por movimientos sísmicos o terremotos." },
   { titulo: "Daños a terceros", descripcion: "Cubre los gastos de los daños que causes a otros: si se rompe tu tubería y mojas el piso de abajo, o si tu mascota hace una travesura." },
+  { titulo: "Amparo por invalidez o fallecimiento", descripcion: "Tú y tus beneficiarios estarán protegidos si tienen algún tipo de lesión o enfermedad que les cause invalidez o la muerte, al igual que la empleada doméstica estará protegida ante accidentes dentro del hogar." },
+  { titulo: "Daños por desastres naturales", descripcion: "Cubre daños ocasionados por maremotos, tsunamis, erupción de volcanes y/o terremotos." },
 ];
 
 const COBERTURAS_PREMIUM: Cobertura[] = [
   ...COBERTURAS_CLASICO,
-  { titulo: "Robo sin violencia", descripcion: "Cubre daños a la vivienda y pérdida de objetos asegurados por robos dentro de tu hogar." },
-  { titulo: "Cobertura extendida por robo", descripcion: "Cubre la pérdida de objetos electrónicos asegurados, fuera de la vivienda causados por robos violentos." },
-  { titulo: "Seguridad digital full", descripcion: "Monitoreo avanzado 24/7, alertas en tiempo real y soporte prioritario ante cualquier incidente de ciberseguridad." },
   { titulo: "Bici protección", descripcion: "Protege tu bicicleta ante robo y daños accidentales, dentro y fuera de tu hogar." },
+  { titulo: "Cobertura extendida por robo", descripcion: "Cubre la pérdida de objetos electrónicos asegurados, fuera de la vivienda, causados por robos violentos." },
   { titulo: "Gastos médicos mascotas", descripcion: "Cubre los gastos veterinarios de tu mascota por accidentes o urgencias dentro del hogar." },
+  { titulo: "Robo sin violencia", descripcion: "Cubre daños a la vivienda y pérdida de objetos asegurados por robos dentro de tu hogar." },
+  { titulo: "Seguridad digital full", descripcion: "Monitoreo avanzado 24/7, alertas en tiempo real y soporte prioritario ante cualquier incidente de ciberseguridad." },
 ];
 
 interface Plan {
@@ -165,10 +176,17 @@ interface Plan {
   coberturas: Cobertura[];
 }
 
+/** Texto entendible del "Plan S de asistencias" — se explica qué incluye en vez de su nombre interno. */
+const TAG_ASISTENCIA_INCLUIDA = "+ Incluye asistencia de plomería, electricidad y cerrajería";
+
+/* Precios tomados tal cual de la página de Bolívar (mensual, IVA incluido) y llevados a
+ * anual porque internamente todo se guarda en anual y Precio/valorPeriodo lo reparte:
+ * Básico $98.000/mes, Clásico $109.800/mes, Premium $216.400/mes. */
 const PLANES: Plan[] = [
-  { id: "basico", nombre: "Plan Básico", precio: 822943, tag: "+ Plan S de asistencias incluido", coberturas: COBERTURAS_BASICO },
-  { id: "clasico", nombre: "Plan Clásico", precio: 1217296, tag: "+ Plan S de asistencias incluido", coberturas: COBERTURAS_CLASICO },
-  { id: "premium", nombre: "Plan Premium", precio: 2974670, tag: "+ Plan S de asistencias incluido", sugerido: true, coberturas: COBERTURAS_PREMIUM },
+  { id: "basico", nombre: "Plan Básico", precio: 98000 * 12, tag: TAG_ASISTENCIA_INCLUIDA, coberturas: COBERTURAS_BASICO },
+  // Plan recomendado por defecto: el que más equilibra precio y cobertura.
+  { id: "clasico", nombre: "Plan Clásico", precio: 109800 * 12, tag: TAG_ASISTENCIA_INCLUIDA, sugerido: true, coberturas: COBERTURAS_CLASICO },
+  { id: "premium", nombre: "Plan Premium", precio: 216400 * 12, tag: TAG_ASISTENCIA_INCLUIDA, coberturas: COBERTURAS_PREMIUM },
 ];
 
 const PLAN_ICONS: Record<string, LucideIcon> = { basico: Home, clasico: ShieldCheck, premium: Award };
@@ -255,6 +273,77 @@ const ASISTENCIAS: Asistencia[] = [
 /** Formatea un número entero (sin dígitos previos) como moneda COP. */
 export function formatCOPNumber(n: number) {
   return "$" + n.toLocaleString("es-CO");
+}
+
+/* ── Periodicidad de cobro ───────────────────────────────────────────────────
+ * Esto NO es un pago anual diferido en cuotas: es una suscripción mensual
+ * (tipo Netflix) que el usuario puede cancelar o reactivar cuando quiera. La
+ * opción "Anual" es solo para quien prefiere pagar todo de una vez y no
+ * preocuparse mes a mes — igual se calcula sobre la misma tarifa del ramo.
+ * Mensual es el valor por defecto: es el que se comunica primero.
+ * Una sola fuente para el cálculo y para el sufijo, así ningún precio de la
+ * pantalla puede quedar desfasado del selector.
+ */
+export type Periodicidad = "mes" | "anio";
+
+export const PeriodicidadCtx = createContext<Periodicidad>("mes");
+
+export function usePeriodicidad() {
+  return useContext(PeriodicidadCtx);
+}
+
+export function valorPeriodo(anual: number, periodo: Periodicidad) {
+  return periodo === "mes" ? Math.round(anual / 12) : anual;
+}
+
+export const SUFIJO: Record<Periodicidad, string> = { mes: "/mes", anio: "/año" };
+
+/** Pinta un precio anual en la periodicidad elegida, con su sufijo. */
+export function Precio({ anual, className }: { anual: number; className?: string }) {
+  const periodo = usePeriodicidad();
+  return (
+    <>
+      {formatCOPNumber(valorPeriodo(anual, periodo))}
+      <span className={className ?? "body-small-regular"}>{SUFIJO[periodo]}</span>
+    </>
+  );
+}
+
+/** Selector mensual / anual. Se usa donde el usuario compara planes. */
+export function SelectorPeriodicidad({ valor, onChange }: { valor: Periodicidad; onChange: (p: Periodicidad) => void }) {
+  return (
+    <div
+      className="inline-flex rounded-lg"
+      role="group"
+      aria-label="Periodicidad de pago"
+      style={{ backgroundColor: "var(--gray-2)", padding: 3, gap: 3 }}
+    >
+      {([["mes", "Mensual"], ["anio", "Anual"]] as [Periodicidad, string][]).map(([id, label]) => {
+        const activo = valor === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            aria-pressed={activo}
+            className={activo ? "body-bold" : "body-regular"}
+            style={{
+              cursor: "pointer",
+              height: 34,
+              padding: "0 16px",
+              borderRadius: 6,
+              border: "none",
+              backgroundColor: activo ? "#ffffff" : "transparent",
+              color: activo ? "var(--navy)" : "var(--gray-9)",
+              boxShadow: activo ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 /** Fecha corta en español, ej. "09 Jul. 2026". */
@@ -359,32 +448,11 @@ function CategoriaAsegurable({
       <div className="flex flex-col gap-5" style={{ padding: "20px" }}>
           {/* Paso: valor */}
           <div className="flex flex-col gap-2">
-            <Field label="¿Por cuánto valor total quieres asegurar esta categoría?">
-              <div className="flex items-center gap-3 flex-wrap">
-                <TextInput placeholder="$ 0" value={formatCOP(valor)} onChange={(v) => onValor(parseDigits(v))} className="w-[220px] max-sm:w-full" />
-                <div className="flex items-center gap-2 flex-wrap">
-                  {montosRapidos.map((m) => {
-                    const activo = valor === m;
-                    return (
-                      <button
-                        key={m}
-                        onClick={() => onValor(m)}
-                        className="tags rounded-full px-3 py-1.5 transition-colors"
-                        style={{
-                          cursor: "pointer",
-                          border: activo ? "1.5px solid var(--navy)" : "1px solid var(--gray-5)",
-                          backgroundColor: activo ? "var(--navy-light)" : "#ffffff",
-                          color: activo ? "var(--navy)" : "var(--gray-9)",
-                        }}
-                        onMouseEnter={(e) => { if (!activo) e.currentTarget.style.backgroundColor = "var(--gray-1)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = activo ? "var(--navy-light)" : "#ffffff"; }}
-                      >
-                        {formatCOP(m)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            {/* Se quitaron los montos sugeridos fijos ($5M/$10M/$20M): se sentían como opciones
+                cerradas en vez de sugerencias. El usuario ingresa el valor real de lo que quiere
+                asegurar en esta categoría. */}
+            <Field label="¿Cuál es el valor total de los objetos que deseas asegurar en esta categoría?">
+              <TextInput placeholder="$ 0" value={formatCOP(valor)} onChange={(v) => onValor(parseDigits(v))} className="w-[220px] max-sm:w-full" />
             </Field>
             {conValor ? (
               <div className="flex items-center gap-2">
@@ -395,7 +463,7 @@ function CategoriaAsegurable({
               </div>
             ) : (
               <span className="body-small-regular" style={{ color: "var(--orange-status)" }}>
-                Ingresa un valor o elige un monto sugerido para calcular tu protección.
+                Ingresa el valor total para calcular tu protección.
               </span>
             )}
           </div>
@@ -457,8 +525,14 @@ function CategoriaAsegurable({
 const LAYOUT_PASO_2: "clasico" | "figma" = "clasico";
 
 function SuscripcionCard({
-  icon: Icon, nombre, precio, tag, selected, onSelect, onInfo,
-}: { icon: LucideIcon; nombre: string; precio: number; tag: string; selected: boolean; onSelect: () => void; onInfo?: () => void }) {
+  icon: Icon, nombre, precio, tag, selected, onSelect, onInfo, sugerido, notaPrecioVariable,
+}: {
+  icon: LucideIcon; nombre: string; precio: number; tag: string; selected: boolean; onSelect: () => void; onInfo?: () => void;
+  /** Pill "Sugerido": solo la tarjeta preseleccionada por defecto la muestra. */
+  sugerido?: boolean;
+  /** true en tarjetas de plan (no de asistencia): el precio final varía según el inmueble. */
+  notaPrecioVariable?: boolean;
+}) {
   return (
     <button
       role="radio"
@@ -474,6 +548,14 @@ function SuscripcionCard({
       onMouseEnter={(e) => { if (!selected) e.currentTarget.style.borderColor = "var(--gray-6)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = selected ? "var(--navy)" : "var(--gray-4)"; }}
     >
+      {sugerido && (
+        <span
+          className="disclamer absolute rounded-full"
+          style={{ top: -10, left: "50%", transform: "translateX(-50%)", backgroundColor: "var(--navy)", color: "#ffffff", padding: "2px 10px", whiteSpace: "nowrap" }}
+        >
+          Sugerido
+        </span>
+      )}
       {selected && (
         <CircleCheck size={18} strokeWidth={2} className="absolute" style={{ top: 10, right: 10, color: "var(--navy)" }} />
       )}
@@ -498,8 +580,11 @@ function SuscripcionCard({
       </div>
       <span className="body-bold" style={{ color: "var(--navy)" }}>{nombre}</span>
       <span className="title-tertiary-bold" style={{ color: "var(--gray-10)" }}>
-        {precio === 0 ? "Incluido" : <>{formatCOPNumber(precio)}<span className="body-small-regular">/año</span></>}
+        {precio === 0 ? "Incluido" : <><Precio anual={precio} /></>}
       </span>
+      {notaPrecioVariable && precio > 0 && (
+        <span className="disclamer" style={{ color: "var(--gray-8)" }}>*Precio referencial, varía según tu inmueble</span>
+      )}
       <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{tag}</span>
     </button>
   );
@@ -561,46 +646,86 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
   const previewPlan = previewPlanId ? PLANES.find((p) => p.id === previewPlanId) : null;
   const previewAsistencia = previewAsistenciaId ? ASISTENCIAS.find((a) => a.id === previewAsistenciaId) : null;
 
-  const contenidoCoberturasPlan = (p: Plan) => (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
-        <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
-        <div className="flex flex-col">
-          <span className="body-small-bold" style={{ color: "var(--navy)" }}>Todo lo del {p.nombre}</span>
-          <span className="disclamer" style={{ color: "var(--navy)" }}>{p.coberturas.length} coberturas incluidas</span>
-        </div>
-      </div>
+  /** Detalle de un plan: solo las coberturas que suma sobre el plan anterior. Lo heredado se resume en el
+   * chip superior, para no repetir la lista completa en Clásico y Premium. */
+  const contenidoCoberturasPlan = (p: Plan) => {
+    const idx = PLANES.findIndex((x) => x.id === p.id);
+    const anterior = idx > 0 ? PLANES[idx - 1] : null;
+    const nuevas = anterior ? p.coberturas.slice(anterior.coberturas.length) : p.coberturas;
+    return (
       <div className="flex flex-col gap-3">
-        {p.coberturas.map((c) => (
-          <div key={c.titulo} className="flex items-start gap-2">
-            <CircleCheck size={15} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
-            <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
-              <span style={{ fontWeight: 700 }}>{c.titulo}: </span>{c.descripcion}
+        <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
+          <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
+          <div className="flex flex-col">
+            <span className="body-small-bold" style={{ color: "var(--navy)" }}>Todo lo del {anterior ? anterior.nombre : p.nombre}</span>
+            <span className="disclamer" style={{ color: "var(--navy)" }}>
+              {anterior ? anterior.coberturas.length : p.coberturas.length} coberturas incluidas
             </span>
           </div>
-        ))}
+        </div>
+        {nuevas.length > 0 && (
+          <>
+            {anterior && (
+              <span className="body-small-bold" style={{ color: "var(--navy)" }}>Además, el {p.nombre} suma:</span>
+            )}
+            <div className="flex flex-col gap-3">
+              {nuevas.map((c) => (
+                <div key={c.titulo} className="flex items-start gap-2">
+                  <CircleCheck size={15} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
+                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
+                    <span style={{ fontWeight: 700 }}>{c.titulo}: </span>{c.descripcion}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
-  const categoriasAsistenciaContenido = (a: Asistencia) => (
-    <div className="flex flex-col gap-3">
-      {a.categorias.map((cat) => (
-        <div key={cat.titulo} className="flex flex-col gap-2">
-          <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
-          <span className="body-small-bold" style={{ color: "var(--gray-10)" }}>{cat.titulo}</span>
-          <div className="flex flex-col gap-1.5">
-            {cat.items.map((item) => (
-              <div key={item} className="flex items-start gap-2">
-                <CircleCheck size={14} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
-                <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{item}</span>
-              </div>
-            ))}
+  /** Detalle de una asistencia: solo las categorías que suma sobre la asistencia anterior. Lo heredado se
+   * resume en el chip superior, para no repetir la lista completa en M y L. */
+  const categoriasAsistenciaContenido = (a: Asistencia) => {
+    const idx = ASISTENCIAS.findIndex((x) => x.id === a.id);
+    const anterior = idx > 0 ? ASISTENCIAS[idx - 1] : null;
+    const nuevas = anterior ? a.categorias.slice(anterior.categorias.length) : a.categorias;
+    const heredadas = anterior ? anterior.categorias.length : a.categorias.length;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
+          <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
+          <div className="flex flex-col">
+            <span className="body-small-bold" style={{ color: "var(--navy)" }}>Todo lo de {anterior ? anterior.nombre : a.nombre}</span>
+            <span className="disclamer" style={{ color: "var(--navy)" }}>
+              {heredadas} {heredadas === 1 ? "categoría incluida" : "categorías incluidas"}
+            </span>
           </div>
         </div>
-      ))}
-    </div>
-  );
+        {nuevas.length > 0 && (
+          <>
+            {anterior && (
+              <span className="body-small-bold" style={{ color: "var(--navy)" }}>Además, {a.nombre} suma:</span>
+            )}
+            {nuevas.map((cat) => (
+              <div key={cat.titulo} className="flex flex-col gap-2">
+                <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
+                <span className="body-small-bold" style={{ color: "var(--gray-10)" }}>{cat.titulo}</span>
+                <div className="flex flex-col gap-1.5">
+                  {cat.items.map((item) => (
+                    <div key={item} className="flex items-start gap-2">
+                      <CircleCheck size={14} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0, marginTop: 2 }} />
+                      <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    );
+  };
 
   const contenidoCoberturasAsistencia = (a: Asistencia) => (
     <div className="flex flex-col gap-3">
@@ -650,25 +775,38 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
 
   const detallePlanContenido = plan ? contenidoCoberturasPlan(plan) : null;
 
+  /* Si una cobertura adicional ya viene incluida en el plan elegido, no se ofrece de nuevo:
+   * evita que se vea como si el cliente tuviera que pagar dos veces por lo mismo. */
+  const coberturasAdicionalesDisponibles = COBERTURAS_ADICIONALES.filter(
+    (c) => !plan?.coberturas.some((pc) => pc.titulo === c.titulo)
+  );
+
   /** mostrarLinkSaltar: solo en el modal-paso-extra de mobile, para que el usuario sepa que puede seguir sin elegir nada. */
   const coberturasAdicionalesContenido = (mostrarLinkSaltar: boolean) => (
     <div className="flex flex-col gap-3">
       <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>
-        Tu seguro viene listo. Si lo deseas, suma coberturas adicionales según tus necesidades.
+        Tu seguro viene listo. Estas son coberturas adicionales configurables: no vienen incluidas en tu
+        plan, actívalas con el switch si las necesitas y el precio se actualiza al instante.
       </p>
       {mostrarLinkSaltar && (
         <LinkText size="small" onClick={cerrarAdicionales}>Continuar sin agregar coberturas</LinkText>
       )}
-      <div className="flex flex-col gap-3">
-        {COBERTURAS_ADICIONALES.map((c) => (
-          <CoberturaAdicionalRow
-            key={c.id}
-            cobertura={c}
-            activa={!!adicionales[c.id]}
-            onToggle={(v) => onToggleAdicional(c.id, v)}
-          />
-        ))}
-      </div>
+      {coberturasAdicionalesDisponibles.length === 0 ? (
+        <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>
+          Tu plan ya incluye todas las coberturas adicionales disponibles.
+        </span>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {coberturasAdicionalesDisponibles.map((c) => (
+            <CoberturaAdicionalRow
+              key={c.id}
+              cobertura={c}
+              activa={!!adicionales[c.id]}
+              onToggle={(v) => onToggleAdicional(c.id, v)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -734,7 +872,8 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
             <Icon size={22} strokeWidth={1.7} style={{ color: "var(--navy)" }} />
           </div>
           <span className="title-tertiary-bold" style={{ color: destacado ? "#ffffff" : "var(--navy)" }}>{p.nombre}</span>
-          <span className="title-secondary" style={{ color: destacado ? "#ffffff" : "var(--gray-10)" }}>{formatCOPNumber(p.precio)}<span className="body-small-regular">/año</span></span>
+          <span className="title-secondary" style={{ color: destacado ? "#ffffff" : "var(--gray-10)" }}><Precio anual={p.precio} /></span>
+          <span className="disclamer" style={{ color: destacado ? "rgba(255,255,255,0.7)" : "var(--gray-8)" }}>*Precio referencial, varía según tu inmueble</span>
           <span className="body-small-regular" style={{ color: destacado ? "rgba(255,255,255,0.75)" : "var(--gray-9)" }}>{p.tag}</span>
           <AppButton
             variant={destacado ? (seleccionado ? "ghost" : "accent") : (seleccionado ? "secondary" : "primary")}
@@ -769,7 +908,7 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
             <Icon size={22} strokeWidth={1.7} style={{ color: "var(--navy)" }} />
           </div>
           <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{a.nombre}</span>
-          <span className="title-secondary" style={{ color: "var(--gray-10)" }}>{a.precio === 0 ? "Incluido" : <>{formatCOPNumber(a.precio)}<span className="body-small-regular">/año</span></>}</span>
+          <span className="title-secondary" style={{ color: "var(--gray-10)" }}>{a.precio === 0 ? "Incluido" : <><Precio anual={a.precio} /></>}</span>
           <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{a.precio === 0 ? "Incluido con tu plan" : "Mejora opcional"}</span>
           <AppButton variant={seleccionada ? "secondary" : "primary"} bold fullWidth onClick={() => onAsistencia(a.id)}>
             {seleccionada ? (<><CircleCheck size={15} /> Asistencia seleccionada</>) : "Seleccionar asistencia"}
@@ -816,9 +955,9 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
       {/* Elegir plan — desktop: grid de tarjetas + detalle del plan elegido debajo, como siempre. */}
       <div className={`hidden md:flex flex-col gap-4 ${soloEnPlan}`}>
         <div>
-          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Este es tu plan sugerido</h2>
+          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige el plan que más se ajuste a tus necesidades</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-            Personalizándolo a las necesidades de tu hogar.
+            Cada plan incluye distintas coberturas y asistencias.
           </p>
         </div>
         <div className="grid grid-cols-3 gap-4" role="radiogroup" aria-label="Plan de seguro">
@@ -832,6 +971,8 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
               selected={planId === p.id}
               onSelect={() => onPlan(p.id)}
               onInfo={() => setPreviewPlanId(p.id)}
+              sugerido={p.sugerido}
+              notaPrecioVariable
             />
           ))}
         </div>
@@ -846,9 +987,9 @@ function ArmaTuPlan({ planId, onPlan, adicionales, onToggleAdicional, asistencia
       {/* Elegir plan — mobile: carrusel deslizable, cada tarjeta trae su propio detalle de coberturas debajo. */}
       <div className={`md:hidden flex flex-col gap-3 ${soloEnPlan}`}>
         <div>
-          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Este es tu plan sugerido</h2>
+          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige el plan que más se ajuste a tus necesidades</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-            Personalizándolo a las necesidades de tu hogar. Desliza para comparar los planes.
+            Cada plan incluye distintas coberturas y asistencias. Desliza para comparar.
           </p>
         </div>
         <div className="flex items-center justify-center gap-1.5">
@@ -1008,7 +1149,7 @@ function AsistenciaRow({ asistencia, selected, onSelect }: { asistencia: Asisten
         </span>
       ) : (
         <span className="body-bold shrink-0" style={{ color: "var(--gray-10)", whiteSpace: "nowrap" }}>
-          {formatCOPNumber(asistencia.precio)}<span className="body-small-regular">/año</span>
+          <Precio anual={asistencia.precio} />
         </span>
       )}
     </button>
@@ -1041,7 +1182,7 @@ function CoberturaAdicionalRow({ cobertura, activa, onToggle }: { cobertura: Cob
       <div className="flex flex-col items-end gap-2 shrink-0 max-sm:w-full max-sm:flex-row max-sm:items-center max-sm:justify-between">
         <ToggleSwitch checked={activa} onChange={onToggle} />
         <span className="tags rounded-full px-3 py-1" style={{ backgroundColor: activa ? "#ffffff" : "var(--navy-light)", color: "var(--navy)", whiteSpace: "nowrap" }}>
-          + {formatCOPNumber(cobertura.precio)} / año
+          + <Precio anual={cobertura.precio} />
         </span>
       </div>
     </div>
@@ -1111,45 +1252,74 @@ function ArmaTuPlanFigma({ planId, onPlan, adicionales, onToggleAdicional, asist
 
   /** Detalle completo del plan para el drawer: una cobertura por fila, plegada, con su descripción dentro.
    * La primera arranca abierta para que se entienda de entrada que cada fila se despliega. */
-  const contenidoCoberturasPlan = (p: Plan) => (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
-        <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
-        <div className="flex flex-col">
-          <span className="body-small-bold" style={{ color: "var(--navy)" }}>Todo lo del {p.nombre}</span>
-          <span className="disclamer" style={{ color: "var(--navy)" }}>{p.coberturas.length} coberturas incluidas</span>
+  /** Detalle de un plan: solo las coberturas que suma sobre el plan anterior. Lo heredado se resume en el
+   * chip superior, para no repetir la lista completa en Clásico y Premium. */
+  const contenidoCoberturasPlan = (p: Plan) => {
+    const idx = PLANES.findIndex((x) => x.id === p.id);
+    const anterior = idx > 0 ? PLANES[idx - 1] : null;
+    const nuevas = anterior ? p.coberturas.slice(anterior.coberturas.length) : p.coberturas;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3 rounded-lg" style={{ backgroundColor: "var(--navy-light)", padding: "10px 14px" }}>
+          <ShieldCheck size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0 }} />
+          <div className="flex flex-col">
+            <span className="body-small-bold" style={{ color: "var(--navy)" }}>Todo lo del {anterior ? anterior.nombre : p.nombre}</span>
+            <span className="disclamer" style={{ color: "var(--navy)" }}>
+              {anterior ? anterior.coberturas.length : p.coberturas.length} coberturas incluidas
+            </span>
+          </div>
         </div>
+        {nuevas.length > 0 && (
+          <>
+            {anterior && (
+              <span className="body-small-bold" style={{ color: "var(--navy)" }}>Además, el {p.nombre} suma:</span>
+            )}
+            <Accordion
+              defaultOpenIds={[nuevas[0].titulo]}
+              items={nuevas.map((c) => ({
+                id: c.titulo,
+                title: c.titulo,
+                content: <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{c.descripcion}</span>,
+              }))}
+            />
+          </>
+        )}
       </div>
-      <Accordion
-        defaultOpenIds={p.coberturas.length > 0 ? [p.coberturas[0].titulo] : []}
-        items={p.coberturas.map((c) => ({
-          id: c.titulo,
-          title: c.titulo,
-          content: <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{c.descripcion}</span>,
-        }))}
-      />
-    </div>
+    );
+  };
+
+  /* Si una cobertura adicional ya viene incluida en el plan elegido, no se ofrece de nuevo:
+   * evita que se vea como si el cliente tuviera que pagar dos veces por lo mismo. */
+  const coberturasAdicionalesDisponibles = COBERTURAS_ADICIONALES.filter(
+    (c) => !plan?.coberturas.some((pc) => pc.titulo === c.titulo)
   );
 
   /** mostrarLinkSaltar: solo en el modal-paso-extra de mobile, para que el usuario sepa que puede seguir sin elegir nada. */
   const coberturasAdicionalesContenido = (mostrarLinkSaltar: boolean) => (
     <div className="flex flex-col gap-3">
       <p className="body-small-regular" style={{ color: "var(--gray-9)" }}>
-        Tu seguro viene listo. Si lo deseas, suma coberturas adicionales según tus necesidades.
+        Tu seguro viene listo. Estas son coberturas adicionales configurables: no vienen incluidas en tu
+        plan, actívalas con el switch si las necesitas y el precio se actualiza al instante.
       </p>
       {mostrarLinkSaltar && (
         <LinkText size="small" onClick={cerrarAdicionales}>Continuar sin agregar coberturas</LinkText>
       )}
-      <div className="flex flex-col gap-3">
-        {COBERTURAS_ADICIONALES.map((c) => (
-          <CoberturaAdicionalRow
-            key={c.id}
-            cobertura={c}
-            activa={!!adicionales[c.id]}
-            onToggle={(v) => onToggleAdicional(c.id, v)}
-          />
-        ))}
-      </div>
+      {coberturasAdicionalesDisponibles.length === 0 ? (
+        <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>
+          Tu plan ya incluye todas las coberturas adicionales disponibles.
+        </span>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {coberturasAdicionalesDisponibles.map((c) => (
+            <CoberturaAdicionalRow
+              key={c.id}
+              cobertura={c}
+              activa={!!adicionales[c.id]}
+              onToggle={(v) => onToggleAdicional(c.id, v)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -1215,7 +1385,8 @@ function ArmaTuPlanFigma({ planId, onPlan, adicionales, onToggleAdicional, asist
             <Icon size={22} strokeWidth={1.7} style={{ color: "var(--navy)" }} />
           </div>
           <span className="title-tertiary-bold" style={{ color: destacado ? "#ffffff" : "var(--navy)" }}>{p.nombre}</span>
-          <span className="title-secondary" style={{ color: destacado ? "#ffffff" : "var(--gray-10)" }}>{formatCOPNumber(p.precio)}<span className="body-small-regular">/año</span></span>
+          <span className="title-secondary" style={{ color: destacado ? "#ffffff" : "var(--gray-10)" }}><Precio anual={p.precio} /></span>
+          <span className="disclamer" style={{ color: destacado ? "rgba(255,255,255,0.7)" : "var(--gray-8)" }}>*Precio referencial, varía según tu inmueble</span>
           <span className="body-small-regular" style={{ color: destacado ? "rgba(255,255,255,0.75)" : "var(--gray-9)" }}>{p.tag}</span>
           <AppButton
             variant={destacado ? (seleccionado ? "ghost" : "accent") : (seleccionado ? "secondary" : "primary")}
@@ -1274,9 +1445,9 @@ function ArmaTuPlanFigma({ planId, onPlan, adicionales, onToggleAdicional, asist
           el acceso al detalle completo), sin un bloque de detalle aparte debajo de la grilla. */}
       <div className={`hidden md:flex flex-col gap-4 ${soloEnPlan}`}>
         <div>
-          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Este es tu plan sugerido</h2>
+          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige el plan que más se ajuste a tus necesidades</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-            Personalizándolo a las necesidades de tu hogar.
+            Cada plan incluye distintas coberturas y asistencias.
           </p>
         </div>
         <div className="grid grid-cols-3 gap-4 items-stretch" role="radiogroup" aria-label="Plan de seguro">
@@ -1287,9 +1458,9 @@ function ArmaTuPlanFigma({ planId, onPlan, adicionales, onToggleAdicional, asist
       {/* Elegir plan — mobile: carrusel deslizable, cada tarjeta trae su propio detalle de coberturas debajo. */}
       <div className={`md:hidden flex flex-col gap-3 ${soloEnPlan}`}>
         <div>
-          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Este es tu plan sugerido</h2>
+          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige el plan que más se ajuste a tus necesidades</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-            Personalizándolo a las necesidades de tu hogar. Desliza para comparar los planes.
+            Cada plan incluye distintas coberturas y asistencias. Desliza para comparar.
           </p>
         </div>
         <div className="flex items-center justify-center gap-1.5">
@@ -1413,9 +1584,13 @@ interface ConfirmaTuPlanProps {
   adicionalesActivas: CoberturaAdicional[];
   asistencia: Asistencia;
   titular: { nombre: string; correo: string };
+  inmuebleDireccion: string;
+  aceptaTerminos: boolean;
+  onAceptaTerminos: (v: boolean) => void;
 }
 
-function ConfirmaTuPlan({ plan, adicionalesActivas, asistencia, titular }: ConfirmaTuPlanProps) {
+function ConfirmaTuPlan({ plan, adicionalesActivas, asistencia, titular, inmuebleDireccion, aceptaTerminos, onAceptaTerminos }: ConfirmaTuPlanProps) {
+  const periodo = usePeriodicidad();
   const [verMasCoberturas, setVerMasCoberturas] = useState(false);
   const [infoAbierta, setInfoAbierta] = useState(false);
   const coberturasVisibles = verMasCoberturas ? plan.coberturas : plan.coberturas.slice(0, 2);
@@ -1434,7 +1609,7 @@ function ConfirmaTuPlan({ plan, adicionalesActivas, asistencia, titular }: Confi
           <Receipt size={32} strokeWidth={1.6} style={{ color: "var(--navy)" }} />
         </div>
         <p className="body-regular max-md:hidden" style={{ color: "var(--gray-10)", maxWidth: 520, margin: 0 }}>
-          Realizarás el pago anual del <span style={{ fontWeight: 700 }}>{plan.nombre}</span> y
+          Realizarás el pago {periodo === "mes" ? "mensual" : "anual"} del <span style={{ fontWeight: 700 }}>{plan.nombre}</span> y
           el pago está habilitado únicamente con tarjeta de crédito. Tu cobertura estará activa en minutos.
         </p>
         <button
@@ -1447,16 +1622,29 @@ function ConfirmaTuPlan({ plan, adicionalesActivas, asistencia, titular }: Confi
         <Modal open={infoAbierta} onClose={() => setInfoAbierta(false)} title="Cómo funciona tu seguro">
           <div className="flex flex-col gap-3">
             <p className="body-regular" style={{ color: "var(--gray-10)", margin: 0 }}>
-              Realizarás el pago anual del <span style={{ fontWeight: 700 }}>{plan.nombre}</span> y
+              Realizarás el pago {periodo === "mes" ? "mensual" : "anual"} del <span style={{ fontWeight: 700 }}>{plan.nombre}</span> y
               el pago está habilitado únicamente con tarjeta de crédito. Tu cobertura estará activa en minutos.
             </p>
             <p className="body-regular" style={{ color: "var(--gray-10)", margin: 0 }}>
-              Pagas una vez al año y tu póliza queda vigente por 12 meses. Se renueva automáticamente
+              {periodo === "mes"
+                ? "Pagas una cuota cada mes y tu póliza se mantiene vigente mientras esté al día. Se renueva automáticamente"
+                : "Pagas una vez al año y tu póliza queda vigente por 12 meses. Se renueva automáticamente"}
               cada año y puedes cancelarla cuando quieras.
             </p>
           </div>
         </Modal>
       </div>
+
+      {/* Inmueble asegurado */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <Home size={16} strokeWidth={1.8} style={{ color: "var(--navy)" }} />
+          <span className="body-bold" style={{ color: "var(--navy)" }}>Inmueble asegurado</span>
+        </div>
+        <span className="body-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{inmuebleDireccion}</span>
+      </div>
+
+      <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
 
       {/* Titular */}
       <div className="flex flex-col gap-3">
@@ -1504,13 +1692,14 @@ function ConfirmaTuPlan({ plan, adicionalesActivas, asistencia, titular }: Confi
         <div className="flex flex-col gap-2">
           <span className="body-bold" style={{ color: "var(--navy)" }}>Vigencia</span>
           <p className="body-small-regular max-md:hidden" style={{ color: "var(--gray-10)", margin: 0 }}>
-            Pagas una vez al año y tu póliza queda vigente por 12 meses, sin penalizaciones si decides
-            no renovarla.
+            {periodo === "mes"
+              ? "Pagas una cuota cada mes y tu póliza se mantiene vigente mientras esté al día, sin penalizaciones si decides darla de baja."
+              : "Pagas una vez al año y tu póliza queda vigente por 12 meses, sin penalizaciones si decides no renovarla."}
           </p>
           <p className="body-small-regular" style={{ color: "var(--gray-10)", margin: 0 }}>
-            <span style={{ fontWeight: 700 }}>Modalidad:</span> Pago anual
+            <span style={{ fontWeight: 700 }}>Modalidad:</span> {periodo === "mes" ? "Pago mensual" : "Pago anual"}
           </p>
-          <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>Se renueva automáticamente cada año.</span>
+          <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>{periodo === "mes" ? "Se cobra automáticamente cada mes." : "Se renueva automáticamente cada año."}</span>
         </div>
 
         <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
@@ -1547,6 +1736,26 @@ function ConfirmaTuPlan({ plan, adicionalesActivas, asistencia, titular }: Confi
             </span>
           )}
         </div>
+
+        <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
+
+        <Callout variant="info" title="Antes de continuar">
+          Esta póliza es emitida por <span style={{ fontWeight: 700 }}>Seguros Bolívar</span>: las
+          reclamaciones y las condiciones de cobertura corresponden a Seguros Bolívar.
+        </Callout>
+
+        <label className="flex items-start gap-2.5" style={{ cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={aceptaTerminos}
+            onChange={(e) => onAceptaTerminos(e.target.checked)}
+            style={{ cursor: "pointer", marginTop: 3 }}
+          />
+          <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
+            Acepto los <span style={{ fontWeight: 700, color: "var(--navy)" }}>Términos y Condiciones</span>{" "}
+            del Seguro de Hogar y entiendo que es un producto emitido por Seguros Bolívar.
+          </span>
+        </label>
       </div>
     </div>
   );
@@ -1558,15 +1767,35 @@ interface PagoExitosoProps {
   plan: Plan;
   asistencia: Asistencia;
   totalAnual: number;
+  periodo: Periodicidad;
   numeroPoliza: string;
   fechaPago: string;
   proximaRenovacion: string;
+  inmuebleDireccion: string;
   onFinalizar: () => void;
   onVerSeguros: () => void;
 }
 
-function PagoExitoso({ plan, asistencia, totalAnual, numeroPoliza, fechaPago, proximaRenovacion, onFinalizar, onVerSeguros }: PagoExitosoProps) {
-  const [comprobanteEnviado, setComprobanteEnviado] = useState(false);
+function PagoExitoso({ plan, asistencia, totalAnual, periodo, numeroPoliza, fechaPago, proximaRenovacion, inmuebleDireccion, onFinalizar, onVerSeguros }: PagoExitosoProps) {
+  /* Antes de abrir la pestaña, dejamos los datos reales de esta compra en
+   * localStorage: la pestaña nueva es una carga fresca de la app (target="_blank"),
+   * no comparte el estado de React, pero sí el origin. Ver CorreoConfirmacionPoliza.tsx. */
+  const guardarPreviewCorreo = () => {
+    try {
+      localStorage.setItem(CORREO_PREVIEW_KEY, JSON.stringify({
+        nombreTitular: "Nelson Diaz",
+        correoTitular: "nelson.diaz@email.com",
+        numeroPoliza,
+        inmuebleDireccion,
+        planNombre: plan.nombre,
+        asistenciaNombre: asistencia.nombre,
+        fechaPago,
+        proximaRenovacion,
+        totalPeriodo: valorPeriodo(totalAnual, periodo),
+        periodo,
+      }));
+    } catch { /* modo privado: la pestaña nueva cae al ejemplo */ }
+  };
 
   return (
     <div className="flex flex-col items-center text-center gap-5" style={{ padding: "12px 0" }}>
@@ -1580,8 +1809,8 @@ function PagoExitoso({ plan, asistencia, totalAnual, numeroPoliza, fechaPago, pr
       <div>
         <h2 className="title-secondary" style={{ color: "var(--navy)" }}>¡Tu seguro ya está activo!</h2>
         <p className="body-regular" style={{ color: "var(--gray-10)", maxWidth: 480, marginTop: 6 }}>
-          Cobramos tu póliza anual y quedó activa de inmediato. Te enviamos el comprobante y
-          la póliza al correo de tu cuenta.
+          Cobramos tu suscripción y quedó activa de inmediato. Seguros Bolívar te enviará tu
+          póliza y la factura directamente a tu correo.
         </p>
       </div>
 
@@ -1592,7 +1821,10 @@ function PagoExitoso({ plan, asistencia, totalAnual, numeroPoliza, fechaPago, pr
         <div className="grid grid-cols-2 gap-x-8 gap-y-4">
           <div className="flex flex-col gap-1">
             <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Número de póliza</span>
-            <span className="body-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>{numeroPoliza}</span>
+            {/* Cuando se conecte la API real de Bolívar, numeroPoliza puede llegar vacío hasta que Bolívar lo emita. */}
+            <span className="body-regular" style={{ color: "var(--gray-10)", fontWeight: 500 }}>
+              {numeroPoliza || "Te llegará por correo de Seguros Bolívar"}
+            </span>
           </div>
           <div className="flex flex-col gap-1">
             <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>Plan contratado</span>
@@ -1622,11 +1854,12 @@ function PagoExitoso({ plan, asistencia, totalAnual, numeroPoliza, fechaPago, pr
 
         <div className="flex items-center justify-between gap-4">
           <span className="body-bold" style={{ color: "var(--gray-10)" }}>Cobrado hoy:</span>
-          <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{formatCOPNumber(totalAnual)}</span>
+          <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{formatCOPNumber(valorPeriodo(totalAnual, periodo))}</span>
         </div>
         <p className="body-small-regular" style={{ color: "var(--gray-8)", marginTop: 4, marginBottom: 0 }}>
-          Volveremos a cobrar {formatCOPNumber(totalAnual)} el {proximaRenovacion}, mientras tu póliza
-          siga activa.
+          {periodo === "mes"
+            ? <>Volveremos a cobrar {formatCOPNumber(valorPeriodo(totalAnual, "mes"))} cada mes, mientras tu póliza siga activa.</>
+            : <>Volveremos a cobrar {formatCOPNumber(totalAnual)} el {proximaRenovacion}, mientras tu póliza siga activa.</>}
         </p>
       </div>
 
@@ -1637,23 +1870,24 @@ function PagoExitoso({ plan, asistencia, totalAnual, numeroPoliza, fechaPago, pr
         <AppButton variant="primary" bold onClick={onFinalizar} className="order-1 md:order-none">
           Volver a Inicio
         </AppButton>
-        {/* Acción secundaria: en mobile queda como link chico para no competir con las 2 principales */}
-        <button
-          onClick={() => setComprobanteEnviado(true)}
-          className="body-bold inline-flex items-center gap-2 rounded-lg transition-colors order-3 max-md:body-small-regular"
-          style={{
-            cursor: "pointer",
-            height: 40,
-            padding: "0 16px",
-            backgroundColor: "transparent",
-            color: comprobanteEnviado ? "var(--green-status)" : "var(--navy)",
-            border: `1.5px solid ${comprobanteEnviado ? "var(--green-status)" : "var(--navy)"}`,
-          }}
-        >
-          {comprobanteEnviado ? <CircleCheck size={15} /> : <Download size={15} />}
-          {comprobanteEnviado ? "Comprobante enviado" : "Descargar comprobante"}
-        </button>
       </div>
+
+      {/* No se ofrece descarga de póliza/comprobante desde Alquilando: el documento oficial
+          lo emite y envía Seguros Bolívar directamente por correo. El link abre la vista previa
+          de ese correo, servida por esta misma app en una pestaña nueva (no un servicio externo). */}
+      <p className="body-small-regular" style={{ color: "var(--gray-8)", maxWidth: 480 }}>
+        <Mail size={13} style={{ display: "inline", verticalAlign: -2, marginRight: 4 }} />
+        Tu póliza y factura te llegarán directamente por correo de Seguros Bolívar.{" "}
+        <a
+          href="?vista=correo-confirmacion"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={guardarPreviewCorreo}
+          style={{ color: "var(--navy)", fontWeight: 700, textDecoration: "underline" }}
+        >
+          Ver correo de confirmación
+        </a>
+      </p>
     </div>
   );
 }
@@ -1673,6 +1907,8 @@ export interface PolizaComprada {
   asistenciaCategorias: CategoriaAsistencia[];
   adicionales: { label: string; precio: number }[];
   totalAnual: number;
+  /** Cómo eligió pagarla: define qué cifra se le muestra después en su portal. */
+  periodo: Periodicidad;
   fechaPago: string;
   proximaRenovacion: string;
   estado: "activa" | "cancelacion-solicitada" | "cancelada";
@@ -1851,8 +2087,8 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   const [electronicosValor, setElectronicosValor] = useState("");
   const [enseresValor, setEnseresValor] = useState("");
 
-  // Sin plan preseleccionado: el usuario debe elegirlo explícitamente para avanzar.
-  const [planId, setPlanId] = useState("");
+  // El plan sugerido (Clásico) entra preseleccionado; el usuario puede cambiarlo cuando quiera.
+  const [planId, setPlanId] = useState(() => PLANES.find((p) => p.sugerido)?.id ?? "");
   const [adicionales, setAdicionales] = useState<Record<string, boolean>>(
     () => Object.fromEntries(COBERTURAS_ADICIONALES.map((c) => [c.id, c.defaultOn])),
   );
@@ -1876,6 +2112,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
       asistenciaCategorias: asistencia.categorias,
       adicionales: adicionalesActivas.map((c) => ({ label: c.sidebarLabel, precio: c.precio })),
       totalAnual,
+      periodo,
       fechaPago: fechaPagoStr,
       proximaRenovacion: proximaRenovacionStr,
       estado: "activa",
@@ -1901,6 +2138,15 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
     () => (plan?.precio ?? 0) + asistencia.precio + adicionalesActivas.reduce((sum, c) => sum + c.precio, 0),
     [plan, asistencia, adicionalesActivas],
   );
+
+  /* Mensual o anual: es una suscripción, no un pago diferido en cuotas.
+   * Mensual es el default porque es como se comunica el producto (tipo
+   * Netflix, se cancela cuando quieras); anual es la alternativa para quien
+   * prefiere pagar todo de una vez. */
+  const [periodo, setPeriodo] = useState<Periodicidad>("mes");
+  // Checkbox obligatorio de Términos y Condiciones en el resumen — se resetea si el usuario retrocede.
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  const totalPeriodo = valorPeriodo(totalAnual, periodo);
 
   // Obligatorio siempre: quién es el usuario respecto al inmueble seleccionado. Si el inmueble
   // viene de Alquilando con datos incompletos, la API además exige tipo, años de construcción y m².
@@ -1977,7 +2223,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
               {adicionalesActivas.map((c) => (
                 <div key={c.id} className="flex items-center justify-between gap-4">
                   <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{c.sidebarLabel}</span>
-                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(c.precio)}</span>
+                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(valorPeriodo(c.precio, periodo))}</span>
                 </div>
               ))}
             </div>
@@ -1990,13 +2236,13 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
               <>
                 <div className="flex items-center justify-between gap-4">
                   <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{plan.nombre}</span>
-                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(plan.precio)}</span>
+                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(valorPeriodo(plan.precio, periodo))}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
                     {asistencia.nombre}{asistencia.precio === 0 ? " (incluido)" : ""}
                   </span>
-                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(asistencia.precio)}</span>
+                  <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{formatCOPNumber(valorPeriodo(asistencia.precio, periodo))}</span>
                 </div>
               </>
             ) : (
@@ -2006,8 +2252,10 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
 
           <hr style={{ borderColor: "var(--gray-4)", margin: 0 }} />
           <div className="flex items-center justify-between gap-4">
-            <span className="body-bold" style={{ color: "var(--gray-10)" }}>Total anual (IVA incluido):</span>
-            <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{formatCOPNumber(totalAnual)}</span>
+            <span className="body-bold" style={{ color: "var(--gray-10)" }}>
+              {periodo === "mes" ? "Total mensual (IVA incluido):" : "Total anual (IVA incluido):"}
+            </span>
+            <span className="title-tertiary-bold" style={{ color: "var(--navy)" }}>{formatCOPNumber(totalPeriodo)}</span>
           </div>
         </>
       )}
@@ -2097,6 +2345,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
   );
 
   return (
+    <PeriodicidadCtx.Provider value={periodo}>
     <div ref={topRef} className={`flex flex-col gap-5 ${paso < 3 ? "max-md:pb-24" : ""}`} style={{ scrollMarginTop: 16 }}>
       {/* Volver — mismo patrón que los detalles del panel */}
       <button
@@ -2155,9 +2404,9 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                   {/* Sección 1: inmuebles administrados en Alquilando, no se pueden eliminar */}
                   <div className="flex flex-col gap-4">
                     <div>
-                      <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Inmuebles con Alquilando</h2>
+                      <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige el inmueble que quieres asegurar</h2>
                       <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-                        Elige uno de los inmuebles que ya administras en la plataforma.
+                        Elige uno de los inmuebles que ya administras en la plataforma. La póliza se compra por inmueble.
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-4" role="radiogroup" aria-label="Inmueble con Alquilando">
@@ -2241,7 +2490,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                     <div>
                       <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Agregar inmueble para asegurar</h2>
                       <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-                        ¿No ves tu inmueble en la lista de arriba? Regístralo aquí solo para esta póliza.
+                        ¿Quieres asegurar un inmueble que no administras con Alquilando? Ingresa su información aquí, solo para esta póliza.
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-4" role="radiogroup" aria-label="Inmueble agregado para esta póliza">
@@ -2367,9 +2616,9 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                   {/* Sección 1: inmuebles administrados en Alquilando, no se pueden eliminar */}
                   <div className="flex flex-col gap-3">
                     <div>
-                      <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Inmuebles con Alquilando</h2>
+                      <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige el inmueble que quieres asegurar</h2>
                       <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-                        Elige uno de los inmuebles que ya administras en la plataforma.
+                        Elige uno de los inmuebles que ya administras en la plataforma. La póliza se compra por inmueble.
                       </p>
                     </div>
                     <div className="flex flex-col gap-2" role="radiogroup" aria-label="Inmueble con Alquilando">
@@ -2628,6 +2877,19 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
               </div>
             )}
 
+            {paso === 1 && (
+              /* El selector vive acá, donde se comparan los planes: es el momento
+               * en que la periodicidad cambia la decisión, no al final. */
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="body-regular" style={{ color: "var(--gray-9)" }}>
+                  {periodo === "mes"
+                    ? "Protege tu hogar desde hoy pagando cómodo, mes a mes."
+                    : "Asegura todo el año en un solo pago y olvídate."}
+                </span>
+                <SelectorPeriodicidad valor={periodo} onChange={setPeriodo} />
+              </div>
+            )}
+
             {paso === 1 && (() => {
               // Ambas variantes reciben exactamente las mismas props: cambiar LAYOUT_PASO_2 no toca el estado del flujo.
               const PasoDosLayout = LAYOUT_PASO_2 === "figma" ? ArmaTuPlanFigma : ArmaTuPlan;
@@ -2653,6 +2915,9 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                 adicionalesActivas={adicionalesActivas}
                 asistencia={asistencia}
                 titular={{ nombre: "Nelson Diaz", correo: "nelson.diaz@email.com" }}
+                inmuebleDireccion={datos?.direccion ?? ""}
+                aceptaTerminos={aceptaTerminos}
+                onAceptaTerminos={setAceptaTerminos}
               />
             )}
 
@@ -2661,9 +2926,11 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                 plan={plan!}
                 asistencia={asistencia}
                 totalAnual={totalAnual}
+                periodo={periodo}
                 numeroPoliza={numeroPoliza}
                 fechaPago={fechaPagoStr}
                 proximaRenovacion={proximaRenovacionStr}
+                inmuebleDireccion={datos?.direccion ?? ""}
                 onFinalizar={onFinalizar}
                 onVerSeguros={onBack}
               />
@@ -2770,7 +3037,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
           {paso === 2 && (
             <div className="flex items-center justify-between gap-4">
               <LinkText size="small" icon="chevron" onClick={() => setPaso(1)}>Cambiar plan</LinkText>
-              <AppButton variant="primary" bold onClick={comprar}>
+              <AppButton variant="primary" bold disabled={!aceptaTerminos} onClick={comprar}>
                 <CreditCard size={15} /> Ir a pagar
               </AppButton>
             </div>
@@ -2880,7 +3147,7 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
                 <AppButton variant="primary" bold onClick={() => setMStep(4)}>Continuar</AppButton>
               )}
               {mStep === 4 && (
-                <AppButton variant="primary" bold onClick={comprar}>
+                <AppButton variant="primary" bold disabled={!aceptaTerminos} onClick={comprar}>
                   <CreditCard size={15} /> Ir a pagar
                 </AppButton>
               )}
@@ -2889,5 +3156,6 @@ export function CotizadorHogar({ onBack, onFinalizar, onComprar }: Props) {
         </div>
       )}
     </div>
+    </PeriodicidadCtx.Provider>
   );
 }

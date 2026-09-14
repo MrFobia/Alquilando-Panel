@@ -14,6 +14,7 @@ import { EmptyState } from "./kit/EmptyState";
 import { Footer } from "./kit/Footer";
 import { PropietarioDetalle } from "./PropietarioDetalle";
 import { useAppData } from "../store/AppDataContext";
+import type { PolizaHogarInfo } from "./SegurosAdmin";
 
 function useContainerWidth() {
   const ref = useRef<HTMLDivElement>(null);
@@ -42,10 +43,14 @@ export interface PropietarioRow {
   tipo: "persona" | "empresa";
   genero?: "M" | "F";
   zona: string;
+  /** Seguro de Hogar activo: se muestra en la ficha y sirve para priorizar tickets y para el
+   * listado de "Seguros" en la inmobiliaria maestra (ver SegurosAdmin.tsx). */
+  polizaHogar?: PolizaHogarInfo;
 }
 
-const ROWS: PropietarioRow[] = [
-  { cedula: "53039117", nombre: "Francy Barrera", inmobiliaria: "", direccion: "", correo: "francybarrera@gmail.com", telefono: "3148640887", estado: "nodisponible", vip: true, tipo: "persona", genero: "F", zona: "Sur" },
+/** Exportado para que Propietarios/Inquilinos y SegurosAdmin usen la misma lista, sin duplicar mocks. */
+export const PROPIETARIOS_ROWS: PropietarioRow[] = [
+  { cedula: "53039117", nombre: "Francy Barrera", inmobiliaria: "", direccion: "", correo: "francybarrera@gmail.com", telefono: "3148640887", estado: "nodisponible", vip: true, tipo: "persona", genero: "F", zona: "Sur", polizaHogar: { numeroPoliza: "AL-441209", plan: "Plan Clásico", asistencia: "Asistencias M", inmueble: "Sin dirección registrada", desde: "02 Sept. 2026" } },
   { cedula: "—", nombre: "Sandra Mora", inmobiliaria: "Alquilando Caribe", direccion: "Manga Av Jimenez Calle 26 No.17-64 Local 1", correo: "sandramoramora8@gmail.com", telefono: "3052380617", estado: "ejecucion", tipo: "persona", genero: "F", zona: "Caribe" },
   { cedula: "51967831", nombre: "Nubia Rodriguez", inmobiliaria: "Consultoria & Marketing Inmobiliario S.a.s", direccion: "Cr 85 K # 26 G - 53 Ap 909 - Brr Modelia", correo: "nubia.rodriguez0905@gmail.com", telefono: "3138892767", estado: "ejecucion", tipo: "persona", genero: "F", zona: "Occidente" },
   { cedula: "1044916467", nombre: "Diana Riaño", inmobiliaria: "", direccion: "", correo: "diana.riano@outlook.com", telefono: "18323346332", estado: "nodisponible", tipo: "persona", genero: "F", zona: "Norte" },
@@ -55,7 +60,7 @@ const ROWS: PropietarioRow[] = [
   { cedula: "73109728", nombre: "Carlos Puente", inmobiliaria: "Alquilando Caribe", direccion: "Cr 22 # 26 - 66 Ap 2 - Brr Manga", correo: "carlospuentevargas63@gmail.com", telefono: "3024177269", estado: "ejecucion", tipo: "persona", genero: "M", zona: "Caribe" },
   { cedula: "1014299965", nombre: "Laura Zuluaga", inmobiliaria: "C&m", direccion: "Cl 53 # 85 M - 50 T 2 Ap 401", correo: "laurazuzua@gmail.com", telefono: "3226343350", estado: "ejecucion", tipo: "persona", genero: "F", zona: "Noroccidente" },
   { cedula: "1051662165", nombre: "Jessica Miranda", inmobiliaria: "Alquilando Sas", direccion: "Kr 58b 130 61 Ap 414", correo: "jessica.mirandan22@gmail.com", telefono: "+34642110247", estado: "ejecucion", tipo: "persona", genero: "F", zona: "Norte" },
-  { cedula: "79456123", nombre: "Mauricio Leon", inmobiliaria: "Alquilando Sas", direccion: "Cr 11 # 70 - 50 Of 305", correo: "mauricioleon@gmail.com", telefono: "3001112233", estado: "ejecucion", vip: true, tipo: "persona", genero: "M", zona: "Centro" },
+  { cedula: "79456123", nombre: "Mauricio Leon", inmobiliaria: "Alquilando Sas", direccion: "Cr 11 # 70 - 50 Of 305", correo: "mauricioleon@gmail.com", telefono: "3001112233", estado: "ejecucion", vip: true, tipo: "persona", genero: "M", zona: "Centro", polizaHogar: { numeroPoliza: "AL-330871", plan: "Plan Premium", asistencia: "Asistencias L", inmueble: "Cr 11 # 70 - 50 Of 305", desde: "28 Ago. 2026" } },
   { cedula: "52120987", nombre: "Patricia Soto", inmobiliaria: "Alquilando Caribe", direccion: "Cl 100 # 14 - 55 Ap 701", correo: "patriciasoto@gmail.com", telefono: "3009998877", estado: "nodisponible", tipo: "persona", genero: "F", zona: "Norte" },
 ];
 
@@ -85,15 +90,15 @@ const SEARCH_OPTIONS = [
 const PAGE_SIZE = 10;
 const TOTAL = 1223;
 
-// Proporciones tomadas de la muestra (ROWS) y escaladas al total real de propietarios.
-const activos = Math.round((TOTAL * ROWS.filter((r) => r.estado === "ejecucion").length) / ROWS.length);
+// Proporciones tomadas de la muestra (PROPIETARIOS_ROWS) y escaladas al total real de propietarios.
+const activos = Math.round((TOTAL * PROPIETARIOS_ROWS.filter((r) => r.estado === "ejecucion").length) / PROPIETARIOS_ROWS.length);
 const noDisponibles = TOTAL - activos;
-const vip = Math.round((TOTAL * ROWS.filter((r) => r.vip).length) / ROWS.length);
+const vip = Math.round((TOTAL * PROPIETARIOS_ROWS.filter((r) => r.vip).length) / PROPIETARIOS_ROWS.length);
 
-const empresas = ROWS.filter((r) => r.tipo === "empresa").length;
-const pctEmpresa = Math.round((empresas / ROWS.length) * 100);
+const empresas = PROPIETARIOS_ROWS.filter((r) => r.tipo === "empresa").length;
+const pctEmpresa = Math.round((empresas / PROPIETARIOS_ROWS.length) * 100);
 
-const personas = ROWS.filter((r) => r.tipo === "persona");
+const personas = PROPIETARIOS_ROWS.filter((r) => r.tipo === "persona");
 const mujeres = personas.filter((r) => r.genero === "F").length;
 const pctMujeres = Math.round((mujeres / personas.length) * 100);
 
@@ -118,7 +123,7 @@ function agruparProporcional<T>(rows: T[], key: (r: T) => string, total: number,
     }));
 }
 
-const zonaTop = agruparProporcional(ROWS, (r) => r.zona, TOTAL, ZONA_COLORS)[0];
+const zonaTop = agruparProporcional(PROPIETARIOS_ROWS, (r) => r.zona, TOTAL, ZONA_COLORS)[0];
 const pctZonaTop = Math.round((zonaTop.value / TOTAL) * 100);
 
 const CHART_CARD_HEIGHT = 300;
@@ -166,18 +171,21 @@ function PieChartCard({ title, data }: { title: string; data: { name: string; va
   );
 }
 
-const empresasTotal = Math.round((TOTAL * empresas) / ROWS.length);
+const empresasTotal = Math.round((TOTAL * empresas) / PROPIETARIOS_ROWS.length);
 const TIPO_DATA = [
   { name: "Persona natural", value: TOTAL - empresasTotal, color: "var(--navy)" },
   { name: "Empresa", value: empresasTotal, color: "var(--orange-status)" },
 ];
 
-export function Propietarios() {
+export function Propietarios({ initialCedula }: { initialCedula?: string } = {}) {
   const [page, setPage] = useState(1);
   const [searchBy, setSearchBy] = useState("");
   const [query, setQuery] = useState("");
   const [applied, setApplied] = useState<{ by: string; q: string } | null>(null);
-  const [selected, setSelected] = useState<PropietarioRow | null>(null);
+  // Llega desde el listado de "Seguros": abre directo la ficha de ese propietario.
+  const [selected, setSelected] = useState<PropietarioRow | null>(
+    () => (initialCedula ? PROPIETARIOS_ROWS.find((r) => r.cedula === initialCedula) ?? null : null),
+  );
   const { propietarios } = useAppData();
 
   if (selected) {
@@ -199,7 +207,7 @@ export function Propietarios() {
     zona: "-",
   }));
 
-  const allRows = [...nuevosRows, ...ROWS];
+  const allRows = [...nuevosRows, ...PROPIETARIOS_ROWS];
 
   const filtered = allRows.filter((r) => {
     if (!applied || !applied.q.trim()) return true;
@@ -258,7 +266,7 @@ export function Propietarios() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <PieChartCard title="Distribución geográfica" data={agruparProporcional(ROWS, (r) => r.zona, TOTAL, ZONA_COLORS)} />
+        <PieChartCard title="Distribución geográfica" data={agruparProporcional(PROPIETARIOS_ROWS, (r) => r.zona, TOTAL, ZONA_COLORS)} />
         <PieChartCard title="Persona natural vs. empresa" data={TIPO_DATA} />
       </div>
 

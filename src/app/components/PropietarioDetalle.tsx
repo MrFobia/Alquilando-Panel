@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, Phone, MessageCircle, FileText, Crown, FileDown } from "lucide-react";
+import { Mail, Phone, MessageCircle, FileText, Crown, FileDown, ShieldCheck } from "lucide-react";
 import { BackButton } from "./kit/BackButton";
 import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
@@ -97,6 +97,15 @@ export function PropietarioDetalle({ propietario, onBack }: Props) {
                 <Crown size={12} /> Cliente VIP
               </span>
             )}
+            {propietario.polizaHogar && (
+              <span
+                className="inline-flex items-center gap-1.5 tags-bold rounded-full"
+                style={{ backgroundColor: "var(--navy-light)", color: "var(--navy)", padding: "3px 10px" }}
+                title="Priorizar: este cliente tiene Seguro de Hogar activo con Alquilando"
+              >
+                <ShieldCheck size={12} /> Póliza hogar · {propietario.polizaHogar.plan.replace("Plan ", "")}
+              </span>
+            )}
             {propietario.inmobiliaria && (
               <span className="body-small-regular" style={{ color: "var(--gray-8)" }}>{propietario.inmobiliaria}</span>
             )}
@@ -153,6 +162,25 @@ export function PropietarioDetalle({ propietario, onBack }: Props) {
           <InfoField label="Tipo de cliente" value="Propietario" />
         </div>
       </SectionCard>
+
+      {/* ── Seguro de Hogar ──────────────────────────────────────────────
+          Toda la info de la póliza en la ficha de la persona: para esto entra
+          el equipo desde el listado de "Seguros" (ver SegurosAdmin.tsx). */}
+      {propietario.polizaHogar && (
+        <SectionCard padding="20px 24px">
+          <SectionHeader
+            title="Seguro de Hogar"
+            right={<StatusBadge label={propietario.polizaHogar.plan} variant="active" />}
+          />
+          <div className="grid grid-cols-4 gap-x-6 gap-y-5 max-lg:grid-cols-2">
+            <InfoField label="Número de póliza" value={propietario.polizaHogar.numeroPoliza} />
+            <InfoField label="Plan" value={propietario.polizaHogar.plan} />
+            <InfoField label="Asistencia" value={propietario.polizaHogar.asistencia} />
+            <InfoField label="Vigente desde" value={propietario.polizaHogar.desde} />
+            <InfoField label="Inmueble asegurado" value={propietario.polizaHogar.inmueble} />
+          </div>
+        </SectionCard>
+      )}
 
       {/* ── Actualizar datos de contacto ───────────────────────────────── */}
       <SectionCard padding="20px 24px">
