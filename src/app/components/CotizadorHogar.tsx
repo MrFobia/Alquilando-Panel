@@ -3,6 +3,7 @@ import {
   ArrowLeft, CircleCheck, Tv, Sofa, ShieldCheck, Home, Plus, ChevronUp, ChevronDown,
   Flame, Lock, Wrench, Hammer, PackageCheck, Award,
   Receipt, Mail, CalendarClock, CreditCard, FileText, Info, SlidersHorizontal, Trash2,
+  HeartPulse, Bike, Scale, PawPrint, Wifi,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Stepper } from "./kit/Stepper";
@@ -230,6 +231,52 @@ const COBERTURAS_ADICIONALES: CoberturaAdicional[] = [
     descripcion: "Cubre la pérdida de objetos electrónicos asegurados, fuera de la vivienda causados por robos violentos.",
     precio: 330465,
     sidebarLabel: "Cobertura extendida por robo",
+    defaultOn: false,
+  },
+  // TODO: validar con Bolívar el precio exacto de estas 5 coberturas (el sitio público no lo publica).
+  {
+    id: "amparo-invalidez",
+    icon: HeartPulse,
+    titulo: "Amparo por Invalidez o Fallecimiento",
+    descripcion: "Cubre a los ocupantes de la vivienda ante invalidez o fallecimiento por accidente dentro del hogar.",
+    precio: 288852,
+    sidebarLabel: "Amparo por Invalidez o Fallecimiento",
+    defaultOn: false,
+  },
+  {
+    id: "bici-proteccion",
+    icon: Bike,
+    titulo: "Bici Protección",
+    descripcion: "Cubre tu bicicleta ante hurto o daños accidentales, dentro y fuera de la vivienda asegurada.",
+    precio: 288852,
+    sidebarLabel: "Bici Protección",
+    defaultOn: false,
+  },
+  {
+    id: "danos-terceros",
+    icon: Scale,
+    titulo: "Daños a Terceros",
+    descripcion: "Cubre daños que ocasiones involuntariamente a terceros o a sus bienes, con origen en tu vivienda.",
+    precio: 288852,
+    sidebarLabel: "Daños a Terceros",
+    defaultOn: false,
+  },
+  {
+    id: "gastos-medicos-mascotas",
+    icon: PawPrint,
+    titulo: "Gastos Médicos Mascotas",
+    descripcion: "Cubre gastos médicos veterinarios de tus mascotas ante accidentes o urgencias.",
+    precio: 288852,
+    sidebarLabel: "Gastos Médicos Mascotas",
+    defaultOn: false,
+  },
+  {
+    id: "seguridad-digital-full",
+    icon: Wifi,
+    titulo: "Seguridad Digital Full",
+    descripcion: "Protege tus dispositivos y datos personales ante fraudes, robo de identidad y ciberataques.",
+    precio: 288852,
+    sidebarLabel: "Seguridad Digital Full",
     defaultOn: false,
   },
 ];
