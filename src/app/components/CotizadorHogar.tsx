@@ -150,22 +150,17 @@ const COBERTURAS_BASICO: Cobertura[] = [
   { titulo: "Robo con violencia", descripcion: "Cubre la pérdida de objetos asegurados o daños a la vivienda ocasionados por robos violentos dentro del hogar." },
 ];
 
+/* En el sitio real de Bolívar las 8 coberturas de "Incluir coberturas" son SIEMPRE
+ * adicionales configurables (switch apagado por defecto, mismo precio en los 3 planes)
+ * — ninguna viene incluida de fábrica en Clásico ni en Premium. Antes se listaban acá
+ * por error, duplicando lo que ya existe en COBERTURAS_ADICIONALES. */
 const COBERTURAS_CLASICO: Cobertura[] = [
   ...COBERTURAS_BASICO,
+  // TODO: validar con Bolívar si sismo es base de Clásico+ o también es configurable.
   { titulo: "Daños por sismo", descripcion: "Cubre daños ocasionados por movimientos sísmicos o terremotos." },
-  { titulo: "Daños a terceros", descripcion: "Cubre los gastos de los daños que causes a otros: si se rompe tu tubería y mojas el piso de abajo, o si tu mascota hace una travesura." },
-  { titulo: "Amparo por invalidez o fallecimiento", descripcion: "Tú y tus beneficiarios estarán protegidos si tienen algún tipo de lesión o enfermedad que les cause invalidez o la muerte, al igual que la empleada doméstica estará protegida ante accidentes dentro del hogar." },
-  { titulo: "Daños por desastres naturales", descripcion: "Cubre daños ocasionados por maremotos, tsunamis, erupción de volcanes y/o terremotos." },
 ];
 
-const COBERTURAS_PREMIUM: Cobertura[] = [
-  ...COBERTURAS_CLASICO,
-  { titulo: "Bici protección", descripcion: "Protege tu bicicleta ante robo y daños accidentales, dentro y fuera de tu hogar." },
-  { titulo: "Cobertura extendida por robo", descripcion: "Cubre la pérdida de objetos electrónicos asegurados, fuera de la vivienda, causados por robos violentos." },
-  { titulo: "Gastos médicos mascotas", descripcion: "Cubre los gastos veterinarios de tu mascota por accidentes o urgencias dentro del hogar." },
-  { titulo: "Robo sin violencia", descripcion: "Cubre daños a la vivienda y pérdida de objetos asegurados por robos dentro de tu hogar." },
-  { titulo: "Seguridad digital full", descripcion: "Monitoreo avanzado 24/7, alertas en tiempo real y soporte prioritario ante cualquier incidente de ciberseguridad." },
-];
+const COBERTURAS_PREMIUM: Cobertura[] = [...COBERTURAS_CLASICO];
 
 interface Plan {
   id: string;
@@ -205,13 +200,15 @@ interface CoberturaAdicional {
   defaultOn: boolean;
 }
 
+/* Las 8 coberturas confirmadas en el sitio de Bolívar (sección "Incluir coberturas"),
+ * todas a $24.071/mes por igual y nunca incluidas por defecto en ningún plan. */
 const COBERTURAS_ADICIONALES: CoberturaAdicional[] = [
   {
     id: "desastres-naturales",
     icon: Flame,
     titulo: "Daños por desastres naturales",
     descripcion: "Cubre daños ocasionados por maremotos, tsunamis, erupción de volcanes, temblores y/o terremotos.",
-    precio: 288852,
+    precio: 24071 * 12,
     sidebarLabel: "Daños por desastres naturales",
     defaultOn: false,
   },
@@ -220,7 +217,7 @@ const COBERTURAS_ADICIONALES: CoberturaAdicional[] = [
     icon: Lock,
     titulo: "Robo sin violencia",
     descripcion: "Cubre daños a la vivienda y pérdida de objetos asegurados por robos dentro de tu hogar.",
-    precio: 494508,
+    precio: 24071 * 12,
     sidebarLabel: "Robo sin violencia",
     defaultOn: false,
   },
@@ -229,17 +226,16 @@ const COBERTURAS_ADICIONALES: CoberturaAdicional[] = [
     icon: ShieldCheck,
     titulo: "Cobertura extendida por robo",
     descripcion: "Cubre la pérdida de objetos electrónicos asegurados, fuera de la vivienda causados por robos violentos.",
-    precio: 330465,
+    precio: 24071 * 12,
     sidebarLabel: "Cobertura extendida por robo",
     defaultOn: false,
   },
-  // TODO: validar con Bolívar el precio exacto de estas 5 coberturas (el sitio público no lo publica).
   {
     id: "amparo-invalidez",
     icon: HeartPulse,
     titulo: "Amparo por Invalidez o Fallecimiento",
     descripcion: "Cubre a los ocupantes de la vivienda ante invalidez o fallecimiento por accidente dentro del hogar.",
-    precio: 288852,
+    precio: 24071 * 12,
     sidebarLabel: "Amparo por Invalidez o Fallecimiento",
     defaultOn: false,
   },
@@ -248,7 +244,7 @@ const COBERTURAS_ADICIONALES: CoberturaAdicional[] = [
     icon: Bike,
     titulo: "Bici Protección",
     descripcion: "Cubre tu bicicleta ante hurto o daños accidentales, dentro y fuera de la vivienda asegurada.",
-    precio: 288852,
+    precio: 24071 * 12,
     sidebarLabel: "Bici Protección",
     defaultOn: false,
   },
@@ -257,7 +253,7 @@ const COBERTURAS_ADICIONALES: CoberturaAdicional[] = [
     icon: Scale,
     titulo: "Daños a Terceros",
     descripcion: "Cubre daños que ocasiones involuntariamente a terceros o a sus bienes, con origen en tu vivienda.",
-    precio: 288852,
+    precio: 24071 * 12,
     sidebarLabel: "Daños a Terceros",
     defaultOn: false,
   },
@@ -266,7 +262,7 @@ const COBERTURAS_ADICIONALES: CoberturaAdicional[] = [
     icon: PawPrint,
     titulo: "Gastos Médicos Mascotas",
     descripcion: "Cubre gastos médicos veterinarios de tus mascotas ante accidentes o urgencias.",
-    precio: 288852,
+    precio: 24071 * 12,
     sidebarLabel: "Gastos Médicos Mascotas",
     defaultOn: false,
   },
@@ -275,7 +271,7 @@ const COBERTURAS_ADICIONALES: CoberturaAdicional[] = [
     icon: Wifi,
     titulo: "Seguridad Digital Full",
     descripcion: "Protege tus dispositivos y datos personales ante fraudes, robo de identidad y ciberataques.",
-    precio: 288852,
+    precio: 24071 * 12,
     sidebarLabel: "Seguridad Digital Full",
     defaultOn: false,
   },
