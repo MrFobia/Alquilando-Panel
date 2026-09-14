@@ -150,17 +150,26 @@ const COBERTURAS_BASICO: Cobertura[] = [
   { titulo: "Robo con violencia", descripcion: "Cubre la pérdida de objetos asegurados o daños a la vivienda ocasionados por robos violentos dentro del hogar." },
 ];
 
-/* En el sitio real de Bolívar las 8 coberturas de "Incluir coberturas" son SIEMPRE
- * adicionales configurables (switch apagado por defecto, mismo precio en los 3 planes)
- * — ninguna viene incluida de fábrica en Clásico ni en Premium. Antes se listaban acá
- * por error, duplicando lo que ya existe en COBERTURAS_ADICIONALES. */
+/* En Clásico y Premium, las coberturas extra vienen incluidas GRATIS (no son las mismas
+ * instancias que las "coberturas adicionales" de pago) — por eso los títulos deben ser
+ * idénticos a los de COBERTURAS_ADICIONALES: el filtro de esa sección (más abajo) las oculta
+ * ahí cuando ya vienen incluidas en el plan elegido, para no cobrarlas dos veces. */
 const COBERTURAS_CLASICO: Cobertura[] = [
   ...COBERTURAS_BASICO,
-  // TODO: validar con Bolívar si sismo es base de Clásico+ o también es configurable.
   { titulo: "Daños por sismo", descripcion: "Cubre daños ocasionados por movimientos sísmicos o terremotos." },
+  { titulo: "Daños a Terceros", descripcion: "Cubre daños que ocasiones involuntariamente a terceros o a sus bienes, con origen en tu vivienda." },
+  { titulo: "Amparo por Invalidez o Fallecimiento", descripcion: "Cubre a los ocupantes de la vivienda ante invalidez o fallecimiento por accidente dentro del hogar." },
+  { titulo: "Daños por desastres naturales", descripcion: "Cubre daños ocasionados por maremotos, tsunamis, erupción de volcanes, temblores y/o terremotos." },
 ];
 
-const COBERTURAS_PREMIUM: Cobertura[] = [...COBERTURAS_CLASICO];
+const COBERTURAS_PREMIUM: Cobertura[] = [
+  ...COBERTURAS_CLASICO,
+  { titulo: "Bici Protección", descripcion: "Cubre tu bicicleta ante hurto o daños accidentales, dentro y fuera de la vivienda asegurada." },
+  { titulo: "Cobertura extendida por robo", descripcion: "Cubre la pérdida de objetos electrónicos asegurados, fuera de la vivienda causados por robos violentos." },
+  { titulo: "Gastos Médicos Mascotas", descripcion: "Cubre gastos médicos veterinarios de tus mascotas ante accidentes o urgencias." },
+  { titulo: "Robo sin violencia", descripcion: "Cubre daños a la vivienda y pérdida de objetos asegurados por robos dentro de tu hogar." },
+  { titulo: "Seguridad Digital Full", descripcion: "Protege tus dispositivos y datos personales ante fraudes, robo de identidad y ciberataques." },
+];
 
 interface Plan {
   id: string;
