@@ -574,7 +574,7 @@ function CategoriaAsegurable({
  * con los textos, planes y precios actuales. "figma" conserva la maqueta de HOGAR DIGITAL
  * (tarjetas autocontenidas, asistencias en lista y detalle en drawer) para poder compararlas.
  */
-const LAYOUT_PASO_2: "clasico" | "figma" = "clasico";
+const LAYOUT_PASO_2: "clasico" | "figma" = "figma";
 
 function SuscripcionCard({
   icon: Icon, nombre, precio, tag, selected, onSelect, onInfo, sugerido, notaPrecioVariable,
