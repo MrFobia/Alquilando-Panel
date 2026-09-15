@@ -1270,21 +1270,22 @@ function ArmaTuPlanFigma({ planId, onPlan, adicionales, onToggleAdicional, asist
   // de un carrusel deslizable (una tarjeta = una opción completa, con su detalle debajo). La asistencia
   // es su propio paso completo y usa el mismo patrón de carrusel en mobile.
   const [adicionalesAbiertas, setAdicionalesAbiertas] = useState(false);
-  // Cada tarjeta ocupa el 88% del ancho del carrusel (con un poco de espacio entre ellas), así se
-  // asoma un pedazo de la siguiente y el usuario entiende que puede seguir deslizando.
-  const CARD_WIDTH_RATIO = 0.88;
-  const CARD_GAP = 12;
+  // Un solo carrusel para desktop y mobile: la tarjeta tiene un ancho fijo (no un % del contenedor),
+  // así en desktop no se estira a lo ancho/alto de la grilla — en mobile ese mismo ancho fijo deja
+  // ver un pedazo de la siguiente tarjeta para dar a entender que se puede seguir deslizando.
+  const CARD_WIDTH = 300;
+  const CARD_GAP = 16;
   const planCarruselRef = useRef<HTMLDivElement>(null);
-  const [planSlide, setPlanSlide] = useState(() => Math.max(0, PLANES_CARRUSEL.findIndex((p) => p.id === planId)));
+  const [planSlide, setPlanSlide] = useState(() => Math.max(0, PLANES.findIndex((p) => p.id === planId)));
   const irASlidePlan = (i: number) => {
     const el = planCarruselRef.current;
     if (!el) return;
-    el.scrollTo({ left: i * (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP), behavior: "smooth" });
+    el.scrollTo({ left: i * (CARD_WIDTH + CARD_GAP), behavior: "smooth" });
   };
   const onScrollPlanes = () => {
     const el = planCarruselRef.current;
-    if (!el || el.clientWidth === 0) return;
-    setPlanSlide(Math.round(el.scrollLeft / (el.clientWidth * CARD_WIDTH_RATIO + CARD_GAP)));
+    if (!el) return;
+    setPlanSlide(Math.round(el.scrollLeft / (CARD_WIDTH + CARD_GAP)));
   };
   const adicionalesCount = Object.values(adicionales).filter(Boolean).length;
   useEffect(() => {
@@ -1406,7 +1407,7 @@ function ArmaTuPlanFigma({ planId, onPlan, adicionales, onToggleAdicional, asist
 
   /** Tarjeta completa de un plan: header con precio y botón de selección, detalle de coberturas debajo.
    * Misma tarjeta en desktop (grilla) y mobile (carrusel): solo cambia el contenedor que la envuelve. */
-  const planCardContenido = (p: Plan, layout: "grid" | "slide") => {
+  const planCardContenido = (p: Plan) => {
     const seleccionado = planId === p.id;
     const Icon = PLAN_ICONS[p.id];
     // El plan sugerido va siempre resaltado, esté o no seleccionado: es la recomendación del cotizador.
@@ -1414,9 +1415,10 @@ function ArmaTuPlanFigma({ planId, onPlan, adicionales, onToggleAdicional, asist
     return (
       <div
         key={p.id}
-        className={`rounded-xl overflow-hidden flex flex-col ${layout === "slide" ? "snap-center shrink-0" : "h-full"}`}
+        className="rounded-xl overflow-hidden flex flex-col snap-center shrink-0"
         style={{
-          ...(layout === "slide" ? { width: `${CARD_WIDTH_RATIO * 100}%`, marginRight: CARD_GAP } : {}),
+          width: CARD_WIDTH,
+          marginRight: CARD_GAP,
           border: destacado ? "2px solid var(--navy)" : seleccionado ? "1.5px solid var(--navy)" : "1px solid var(--gray-4)",
           boxShadow: destacado ? "0 6px 20px rgba(0,0,0,0.12)" : "none",
         }}
@@ -1493,30 +1495,18 @@ function ArmaTuPlanFigma({ planId, onPlan, adicionales, onToggleAdicional, asist
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Elegir plan — desktop: cada tarjeta se basta sola (precio, lo que suma sobre el plan anterior y
-          el acceso al detalle completo), sin un bloque de detalle aparte debajo de la grilla. */}
-      <div className={`hidden md:flex flex-col gap-4 ${soloEnPlan}`}>
-        <div>
-          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige el plan que más se ajuste a tus necesidades</h2>
-          <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-            Cada plan incluye distintas coberturas y asistencias.
-          </p>
-        </div>
-        <div className="grid grid-cols-3 gap-4 items-stretch" role="radiogroup" aria-label="Plan de seguro">
-          {PLANES.map((p) => planCardContenido(p, "grid"))}
-        </div>
-      </div>
-
-      {/* Elegir plan — mobile: carrusel deslizable, cada tarjeta trae su propio detalle de coberturas debajo. */}
-      <div className={`md:hidden flex flex-col gap-3 ${soloEnPlan}`}>
+      {/* Elegir plan — un solo carrusel para desktop y mobile: tarjeta de ancho fijo (no se estira a lo
+          ancho ni alto de una grilla), con su propio detalle de coberturas debajo. En desktop las 3 caben
+          sin necesidad de deslizar; en mobile se desliza para comparar. */}
+      <div className={`flex flex-col gap-4 ${soloEnPlan}`}>
         <div>
           <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Elige el plan que más se ajuste a tus necesidades</h2>
           <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
             Cada plan incluye distintas coberturas y asistencias. Desliza para comparar.
           </p>
         </div>
-        <div className="flex items-center justify-center gap-1.5">
-          {PLANES_CARRUSEL.map((_, i) => (
+        <div className="flex items-center justify-center gap-1.5 md:hidden">
+          {PLANES.map((_, i) => (
             <button
               key={i}
               type="button"
@@ -1530,12 +1520,12 @@ function ArmaTuPlanFigma({ planId, onPlan, adicionales, onToggleAdicional, asist
         <div
           ref={planCarruselRef}
           onScroll={onScrollPlanes}
-          className="flex overflow-x-auto snap-x snap-mandatory"
+          className="flex overflow-x-auto snap-x snap-mandatory items-stretch md:justify-center"
           style={{ scrollbarWidth: "none" }}
           role="radiogroup"
           aria-label="Plan de seguro"
         >
-          {PLANES_CARRUSEL.map((p) => planCardContenido(p, "slide"))}
+          {PLANES.map((p) => planCardContenido(p))}
         </div>
       </div>
 
