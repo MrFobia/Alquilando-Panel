@@ -4,7 +4,7 @@ import {
   Bell, AlertCircle, ChevronRight, X, CircleDollarSign, Barcode, MessageCircle,
   Phone, MessageSquareText, CarFront, PawPrint, Sofa, CircleCheck, ShieldCheck,
   ArrowLeft, ShieldOff, PhoneCall, ChevronDown, ChevronUp, Download,
-  Wrench, Users, ArrowRight, Lock,
+  Wrench, Users, ArrowRight, Lock, ClipboardList,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AlquilandoLogo } from "./kit/AlquilandoLogo";
@@ -25,6 +25,10 @@ import { IconButton } from "./kit/IconButton";
 import familiaHogarImg from "../../assets/seguro-hogar-familia.png";
 import familiaSofaImg from "../../assets/seguro-hogar-sofa.png";
 import logoSegurosBolivar from "../../assets/logo-seguros-bolivar.png";
+import { MisContratos } from "./MisContratos";
+import { InventariosPropietario } from "./InventariosPropietario";
+import { EstadoCuenta, ESTADO_CUENTA_1731 } from "./EstadoCuenta";
+import type { FilaCuenta } from "./EstadoCuenta";
 import { CotizadorHogar, formatCOPNumber, formatFechaCorta } from "./CotizadorHogar";
 import type { PolizaComprada } from "./CotizadorHogar";
 
@@ -44,7 +48,7 @@ const NAV: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "inicio", label: "Inicio", icon: Home },
   { id: "pagos", label: "Mis pagos", icon: CreditCard },
   { id: "seguros", label: "Seguros", icon: Shield },
-  { id: "contrato", label: "Mi contrato", icon: FileText },
+  { id: "contrato", label: "Mis contratos", icon: FileText },
   { id: "solicitudes", label: "Mis solicitudes", icon: Inbox },
   { id: "ayuda", label: "Ayuda", icon: LifeBuoy },
 ];
@@ -53,7 +57,7 @@ const TITULOS: Record<string, { title: string; description: string }> = {
   inicio: { title: "¡Hola, Nelson Diaz!", description: "Todo lo que necesitas para gestionar tu alquiler empieza aquí." },
   pagos: { title: "Mis pagos", description: "Paga tu arriendo en línea y consulta tu historial de comprobantes." },
   seguros: { title: "Seguros", description: "Protege lo que más quieres con seguros pensados para tu día a día." },
-  contrato: { title: "Mi contrato", description: "Consulta tu contrato, fechas clave y documentos asociados." },
+  contrato: { title: "Mis contratos", description: "Tu alquiler sin complicaciones: consulta, gestiona y mantén todo al día." },
   solicitudes: { title: "Mis solicitudes", description: "Crea y haz seguimiento a tus solicitudes y novedades." },
   ayuda: { title: "Ayuda", description: "Resolvemos tus dudas, ¡sin complicaciones!" },
 };
@@ -64,110 +68,16 @@ const INMUEBLES = [
 ];
 
 // ─── Estado de cuenta ────────────────────────────────────────────────────────
+// El componente vive en EstadoCuenta.tsx (lo comparte Mis contratos); aquí solo
+// se aplanan los datos del contrato principal para la card de pago mobile.
 
-const ESTADO_CUENTA: { label: string; value: string }[] = [
-  { label: "Número de contrato", value: "1731" },
+const ESTADO_CUENTA: FilaCuenta[] = [
+  { label: "Número de contrato", value: ESTADO_CUENTA_1731.numeroContrato },
   { label: "Mes a pagar", value: "Julio de 2026" },
-  { label: "Canon de arrendamiento", value: "$6.980.963" },
-  { label: "Administración PH", value: "$1.222.358" },
-  { label: "IVA 19%", value: "$1.326.383" },
-  { label: "Retención", value: "$244.334" },
-  { label: "Reteica", value: "$67.436" },
-  { label: "Rete IVA", value: "$0" },
-  { label: "Saldo", value: "$0" },
-  { label: "Servicios", value: "$0" },
-  { label: "Otros", value: "$0" },
+  ...ESTADO_CUENTA_1731.filas,
 ];
 
-const FECHAS_PAGO: { label: string; value: string; vigente?: boolean }[] = [
-  { label: "Después del 28 / 07 / 2026", value: "$10.037.543" },
-  { label: "Después del 24 / 07 / 2026", value: "$9.555.543" },
-  { label: "Antes del 24 / 07 / 2026", value: "$9.055.543", vigente: true },
-];
-
-function EstadoCuenta({ onVerHistorial }: { onVerHistorial?: () => void } = {}) {
-  return (
-    <section className="rounded-lg flex flex-col" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "22px 24px" }}>
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h2 className="title-tertiary-bold" style={{ color: PURPLE }}>Estado de cuenta</h2>
-        <LinkText size="small" icon="chevron" onClick={onVerHistorial}>Ver historial de pagos</LinkText>
-      </div>
-
-      <div className="flex items-center justify-between gap-4 flex-wrap" style={{ marginTop: 18 }}>
-        <span className="body-bold" style={{ color: "var(--gray-10)" }}>Canon de alquiler de julio</span>
-        <StatusBadge label="Pendiente pago" variant="pending" />
-      </div>
-
-      <div className="flex flex-col" style={{ marginTop: 10 }}>
-        {ESTADO_CUENTA.map((r) => (
-          <div key={r.label} className="flex items-center justify-between gap-4 py-1.5" style={{ borderBottom: "1px solid var(--gray-2)" }}>
-            <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{r.label}</span>
-            <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{r.value}</span>
-          </div>
-        ))}
-        <div className="flex items-center justify-between gap-4 py-2">
-          <span className="body-bold" style={{ color: "var(--gray-10)" }}>TOTAL</span>
-          <span className="body-bold" style={{ color: "var(--gray-10)" }}>$9.055.543</span>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2" style={{ marginTop: 12 }}>
-        {FECHAS_PAGO.map((f) => (
-          <div
-            key={f.label}
-            className="flex items-center justify-between gap-4 rounded-lg px-3 py-2"
-            style={{
-              border: f.vigente ? `1.5px solid ${PURPLE}` : "1px solid var(--gray-4)",
-              backgroundColor: f.vigente ? PURPLE_LIGHT : "#ffffff",
-            }}
-          >
-            <span className={f.vigente ? "body-small-bold" : "body-small-regular"} style={{ color: f.vigente ? PURPLE : "var(--gray-9)" }}>
-              {f.label}
-            </span>
-            <span className={f.vigente ? "body-small-bold" : "body-small-regular"} style={{ color: f.vigente ? PURPLE : "var(--gray-10)" }}>
-              {f.value}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex items-center justify-between gap-4 flex-wrap" style={{ marginTop: 18 }}>
-        <span className="body-bold" style={{ color: "var(--gray-10)" }}>Valor total a pagar</span>
-        <span className="title-primary-bold" style={{ color: PURPLE }}>$9.055.543</span>
-      </div>
-
-      <hr style={{ borderColor: "var(--gray-4)", margin: "18px 0" }} />
-
-      <h3 className="body-bold" style={{ color: PURPLE }}>Opciones de pago</h3>
-
-      <div className="flex items-start gap-3" style={{ marginTop: 14 }}>
-        <CircleDollarSign size={20} strokeWidth={1.6} style={{ color: PURPLE, flexShrink: 0, marginTop: 2 }} />
-        <div className="flex-1 flex flex-col gap-3">
-          <p className="body-small-regular" style={{ color: "var(--gray-10)", margin: 0 }}>
-            <span style={{ fontWeight: 700 }}>Para pago por PSE:</span> paga tu alquiler fácil y seguro con PSE.
-            Ingresa, elige tu banco y listo: ¡sin moverte de casa!
-          </p>
-          <div className="flex items-center justify-end">
-            <AppButton variant="primary" bold>Ir a pagar</AppButton>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-start gap-3" style={{ marginTop: 16 }}>
-        <Barcode size={20} strokeWidth={1.6} style={{ color: PURPLE, flexShrink: 0, marginTop: 2 }} />
-        <div className="flex-1 flex flex-col gap-3">
-          <p className="body-small-regular" style={{ color: "var(--gray-10)", margin: 0 }}>
-            <span style={{ fontWeight: 700 }}>Para pago por consignación con código de barras:</span> ¡simplificamos
-            tus pagos! Genera tu código de barras y realiza la consignación en puntos autorizados.
-          </p>
-          <div className="flex items-center justify-end">
-            <AppButton variant="secondary" bold>Generar código de barras</AppButton>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
+const FECHAS_PAGO = ESTADO_CUENTA_1731.fechas;
 
 // ─── Mis pagos: historial completo ──────────────────────────────────────────
 
@@ -820,7 +730,7 @@ const FAQS = [
   { id: "f2", title: "¿Qué pasa si pago después de la fecha límite?", content: "El valor a pagar aumenta según la fecha. En tu estado de cuenta siempre verás los tres valores vigentes con sus fechas para que elijas pagar a tiempo." },
   { id: "f3", title: "¿Cómo genero el código de barras para pagar en efectivo?", content: "En Estado de cuenta selecciona “Generar código de barras”, descárgalo y preséntalo en cualquier punto de pago autorizado." },
   { id: "f4", title: "¿Cómo creo una solicitud de reparación o novedad?", content: "Ve a Mis solicitudes y haz clic en “Crear solicitud”. Describe el problema, adjunta fotos si quieres y haz seguimiento desde el mismo lugar." },
-  { id: "f5", title: "¿Dónde consulto mi contrato y sus fechas clave?", content: "En la sección Mi contrato encuentras el documento completo, la fecha de renovación y los documentos asociados a tu arriendo." },
+  { id: "f5", title: "¿Dónde consulto mi contrato y sus fechas clave?", content: "En la sección Mis contratos encuentras el documento completo, la fecha de renovación y los documentos asociados a tu arriendo." },
 ];
 
 function SeccionAyuda() {
@@ -1339,7 +1249,41 @@ function SeccionSeguros({
 
 interface Props {
   onLogout: () => void;
+  /** Mismo portal para inquilino y propietario; cambian colores, menú y textos. */
+  rol?: "inquilino" | "propietario";
 }
+
+/**
+ * Paletas por rol según la guía (Figma Alquilando Panel 2.0): el inquilino usa púrpura;
+ * el propietario usa "Propietario" #42A5F5 en la franja de marca y "Agente" #1A237E
+ * (el --navy por defecto) en títulos y acentos, porque #42A5F5 no alcanza contraste
+ * sobre blanco para texto.
+ */
+const PALETAS = {
+  inquilino: { band: PURPLE, accent: PURPLE, accentLight: PURPLE_LIGHT, badgeText: PURPLE_DARK, theme: THEME, logoIcon: "#00D1FF" },
+  propietario: {
+    band: "#42a5f5",
+    accent: "#1a237e",
+    accentLight: "#e8eaf6",
+    badgeText: "#1a237e",
+    theme: {} as React.CSSProperties,
+    // Sobre #42A5F5 el ícono cian se pierde: el Figma lo usa blanco.
+    logoIcon: "#ffffff",
+  },
+};
+
+const NAV_PROPIETARIO: typeof NAV = [
+  ...NAV.slice(0, 4),
+  { id: "inventarios", label: "Inventarios", icon: ClipboardList },
+  ...NAV.slice(4),
+];
+
+const TITULOS_PROPIETARIO: Record<string, { title: string; description: string }> = {
+  inicio: { title: "¡Bienvenido, Andrés!", description: "Todo está listo para que tomes el control de tu alquiler." },
+  pagos: { title: "Mis pagos", description: "Consulta los pagos que recibes por tus inmuebles." },
+  contrato: { title: "Mis contratos", description: "Consulta los contratos de tus inmuebles." },
+  inventarios: { title: "Inventarios", description: "Consulta cómo se entregó cada uno de tus inmuebles, ambiente por ambiente." },
+};
 
 /**
  * Invitación a asegurar el hogar, al entrar al portal.
@@ -1465,8 +1409,12 @@ function PromoHogarModal({ open, onClose, onCotizar }: { open: boolean; onClose:
   );
 }
 
-export function PortalInquilino({ onLogout }: Props) {
-  const [active, setActiveRaw] = useState("inicio");
+export function PortalInquilino({ onLogout, rol = "inquilino" }: Props) {
+  const esPropietario = rol === "propietario";
+  const P = PALETAS[rol];
+  const nav = esPropietario ? NAV_PROPIETARIO : NAV;
+  const titulos = esPropietario ? { ...TITULOS, ...TITULOS_PROPIETARIO } : TITULOS;
+  const [active, setActiveRaw] = useState(esPropietario ? "inventarios" : "inicio");
   const [inmueble, setInmueble] = useState("carrera-23");
   const [cotizandoHogar, setCotizandoHogar] = useState(false);
   const [polizas, setPolizas] = useState<PolizaComprada[]>([]);
@@ -1474,13 +1422,14 @@ export function PortalInquilino({ onLogout }: Props) {
   const [notifItems, setNotifItems] = useState(NOTIFICACIONES_INICIALES);
   const [notifOpen, setNotifOpen] = useState(false);
   const [promoHogar, setPromoHogar] = useState(false);
-  const seccion = TITULOS[active];
+  const seccion = titulos[active];
 
   /* La invitación al seguro de hogar salta cada vez que se entra al portal,
    * y nunca a quien ya tiene una póliza de hogar vigente ni a quien marcó
    * "no volver a mostrar" (persistido en localStorage). Si marketing decide
    * volverlo obligatorio, POPUP_HOGAR_OBLIGATORIO ignora ese descarte. */
   useEffect(() => {
+    if (esPropietario) return;
     const yaTiene = polizas.some((p) => p.estado !== "cancelada");
     let descartadaPermanente = false;
     if (!POPUP_HOGAR_OBLIGATORIO) {
@@ -1502,25 +1451,28 @@ export function PortalInquilino({ onLogout }: Props) {
 
   const setActive = (id: string) => { setActiveRaw(id); setCotizandoHogar(false); };
 
-  const enConstruccion = !["inicio", "pagos", "seguros", "ayuda"].includes(active);
+  // El propietario por ahora solo tiene Inventarios; el resto de su portal está en construcción.
+  const enConstruccion = esPropietario
+    ? active !== "inventarios"
+    : !["inicio", "pagos", "seguros", "contrato", "ayuda"].includes(active);
 
   return (
     <div
       className="flex h-screen"
-      style={{ ...THEME, backgroundColor: "var(--gray-1)", fontFamily: "Roboto, sans-serif" }}
+      style={{ ...P.theme, backgroundColor: "var(--gray-1)", fontFamily: "Roboto, sans-serif" }}
     >
       {/* Sidebar */}
       <aside
         className="hidden md:flex h-screen flex-col shrink-0"
         style={{ width: 240, backgroundColor: "#ffffff", borderRight: "1px solid var(--gray-4)" }}
       >
-        <div className="flex items-center px-4" style={{ height: 60, backgroundColor: PURPLE }}>
-          <AlquilandoLogo height={26} />
+        <div className="flex items-center px-4" style={{ height: 60, backgroundColor: P.band }}>
+          <AlquilandoLogo height={26} iconColor={P.logoIcon} />
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-1">
           <span className="disclamer px-2 pb-2" style={{ color: "var(--gray-8)", letterSpacing: 1 }}>MENÚ</span>
-          {NAV.map(({ id, label, icon: Icon }) => {
+          {nav.map(({ id, label, icon: Icon }) => {
             const isActive = active === id;
             return (
               <button
@@ -1530,13 +1482,13 @@ export function PortalInquilino({ onLogout }: Props) {
                 style={{
                   cursor: "pointer",
                   height: 40,
-                  backgroundColor: isActive ? PURPLE_LIGHT : "transparent",
+                  backgroundColor: isActive ? P.accentLight : "transparent",
                 }}
                 onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = "var(--gray-1)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isActive ? PURPLE_LIGHT : "transparent"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isActive ? P.accentLight : "transparent"; }}
               >
-                <Icon size={18} strokeWidth={1.6} style={{ color: isActive ? PURPLE : "var(--gray-9)", flexShrink: 0 }} />
-                <span className={isActive ? "body-bold" : "body-regular"} style={{ color: isActive ? PURPLE : "var(--gray-10)" }}>
+                <Icon size={18} strokeWidth={1.6} style={{ color: isActive ? P.accent : "var(--gray-9)", flexShrink: 0 }} />
+                <span className={isActive ? "body-bold" : "body-regular"} style={{ color: isActive ? P.accent : "var(--gray-10)" }}>
                   {label}
                 </span>
               </button>
@@ -1545,7 +1497,7 @@ export function PortalInquilino({ onLogout }: Props) {
         </nav>
 
         <div className="px-4 py-4 flex flex-col gap-3" style={{ borderTop: "1px solid var(--gray-4)" }}>
-          <span className="body-bold px-1" style={{ color: "var(--gray-10)" }}>Nelson Diaz</span>
+          <span className="body-bold px-1" style={{ color: "var(--gray-10)" }}>{esPropietario ? "Andrés Camargo" : "Nelson Diaz"}</span>
           <AppButton variant="secondary" fullWidth bold>
             Administrar mi perfil
           </AppButton>
@@ -1558,9 +1510,9 @@ export function PortalInquilino({ onLogout }: Props) {
       {/* Mobile top bar */}
       <header
         className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4"
-        style={{ height: 56, backgroundColor: PURPLE }}
+        style={{ height: 56, backgroundColor: P.band }}
       >
-        <AlquilandoLogo height={24} />
+        <AlquilandoLogo height={24} iconColor={P.logoIcon} />
         <div className="flex items-center gap-0.5">
           <button
             title="Notificaciones"
@@ -1579,7 +1531,7 @@ export function PortalInquilino({ onLogout }: Props) {
                   height: 16,
                   padding: "0 4px",
                   backgroundColor: "var(--alquilando)",
-                  color: PURPLE_DARK,
+                  color: P.badgeText,
                   fontSize: 10,
                   fontWeight: 700,
                   lineHeight: 1,
@@ -1605,7 +1557,7 @@ export function PortalInquilino({ onLogout }: Props) {
         <div className="md:hidden fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: "var(--gray-1)" }}>
           <header
             className="flex items-center gap-2 px-2 shrink-0"
-            style={{ height: 56, backgroundColor: PURPLE }}
+            style={{ height: 56, backgroundColor: P.band }}
           >
             <button
               title="Volver"
@@ -1638,18 +1590,18 @@ export function PortalInquilino({ onLogout }: Props) {
           boxShadow: "0 -2px 12px rgba(0,0,0,0.06)",
         }}
       >
-        {NAV.map(({ id, label, icon: Icon }) => {
+        {nav.map(({ id, label, icon: Icon }) => {
           const isActive = active === id;
           return (
             <button
               key={id}
               onClick={() => setActive(id)}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 min-w-0"
-              style={{ cursor: "pointer", height: 62, backgroundColor: "transparent", color: isActive ? PURPLE : "var(--gray-8)" }}
+              style={{ cursor: "pointer", height: 62, backgroundColor: "transparent", color: isActive ? P.accent : "var(--gray-8)" }}
             >
               <span
                 className="flex items-center justify-center rounded-full transition-colors"
-                style={{ width: 44, height: 26, backgroundColor: isActive ? PURPLE_LIGHT : "transparent" }}
+                style={{ width: 44, height: 26, backgroundColor: isActive ? P.accentLight : "transparent" }}
               >
                 <Icon size={20} strokeWidth={isActive ? 2 : 1.6} />
               </span>
@@ -1670,21 +1622,21 @@ export function PortalInquilino({ onLogout }: Props) {
             style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)" }}
           >
             <div>
-              <h1 className="title-primary-bold" style={{ color: PURPLE }}>{seccion.title}</h1>
+              <h1 className="title-primary-bold" style={{ color: P.accent }}>{seccion.title}</h1>
               <p className="body-regular" style={{ color: "var(--gray-9)", marginTop: 4 }}>
                 {seccion.description}
               </p>
             </div>
-            {active === "inicio" && (
+            {active === "inicio" && !esPropietario && (
               <label className="flex flex-col gap-1.5 w-full sm:w-auto" style={{ minWidth: "min(260px, 100%)" }}>
-                <span className="body-small-bold" style={{ color: PURPLE }}>Inmueble seleccionado</span>
+                <span className="body-small-bold" style={{ color: P.accent }}>Inmueble seleccionado</span>
                 <SelectInput options={INMUEBLES} value={inmueble} onChange={setInmueble} />
               </label>
             )}
           </section>
           )}
 
-          {active === "inicio" && (
+          {active === "inicio" && !esPropietario && (
             <>
               {/* Desktop/tablet: layout original en dos columnas */}
               <div className="max-md:hidden grid grid-cols-2 gap-5 max-lg:grid-cols-1 items-start">
@@ -1711,7 +1663,7 @@ export function PortalInquilino({ onLogout }: Props) {
             </>
           )}
 
-          {active === "seguros" && (
+          {active === "seguros" && !esPropietario && (
             cotizandoHogar
               ? (
                 <CotizadorHogar
@@ -1722,8 +1674,14 @@ export function PortalInquilino({ onLogout }: Props) {
               )
               : <SeccionSeguros onCotizarHogar={() => setCotizandoHogar(true)} polizas={polizas} onCancelarPoliza={solicitarCancelacion} />
           )}
-          {active === "pagos" && <SeccionPagos />}
-          {active === "ayuda" && <SeccionAyuda />}
+          {active === "pagos" && !esPropietario && <SeccionPagos />}
+          {active === "contrato" && !esPropietario && (
+            <MisContratos onIrAPagos={() => setActive("pagos")} onIrASolicitudes={() => setActive("solicitudes")} />
+          )}
+          {active === "ayuda" && !esPropietario && <SeccionAyuda />}
+          {active === "inventarios" && esPropietario && (
+            <InventariosPropietario onCrearSolicitud={() => setActive("solicitudes")} />
+          )}
 
           {enConstruccion && (
             <section

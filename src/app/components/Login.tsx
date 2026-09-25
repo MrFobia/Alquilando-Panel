@@ -8,13 +8,14 @@ const PURPLE = "#6d28d9";
 const PURPLE_DARK = "#5b21b6";
 const PURPLE_BG = "#f5f3ff";
 
-export type UserRole = "inmobiliaria" | "inquilino";
+export type UserRole = "inmobiliaria" | "inquilino" | "propietario";
 
-/** Usuarios demo: inmobiliaria entra al panel de administración, inquilino a su portal. */
+/** Usuarios demo: inmobiliaria entra al panel de administración; inquilino y propietario, a su portal. */
 const USUARIOS: { match: string[]; role: UserRole; perfil: PerfilInmobiliaria | null }[] = [
   { match: ["inmobiliariamaestra@alquilando.com"], role: "inmobiliaria", perfil: "maestra" },
   { match: ["inmobiliariaaliada@alquilando.com"], role: "inmobiliaria", perfil: "aliada" },
   { match: ["inquilino@alquilando.com", "1032423876"], role: "inquilino", perfil: null },
+  { match: ["propietario@alquilando.com"], role: "propietario", perfil: null },
 ];
 
 const BENEFICIOS = [

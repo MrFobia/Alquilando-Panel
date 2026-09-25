@@ -150,7 +150,7 @@ function AppInner() {
         onLogin={(nuevoRole, nuevoPerfil) => {
           setRole(nuevoRole);
           setPerfil(nuevoPerfil);
-          if (nuevoRole === "inquilino") {
+          if (nuevoRole === "inquilino" || nuevoRole === "propietario") {
             setPage("portal-inquilino");
           } else {
             setPage("dashboard");
@@ -162,7 +162,7 @@ function AppInner() {
   }
 
   if (page === "portal-inquilino") {
-    return <PortalInquilino onLogout={() => setPage("login")} />;
+    return <PortalInquilino rol={role === "propietario" ? "propietario" : "inquilino"} onLogout={() => setPage("login")} />;
   }
 
   return (

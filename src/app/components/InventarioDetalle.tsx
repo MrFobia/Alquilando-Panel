@@ -24,7 +24,7 @@ const AMBIENTE_TYPES = [
 const ESTADO_OPTIONS = ["Excelente", "Bueno", "Regular", "Malo"].map((e) => ({ value: e, label: e }));
 const CANTIDAD_OPTIONS = Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }));
 
-const ESTADO_VARIANT: Record<string, "active" | "registered" | "pending" | "rejected"> = {
+export const ESTADO_VARIANT: Record<string, "active" | "registered" | "pending" | "rejected"> = {
   Excelente: "active",
   Bueno: "registered",
   Regular: "pending",
