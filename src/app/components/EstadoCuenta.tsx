@@ -1,4 +1,4 @@
-import { CircleDollarSign, Barcode, CircleCheck, Download } from "lucide-react";
+import { CircleDollarSign, Barcode, CircleCheck, Download, Clock } from "lucide-react";
 import { AppButton } from "./kit/AppButton";
 import { LinkText } from "./kit/LinkText";
 import { StatusBadge } from "./kit/StatusBadge";
@@ -182,6 +182,126 @@ export function EstadoCuenta({ datos = ESTADO_CUENTA_1731, onVerHistorial }: Pro
             </div>
           </div>
         </>
+      )}
+    </section>
+  );
+}
+
+// ─── Propietario: lo que recibe, no lo que paga ─────────────────────────────
+
+/**
+ * Liquidación del mes para el propietario: canon recaudado menos lo que descuenta la
+ * inmobiliaria. Sin opciones de pago; el estado es si ya se le transfirió o si aún
+ * falta que el inquilino pague.
+ */
+export interface DatosLiquidacion {
+  numeroContrato: string;
+  mes: string;
+  anio: number;
+  estado: "transferido" | "por-recaudar";
+  canon: string;
+  descuentos: FilaCuenta[];
+  total: string;
+  transferencia?: { fecha: string; cuenta: string };
+  /** Solo cuando estado = "por-recaudar". */
+  limitePagoInquilino?: string;
+}
+
+export const LIQUIDACIONES: Record<string, DatosLiquidacion> = {
+  "1731": {
+    numeroContrato: "1731",
+    mes: "julio",
+    anio: 2026,
+    estado: "por-recaudar",
+    canon: "$6.980.963",
+    descuentos: [
+      { label: "Comisión de administración (8%)", value: "−$558.477" },
+      { label: "IVA sobre la comisión (19%)", value: "−$106.111" },
+      { label: "Servicios de operación", value: "−$10.000" },
+    ],
+    total: "$6.306.375",
+    limitePagoInquilino: "24 jul 2026",
+  },
+  "3310": {
+    numeroContrato: "3310",
+    mes: "septiembre",
+    anio: 2026,
+    estado: "transferido",
+    canon: "$1.790.000",
+    descuentos: [
+      { label: "Comisión de administración (8%)", value: "−$143.200" },
+      { label: "IVA sobre la comisión (19%)", value: "−$27.208" },
+      { label: "Servicios de operación", value: "−$10.000" },
+    ],
+    total: "$1.609.592",
+    transferencia: { fecha: "08 sep 2026", cuenta: "Bancolombia ···· 4521" },
+  },
+};
+
+export function EstadoCuentaPropietario({ datos, onVerHistorial }: { datos: DatosLiquidacion; onVerHistorial?: () => void }) {
+  const transferido = datos.estado === "transferido";
+  const filas = [
+    { label: "Número de contrato", value: datos.numeroContrato },
+    { label: "Mes facturado", value: `${datos.mes[0].toUpperCase()}${datos.mes.slice(1)} de ${datos.anio}` },
+    { label: "Canon de arrendamiento", value: datos.canon },
+    ...datos.descuentos,
+  ];
+
+  return (
+    <section className="rounded-lg flex flex-col" style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "22px 24px" }}>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Estado de cuenta</h2>
+        {onVerHistorial && <LinkText size="small" icon="chevron" onClick={onVerHistorial}>Ver historial de pagos</LinkText>}
+      </div>
+      <p className="body-small-regular" style={{ color: "var(--gray-9)", margin: "4px 0 0" }}>
+        Resumen de lo que recibes este mes por tu inmueble.
+      </p>
+
+      <div className="flex items-center justify-between gap-4 flex-wrap" style={{ marginTop: 18 }}>
+        <span className="body-bold" style={{ color: "var(--gray-10)" }}>Canon de alquiler de {datos.mes}</span>
+        {transferido ? <StatusBadge label="Transferido" variant="active" /> : <StatusBadge label="Por recaudar" variant="pending" />}
+      </div>
+
+      <div className="flex flex-col" style={{ marginTop: 10 }}>
+        {filas.map((r) => (
+          <div key={r.label} className="flex items-center justify-between gap-4 py-1.5" style={{ borderBottom: "1px solid var(--gray-2)" }}>
+            <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>{r.label}</span>
+            <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>{r.value}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-4 flex-wrap" style={{ marginTop: 18 }}>
+        <span className="body-bold" style={{ color: "var(--gray-10)" }}>Valor total a recibir</span>
+        <span className="title-primary-bold" style={{ color: "var(--navy)" }}>{datos.total}</span>
+      </div>
+
+      {transferido ? (
+        <div
+          className="flex items-center justify-between gap-3 flex-wrap rounded-lg"
+          style={{ marginTop: 16, padding: "12px 14px", backgroundColor: "var(--green-status-light)" }}
+        >
+          <span className="flex items-center gap-2 body-small-regular" style={{ color: "var(--gray-10)" }}>
+            <CircleCheck size={18} strokeWidth={1.8} style={{ color: "var(--green-status)", flexShrink: 0 }} />
+            <span>
+              <span style={{ fontWeight: 700 }}>Pago recibido.</span> Te transferimos {datos.total} el {datos.transferencia?.fecha} a {datos.transferencia?.cuenta}.
+            </span>
+          </span>
+          <LinkText size="small">
+            <Download size={13} strokeWidth={2} /> Descargar comprobante
+          </LinkText>
+        </div>
+      ) : (
+        <div
+          className="flex items-start gap-2 rounded-lg"
+          style={{ marginTop: 16, padding: "12px 14px", backgroundColor: "var(--navy-light)" }}
+        >
+          <Clock size={18} strokeWidth={1.8} style={{ color: "var(--navy)", flexShrink: 0, marginTop: 1 }} />
+          <span className="body-small-regular" style={{ color: "var(--gray-10)" }}>
+            <span style={{ fontWeight: 700 }}>Aún no recibimos el pago del inquilino.</span> Tiene plazo hasta el{" "}
+            {datos.limitePagoInquilino}; te transferimos en los 3 días hábiles siguientes a su pago.
+          </span>
+        </div>
       )}
     </section>
   );

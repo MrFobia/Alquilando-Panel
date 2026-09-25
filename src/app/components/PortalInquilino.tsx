@@ -4,7 +4,7 @@ import {
   Bell, AlertCircle, ChevronRight, X, CircleDollarSign, Barcode, MessageCircle,
   Phone, MessageSquareText, CarFront, PawPrint, Sofa, CircleCheck, ShieldCheck,
   ArrowLeft, ShieldOff, PhoneCall, ChevronDown, ChevronUp, Download,
-  Wrench, Users, ArrowRight, Lock, ClipboardList,
+  Wrench, Users, ArrowRight, Lock,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AlquilandoLogo } from "./kit/AlquilandoLogo";
@@ -26,7 +26,6 @@ import familiaHogarImg from "../../assets/seguro-hogar-familia.png";
 import familiaSofaImg from "../../assets/seguro-hogar-sofa.png";
 import logoSegurosBolivar from "../../assets/logo-seguros-bolivar.png";
 import { MisContratos } from "./MisContratos";
-import { InventariosPropietario } from "./InventariosPropietario";
 import { EstadoCuenta, ESTADO_CUENTA_1731 } from "./EstadoCuenta";
 import type { FilaCuenta } from "./EstadoCuenta";
 import { CotizadorHogar, formatCOPNumber, formatFechaCorta } from "./CotizadorHogar";
@@ -1272,17 +1271,10 @@ const PALETAS = {
   },
 };
 
-const NAV_PROPIETARIO: typeof NAV = [
-  ...NAV.slice(0, 4),
-  { id: "inventarios", label: "Inventarios", icon: ClipboardList },
-  ...NAV.slice(4),
-];
-
 const TITULOS_PROPIETARIO: Record<string, { title: string; description: string }> = {
   inicio: { title: "¡Bienvenido, Andrés!", description: "Todo está listo para que tomes el control de tu alquiler." },
   pagos: { title: "Mis pagos", description: "Consulta los pagos que recibes por tus inmuebles." },
-  contrato: { title: "Mis contratos", description: "Consulta los contratos de tus inmuebles." },
-  inventarios: { title: "Inventarios", description: "Consulta cómo se entregó cada uno de tus inmuebles, ambiente por ambiente." },
+  contrato: { title: "Mis contratos", description: "Tus inmuebles sin complicaciones: consulta lo que recibes, tus contratos y su inventario." },
 };
 
 /**
@@ -1412,9 +1404,8 @@ function PromoHogarModal({ open, onClose, onCotizar }: { open: boolean; onClose:
 export function PortalInquilino({ onLogout, rol = "inquilino" }: Props) {
   const esPropietario = rol === "propietario";
   const P = PALETAS[rol];
-  const nav = esPropietario ? NAV_PROPIETARIO : NAV;
   const titulos = esPropietario ? { ...TITULOS, ...TITULOS_PROPIETARIO } : TITULOS;
-  const [active, setActiveRaw] = useState(esPropietario ? "inventarios" : "inicio");
+  const [active, setActiveRaw] = useState(esPropietario ? "contrato" : "inicio");
   const [inmueble, setInmueble] = useState("carrera-23");
   const [cotizandoHogar, setCotizandoHogar] = useState(false);
   const [polizas, setPolizas] = useState<PolizaComprada[]>([]);
@@ -1451,9 +1442,9 @@ export function PortalInquilino({ onLogout, rol = "inquilino" }: Props) {
 
   const setActive = (id: string) => { setActiveRaw(id); setCotizandoHogar(false); };
 
-  // El propietario por ahora solo tiene Inventarios; el resto de su portal está en construcción.
+  // El propietario por ahora solo tiene Mis contratos; el resto de su portal está en construcción.
   const enConstruccion = esPropietario
-    ? active !== "inventarios"
+    ? active !== "contrato"
     : !["inicio", "pagos", "seguros", "contrato", "ayuda"].includes(active);
 
   return (
@@ -1472,7 +1463,7 @@ export function PortalInquilino({ onLogout, rol = "inquilino" }: Props) {
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-1">
           <span className="disclamer px-2 pb-2" style={{ color: "var(--gray-8)", letterSpacing: 1 }}>MENÚ</span>
-          {nav.map(({ id, label, icon: Icon }) => {
+          {NAV.map(({ id, label, icon: Icon }) => {
             const isActive = active === id;
             return (
               <button
@@ -1590,7 +1581,7 @@ export function PortalInquilino({ onLogout, rol = "inquilino" }: Props) {
           boxShadow: "0 -2px 12px rgba(0,0,0,0.06)",
         }}
       >
-        {nav.map(({ id, label, icon: Icon }) => {
+        {NAV.map(({ id, label, icon: Icon }) => {
           const isActive = active === id;
           return (
             <button
@@ -1675,13 +1666,15 @@ export function PortalInquilino({ onLogout, rol = "inquilino" }: Props) {
               : <SeccionSeguros onCotizarHogar={() => setCotizandoHogar(true)} polizas={polizas} onCancelarPoliza={solicitarCancelacion} />
           )}
           {active === "pagos" && !esPropietario && <SeccionPagos />}
-          {active === "contrato" && !esPropietario && (
-            <MisContratos onIrAPagos={() => setActive("pagos")} onIrASolicitudes={() => setActive("solicitudes")} />
+          {active === "contrato" && (
+            <MisContratos
+              key={rol}
+              rol={rol}
+              onIrAPagos={() => setActive("pagos")}
+              onIrASolicitudes={() => setActive("solicitudes")}
+            />
           )}
           {active === "ayuda" && !esPropietario && <SeccionAyuda />}
-          {active === "inventarios" && esPropietario && (
-            <InventariosPropietario onCrearSolicitud={() => setActive("solicitudes")} />
-          )}
 
           {enConstruccion && (
             <section

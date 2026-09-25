@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import {
   Home, LayoutGrid, List, Eye, CalendarClock, TrendingUp, Wrench, CircleCheck,
   FileSignature, Download, MessageSquarePlus, CalendarCheck, Flag, BellRing, Building2,
@@ -14,9 +14,10 @@ import { IconButton } from "./kit/IconButton";
 import { InfoField } from "./kit/InfoField";
 import { LinkText } from "./kit/LinkText";
 import { StatusBadge } from "./kit/StatusBadge";
-import { EstadoCuenta, ESTADOS_CUENTA } from "./EstadoCuenta";
+import { EstadoCuenta, ESTADOS_CUENTA, EstadoCuentaPropietario, LIQUIDACIONES } from "./EstadoCuenta";
 import bannerContratoImg from "../../assets/banner-contrato.webp";
-import { InventarioInquilino, ResumenInventario, INVENTARIOS } from "./InventarioInquilino";
+import { InventarioInquilino, ResumenInventario, HistorialInventarios, INVENTARIOS, INVENTARIOS_PROPIETARIO } from "./InventarioInquilino";
+import type { InventarioData } from "./InventarioInquilino";
 
 // ─── Datos ───────────────────────────────────────────────────────────────────
 
@@ -49,7 +50,19 @@ interface Contrato {
   mesPago: string;
   solicitudes: SolicitudContrato[];
   documentos: { nombre: string; meta: string }[];
+  /** Solo en la vista del propietario. */
+  inquilino?: string;
 }
+
+/**
+ * Mis contratos sirve a los dos portales. El propietario ve los mismos contratos,
+ * pero como quien recibe el pago: cambian la liquidación, algunos textos y el
+ * inventario (último + historial). El rol viaja por contexto para no pasarlo por
+ * cada pieza.
+ */
+type Rol = "inquilino" | "propietario";
+const RolContext = createContext<Rol>("inquilino");
+const useEsPropietario = () => useContext(RolContext) === "propietario";
 
 const CONTRATOS: Contrato[] = [
   {
@@ -104,6 +117,39 @@ const CONTRATOS: Contrato[] = [
   },
 ];
 
+const CONTRATOS_PROPIETARIO: Contrato[] = [
+  { ...CONTRATOS[0], inquilino: "Nelson Diaz" },
+  {
+    numero: "3310",
+    direccion: "Diagonal 23b # 34 - 90",
+    tipo: "Apartamento",
+    ciudad: "Bogotá",
+    administradoPor: "Inmobiliaria Maestra",
+    aseguradora: "El Libertador",
+    canon: "$1.790.000",
+    administracion: "$320.000",
+    inicio: "2025-08-01",
+    // Prorrogado un año con el otrosí de agosto de 2026.
+    fin: "2027-07-31",
+    proximoIncremento: "2027-08-01",
+    reglaIncremento: "IPC del año anterior",
+    diaPago: "Primeros 5 días de cada mes",
+    estadoPago: "al-dia",
+    mesPago: "septiembre",
+    inquilino: "Laura Méndez",
+    solicitudes: [
+      { id: "SOL-2380", titulo: "Gotera en el techo del baño", fecha: "2026-08-24", estado: "abierta" },
+    ],
+    documentos: [
+      { nombre: "Contrato de arrendamiento firmado.pdf", meta: "Firmado el 28 jul 2025 · 1,0 MB" },
+      { nombre: "Acta de entrega del inmueble.pdf", meta: "02 ago 2025 · 760 KB" },
+      { nombre: "Otrosí de prórroga 2026.pdf", meta: "01 ago 2026 · 190 KB" },
+    ],
+  },
+];
+
+const useContratos = () => (useEsPropietario() ? CONTRATOS_PROPIETARIO : CONTRATOS);
+
 /** Ley 820: el inquilino debe avisar con 3 meses de anticipación si no renueva. */
 const MESES_PREAVISO = 3;
 /** A partir de cuántos días antes del fin se marca "Por renovar". */
@@ -114,6 +160,24 @@ const ESTADO_PAGO: Record<EstadoPago, { label: string; variant: "active" | "pend
   pendiente: { label: "Pendiente", variant: "pending" },
   "en-mora": { label: "En mora", variant: "rejected" },
 };
+
+/** El mismo estado visto por el propietario: si el canon ya se le pagó. */
+const ESTADO_RECAUDO: Record<EstadoPago, { label: string; variant: "active" | "pending" | "rejected" }> = {
+  "al-dia": { label: "Recibido", variant: "active" },
+  pendiente: { label: "Por recaudar", variant: "pending" },
+  "en-mora": { label: "En mora", variant: "rejected" },
+};
+
+function usePago(c: Contrato) {
+  const esProp = useEsPropietario();
+  return {
+    ...(esProp ? ESTADO_RECAUDO : ESTADO_PAGO)[c.estadoPago],
+    titulo: `${esProp ? "Recaudo" : "Pago"} de ${c.mesPago}`,
+  };
+}
+
+const subtitulo = (c: Contrato) =>
+  `${c.tipo} · ${c.ciudad} · Contrato N.º ${c.numero}${c.inquilino ? ` · Inquilino: ${c.inquilino}` : ""}`;
 
 // ─── Helpers de fecha ────────────────────────────────────────────────────────
 
@@ -193,7 +257,7 @@ function ResumenSolicitudes({ c }: { c: Contrato }) {
 // ─── Listado ─────────────────────────────────────────────────────────────────
 
 function ContratoCard({ c, onGestionar }: { c: Contrato; onGestionar: () => void }) {
-  const pago = ESTADO_PAGO[c.estadoPago];
+  const pago = usePago(c);
   return (
     <article
       className="rounded-lg flex flex-col overflow-hidden transition-colors"
@@ -213,7 +277,7 @@ function ContratoCard({ c, onGestionar }: { c: Contrato; onGestionar: () => void
           <div className="flex flex-col min-w-0">
             <span className="body-xl-bold" style={{ color: "var(--gray-10)" }}>{c.direccion}</span>
             <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>
-              {c.tipo} · {c.ciudad} · Contrato N.º {c.numero}
+              {subtitulo(c)}
             </span>
           </div>
         </div>
@@ -225,7 +289,7 @@ function ContratoCard({ c, onGestionar }: { c: Contrato; onGestionar: () => void
       {/* Datos clave */}
       <div className="grid grid-cols-3 max-sm:grid-cols-2 gap-x-4 gap-y-4" style={{ padding: "16px 20px 20px" }}>
         <Dato icon={CalendarCheck} label="Canon mensual">{c.canon}</Dato>
-        <Dato icon={CalendarClock} label={`Pago de ${c.mesPago}`}>
+        <Dato icon={CalendarClock} label={pago.titulo}>
           <StatusBadge label={pago.label} variant={pago.variant} />
         </Dato>
         <Dato icon={TrendingUp} label="Próximo incremento">
@@ -250,7 +314,7 @@ const COLUMNS = [
   { key: "inmueble", header: "Inmueble", width: "28%" },
   { key: "numero", header: "Contrato", width: "10%" },
   { key: "estado", header: "Estado", width: "13%" },
-  { key: "pago", header: "Pago del mes", width: "13%" },
+  { key: "pago", header: "Este mes", width: "13%" },
   { key: "canon", header: "Canon", align: "right" as const, width: "13%" },
   { key: "incremento", header: "Próx. incremento", width: "14%" },
   { key: "solicitudes", header: "Solicitudes", align: "center" as const, width: "11%" },
@@ -259,11 +323,13 @@ const COLUMNS = [
 
 function ListadoContratos({ onGestionar }: { onGestionar: (numero: string) => void }) {
   const [vista, setVista] = useState<"grid" | "list">("grid");
+  const esProp = useEsPropietario();
+  const CONTRATOS = useContratos();
   const porRenovar = CONTRATOS.filter((c) => vigencia(c).porRenovar);
   const abiertas = CONTRATOS.reduce((n, c) => n + c.solicitudes.filter((s) => s.estado === "abierta").length, 0);
 
   const rows = CONTRATOS.map((c) => {
-    const pago = ESTADO_PAGO[c.estadoPago];
+    const pago = (esProp ? ESTADO_RECAUDO : ESTADO_PAGO)[c.estadoPago];
     const abiertasC = c.solicitudes.filter((s) => s.estado === "abierta").length;
     return {
       inmueble: c.direccion,
@@ -284,9 +350,11 @@ function ListadoContratos({ onGestionar }: { onGestionar: (numero: string) => vo
       {porRenovar.map((c) => {
         const v = vigencia(c);
         return (
-          <Callout key={c.numero} variant="warning" title={`Tu contrato de ${c.direccion} termina el ${fecha(c.fin)}`}>
+          <Callout key={c.numero} variant="warning" title={`${esProp ? "El" : "Tu"} contrato de ${c.direccion} termina el ${fecha(c.fin)}`}>
             {v.preavisoVencido
-              ? "Ya pasó la fecha de preaviso, así que el contrato se renovará automáticamente. Si necesitas entregar el inmueble, habla con tu asesor."
+              ? esProp
+                ? "Ya pasó la fecha de preaviso, así que el contrato se renovará automáticamente. Si necesitas recuperar el inmueble, habla con tu asesor."
+                : "Ya pasó la fecha de preaviso, así que el contrato se renovará automáticamente. Si necesitas entregar el inmueble, habla con tu asesor."
               : `Si no vas a renovar, avísanos antes del ${fechaDeDate(v.preaviso)}. Si no dices nada, se renueva automáticamente.`}{" "}
             <LinkText size="regular" icon="chevron" onClick={() => onGestionar(c.numero)}>Revisar contrato</LinkText>
           </Callout>
@@ -318,7 +386,9 @@ function ListadoContratos({ onGestionar }: { onGestionar: (numero: string) => vo
           <EmptyState
             icon={FileSignature}
             title="Aún no tienes contratos"
-            description="Cuando firmes tu contrato de arrendamiento con Alquilando, lo verás aquí con sus fechas y documentos."
+            description={esProp
+              ? "Cuando arrendemos uno de tus inmuebles, verás aquí su contrato, lo que recibes cada mes y su inventario."
+              : "Cuando firmes tu contrato de arrendamiento con Alquilando, lo verás aquí con sus fechas y documentos."}
           />
         ) : (
           <>
@@ -477,10 +547,13 @@ interface DetalleProps {
   onIrAPagos: () => void;
   onIrASolicitudes: () => void;
   onVerInventario: () => void;
+  onVerHistorialInventarios: () => void;
+  inventarios: InventarioData[];
 }
 
-function ContratoDetalle({ c, onBack, onIrAPagos, onIrASolicitudes, onVerInventario }: DetalleProps) {
+function ContratoDetalle({ c, onBack, onIrAPagos, onIrASolicitudes, onVerInventario, onVerHistorialInventarios, inventarios }: DetalleProps) {
   const v = vigencia(c);
+  const esProp = useEsPropietario();
 
   return (
     <div className="flex flex-col gap-5">
@@ -505,13 +578,13 @@ function ContratoDetalle({ c, onBack, onIrAPagos, onIrASolicitudes, onVerInventa
                 <EstadoContratoBadge c={c} />
               </div>
               <span className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
-                {c.tipo} · {c.ciudad} · Contrato N.º {c.numero}
+                {subtitulo(c)}
               </span>
             </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap max-sm:w-full">
             <AppButton variant="secondary" bold onClick={onIrASolicitudes} className="max-sm:flex-1">
-              <MessageSquarePlus size={16} strokeWidth={2} /> Reportar novedad
+              <MessageSquarePlus size={16} strokeWidth={2} /> {esProp ? "Crear solicitud" : "Reportar novedad"}
             </AppButton>
             <AppButton variant="primary" bold className="max-sm:flex-1">
               <Download size={16} strokeWidth={2} /> Descargar contrato
@@ -520,9 +593,9 @@ function ContratoDetalle({ c, onBack, onIrAPagos, onIrASolicitudes, onVerInventa
         </div>
 
         {v.porRenovar && (
-          <Callout variant="warning" title={v.preavisoVencido ? "Tu contrato se renovará automáticamente" : "Tu contrato está por terminar"}>
+          <Callout variant="warning" title={v.preavisoVencido ? `${esProp ? "El" : "Tu"} contrato se renovará automáticamente` : `${esProp ? "El" : "Tu"} contrato está por terminar`}>
             {v.preavisoVencido
-              ? `El plazo para avisar que no renuevas venció el ${fechaDeDate(v.preaviso)}. Si necesitas entregar el inmueble, habla con tu asesor para revisar tu caso.`
+              ? `El plazo para avisar que no renuevas venció el ${fechaDeDate(v.preaviso)}. Si necesitas ${esProp ? "recuperar" : "entregar"} el inmueble, habla con tu asesor para revisar tu caso.`
               : `Si no vas a renovar, avísanos antes del ${fechaDeDate(v.preaviso)}.`}
           </Callout>
         )}
@@ -530,10 +603,13 @@ function ContratoDetalle({ c, onBack, onIrAPagos, onIrASolicitudes, onVerInventa
 
       <div className="grid grid-cols-[3fr_2fr] max-lg:grid-cols-1 gap-5 items-start">
         <div className="flex flex-col gap-5">
-          {ESTADOS_CUENTA[c.numero] && <EstadoCuenta datos={ESTADOS_CUENTA[c.numero]} onVerHistorial={onIrAPagos} />}
+          {esProp
+            ? LIQUIDACIONES[c.numero] && <EstadoCuentaPropietario datos={LIQUIDACIONES[c.numero]} onVerHistorial={onIrAPagos} />
+            : ESTADOS_CUENTA[c.numero] && <EstadoCuenta datos={ESTADOS_CUENTA[c.numero]} onVerHistorial={onIrAPagos} />}
 
           <Tarjeta title="Condiciones">
             <div className="grid grid-cols-2 max-sm:grid-cols-1 gap-x-6 gap-y-4">
+              {c.inquilino && <InfoField label="Inquilino" value={c.inquilino} />}
               <InfoField label="Canon mensual" value={c.canon} />
               <InfoField
                 label="Administración"
@@ -574,7 +650,7 @@ function ContratoDetalle({ c, onBack, onIrAPagos, onIrASolicitudes, onVerInventa
           >
             {c.solicitudes.length === 0 ? (
               <p className="body-small-regular" style={{ color: "var(--gray-9)", margin: 0 }}>
-                No has reportado novedades en este inmueble.
+                {esProp ? "No hay solicitudes abiertas sobre este inmueble." : "No has reportado novedades en este inmueble."}
               </p>
             ) : (
               <div className="flex flex-col gap-2">
@@ -597,7 +673,19 @@ function ContratoDetalle({ c, onBack, onIrAPagos, onIrASolicitudes, onVerInventa
             )}
           </Tarjeta>
 
-          {INVENTARIOS[c.numero] && <ResumenInventario inventario={INVENTARIOS[c.numero]} onVer={onVerInventario} />}
+          {inventarios.length > 0 && (
+            esProp ? (
+              <ResumenInventario
+                inventario={inventarios[0]}
+                titulo="Último inventario"
+                onVer={onVerInventario}
+                onHistorial={onVerHistorialInventarios}
+                totalHistorial={inventarios.length}
+              />
+            ) : (
+              <ResumenInventario inventario={inventarios[0]} onVer={onVerInventario} />
+            )
+          )}
 
           <BannerAlquilando />
         </div>
@@ -611,36 +699,69 @@ function ContratoDetalle({ c, onBack, onIrAPagos, onIrASolicitudes, onVerInventa
 interface Props {
   onIrAPagos: () => void;
   onIrASolicitudes: () => void;
+  rol?: Rol;
 }
 
-export function MisContratos({ onIrAPagos, onIrASolicitudes }: Props) {
+/** Qué se ve dentro del contrato: el detalle, el historial de inventarios o un inventario. */
+type VistaInventario = null | { tipo: "historial" } | { tipo: "inventario"; indice: number; desdeHistorial: boolean };
+
+export function MisContratos({ onIrAPagos, onIrASolicitudes, rol = "inquilino" }: Props) {
+  return (
+    <RolContext.Provider value={rol}>
+      <MisContratosVistas onIrAPagos={onIrAPagos} onIrASolicitudes={onIrASolicitudes} />
+    </RolContext.Provider>
+  );
+}
+
+function MisContratosVistas({ onIrAPagos, onIrASolicitudes }: Omit<Props, "rol">) {
+  const esProp = useEsPropietario();
+  const CONTRATOS = useContratos();
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
-  const [verInventario, setVerInventario] = useState(false);
+  const [vistaInv, setVistaInv] = useState<VistaInventario>(null);
   // Cambiar de vista dentro de la sección debe arrancar arriba, no donde estaba el scroll.
-  useEffect(() => { document.querySelector("main")?.scrollTo({ top: 0 }); }, [seleccionado, verInventario]);
+  useEffect(() => { document.querySelector("main")?.scrollTo({ top: 0 }); }, [seleccionado, vistaInv]);
   const contrato = CONTRATOS.find((c) => c.numero === seleccionado) ?? null;
 
-  if (contrato && verInventario && INVENTARIOS[contrato.numero]) {
+  if (!contrato) return <ListadoContratos onGestionar={setSeleccionado} />;
+
+  // Inquilino: solo el inventario vigente. Propietario: todo el historial, el más reciente primero.
+  const inventarios: InventarioData[] = esProp
+    ? INVENTARIOS_PROPIETARIO[contrato.numero] ?? []
+    : INVENTARIOS[contrato.numero] ? [INVENTARIOS[contrato.numero]] : [];
+
+  if (vistaInv?.tipo === "historial") {
+    return (
+      <HistorialInventarios
+        inventarios={inventarios}
+        direccion={contrato.direccion}
+        onBack={() => setVistaInv(null)}
+        onVer={(indice) => setVistaInv({ tipo: "inventario", indice, desdeHistorial: true })}
+      />
+    );
+  }
+
+  if (vistaInv?.tipo === "inventario" && inventarios[vistaInv.indice]) {
     return (
       <InventarioInquilino
-        inventario={INVENTARIOS[contrato.numero]}
+        inventario={inventarios[vistaInv.indice]}
         direccion={contrato.direccion}
-        onBack={() => setVerInventario(false)}
+        audiencia={esProp ? "propietario" : "inquilino"}
+        backLabel={vistaInv.desdeHistorial ? "Volver al historial" : "Volver al contrato"}
+        onBack={() => setVistaInv(vistaInv.desdeHistorial ? { tipo: "historial" } : null)}
         onReportar={onIrASolicitudes}
       />
     );
   }
 
-  if (contrato) {
-    return (
-      <ContratoDetalle
-        c={contrato}
-        onBack={() => setSeleccionado(null)}
-        onIrAPagos={onIrAPagos}
-        onIrASolicitudes={onIrASolicitudes}
-        onVerInventario={() => setVerInventario(true)}
-      />
-    );
-  }
-  return <ListadoContratos onGestionar={setSeleccionado} />;
+  return (
+    <ContratoDetalle
+      c={contrato}
+      inventarios={inventarios}
+      onBack={() => { setSeleccionado(null); setVistaInv(null); }}
+      onIrAPagos={onIrAPagos}
+      onIrASolicitudes={onIrASolicitudes}
+      onVerInventario={() => setVistaInv({ tipo: "inventario", indice: 0, desdeHistorial: false })}
+      onVerHistorialInventarios={() => setVistaInv({ tipo: "historial" })}
+    />
+  );
 }

@@ -132,15 +132,24 @@ export const INVENTARIOS: Record<string, InventarioData> = {
   },
 };
 
-/** Inmuebles del propietario demo (Andrés Camargo, mismo caso del Figma de Alquilando Panel 2.0). */
-export const INMUEBLES_PROPIETARIO: { id: string; direccion: string; inventario: InventarioData }[] = [
-  { id: "1731", direccion: "Carrera 23 # 45 - 34 sur", inventario: INVENTARIOS["1731"] },
-  {
-    id: "3310",
-    direccion: "Diagonal 23b # 34 - 90",
-    inventario: { ...INVENTARIOS["2048"], fecha: "02 ago 2025", firmadoPorInquilino: "02 ago 2025", inquilino: "Laura Méndez" },
-  },
-];
+/** Seguimiento de 2026 sobre el mismo inmueble: cambian dos elementos respecto a la recepción. */
+function seguimiento1731(): InventarioData {
+  const inv: InventarioData = structuredClone(INVENTARIOS["1731"]);
+  inv.tipoInventario = "Seguimiento";
+  inv.fecha = "12 mar 2026";
+  inv.firmadoPorInquilino = "12 mar 2026";
+  const amb = inv.niveles[0].ambientes;
+  amb[0].especificaciones[0] = { elementos: "Piso", estado: "Regular", cantidad: 1, material: "Madera laminada", notas: "Rayón junto a la ventana y desgaste nuevo en la entrada" };
+  amb[1].especificaciones[2] = { elementos: "Gabinetes", estado: "Bueno", cantidad: 6, material: "Madera", notas: "Bisagra reparada en abril de 2025" };
+  inv.notas = [{ texto: "Revisión anual sin novedades mayores. Se recomienda mantenimiento del piso de la sala.", fecha: "12 mar 2026" }];
+  return inv;
+}
+
+/** Historial de inventarios por contrato del propietario demo, del más reciente al más antiguo. */
+export const INVENTARIOS_PROPIETARIO: Record<string, InventarioData[]> = {
+  "1731": [seguimiento1731(), INVENTARIOS["1731"]],
+  "3310": [{ ...INVENTARIOS["2048"], fecha: "02 ago 2025", firmadoPorInquilino: "02 ago 2025", inquilino: "Laura Méndez" }],
+};
 
 function Galeria({ fotos }: { fotos: number }) {
   if (fotos === 0) {
@@ -297,12 +306,15 @@ function totales(inv: InventarioData) {
 }
 
 /** Card corta para el detalle del contrato; el inventario completo se abre aparte. */
-export function ResumenInventario({ inventario, onVer, titulo, detalle }: {
+export function ResumenInventario({ inventario, onVer, titulo, detalle, onHistorial, totalHistorial }: {
   inventario: InventarioData;
   onVer: () => void;
   /** Por defecto "Inventario"; el propietario ve la dirección porque lista varios inmuebles. */
   titulo?: string;
   detalle?: string;
+  /** Si llega, se muestra "Ver historial" junto al botón principal. */
+  onHistorial?: () => void;
+  totalHistorial?: number;
 }) {
   const t = totales(inventario);
   const buenos = t.elementos - t.conObservaciones;
@@ -352,7 +364,16 @@ export function ResumenInventario({ inventario, onVer, titulo, detalle }: {
         )}
       </div>
 
-      <AppButton variant="secondary" bold fullWidth onClick={onVer}>Ver inventario completo</AppButton>
+      {onHistorial ? (
+        <div className="grid grid-cols-2 gap-3">
+          <AppButton variant="secondary" bold fullWidth onClick={onVer}>Ver inventario</AppButton>
+          <AppButton variant="ghost" bold fullWidth onClick={onHistorial}>
+            Ver historial{totalHistorial ? ` (${totalHistorial})` : ""}
+          </AppButton>
+        </div>
+      ) : (
+        <AppButton variant="secondary" bold fullWidth onClick={onVer}>Ver inventario completo</AppButton>
+      )}
     </section>
   );
 }
@@ -449,6 +470,68 @@ export function InventarioInquilino({ inventario, direccion, onBack, onReportar,
         )}
       </div>
     </section>
+    </div>
+  );
+}
+
+/** Lista de inventarios de un inmueble (propietario): de aquí se entra a cada uno. */
+export function HistorialInventarios({ inventarios, direccion, onBack, onVer }: {
+  inventarios: InventarioData[];
+  direccion: string;
+  onBack: () => void;
+  onVer: (index: number) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-5">
+      <BackButton onClick={onBack}>Volver al contrato</BackButton>
+      <section
+        className="rounded-lg flex flex-col gap-4"
+        style={{ backgroundColor: "#ffffff", border: "1px solid var(--gray-4)", padding: "22px 24px" }}
+      >
+        <div>
+          <h2 className="title-tertiary-bold" style={{ color: "var(--navy)" }}>Historial de inventarios · {direccion}</h2>
+          <p className="body-small-regular" style={{ color: "var(--gray-9)", marginTop: 2 }}>
+            {inventarios.length === 1 ? "1 inventario registrado" : `${inventarios.length} inventarios registrados`}, del más reciente al más antiguo.
+          </p>
+        </div>
+        <hr style={{ borderColor: "var(--gray-5)", margin: 0 }} />
+        <div className="flex flex-col gap-3">
+          {inventarios.map((inv, i) => {
+            const t = totales(inv);
+            return (
+              <div
+                key={`${inv.tipoInventario}-${inv.fecha}`}
+                className="rounded-lg flex items-center gap-4 flex-wrap transition-colors"
+                style={{ border: "1px solid var(--gray-4)", padding: "14px 16px" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--navy)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--gray-4)"; }}
+              >
+                <span
+                  className="flex items-center justify-center rounded-full shrink-0"
+                  style={{ width: 40, height: 40, backgroundColor: "var(--navy-light)" }}
+                >
+                  <ClipboardList size={19} strokeWidth={1.7} style={{ color: "var(--navy)" }} />
+                </span>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="flex items-center gap-2 flex-wrap">
+                    <span className="body-bold" style={{ color: "var(--gray-10)" }}>{inv.tipoInventario} · {inv.fecha}</span>
+                    {i === 0 && <StatusBadge label="Más reciente" variant="registered" />}
+                  </span>
+                  <span className="body-small-regular" style={{ color: "var(--gray-9)" }}>
+                    {inv.realizadoPor} · Inquilino: {inv.inquilino} · {t.ambientes} ambientes · {t.fotos} fotos
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 shrink-0 max-sm:w-full max-sm:justify-between">
+                  {t.conObservaciones > 0
+                    ? <StatusBadge label={t.conObservaciones === 1 ? "1 observación" : `${t.conObservaciones} observaciones`} variant="pending" />
+                    : <StatusBadge label="Sin observaciones" variant="active" />}
+                  <AppButton variant="secondary" bold onClick={() => onVer(i)}>Ver inventario</AppButton>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }
